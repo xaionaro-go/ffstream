@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/xaionaro-go/recoder/libav/recoder"
+	"github.com/xaionaro-go/avpipeline/types"
 )
 
 func convertUnknownOptionsToCustomOptions(
 	unknownOpts []string,
-) []recoder.CustomOption {
-	var result []recoder.CustomOption
+) types.DictionaryItems {
+	var result types.DictionaryItems
 
 	for idx := 0; idx < len(unknownOpts)-1; idx++ {
 		arg := unknownOpts[idx]
@@ -15,7 +15,7 @@ func convertUnknownOptionsToCustomOptions(
 		opt := arg
 		value := unknownOpts[idx+1]
 
-		result = append(result, recoder.CustomOption{
+		result = append(result, types.DictionaryItem{
 			Key:   opt,
 			Value: value,
 		})

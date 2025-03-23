@@ -10,6 +10,7 @@ import (
 )
 
 type Flags struct {
+	HWAccelGlobal         string
 	Inputs                []Resource
 	ListenControlSocket   string
 	ListenNetPprof        string
@@ -39,6 +40,7 @@ func parseFlags(args []string) Flags {
 	ctx := context.TODO()
 
 	p := flag.NewParser()
+	hwAccelFlag := flag.AddParameter(p, "hwaccel", false, ptr(flag.String("none")))
 	inputsFlag := flag.AddParameter(p, "i", true, ptr(flag.StringsAsSeparateFlags(nil)))
 	encoderBothFlag := flag.AddParameter(p, "c", true, ptr(flag.String("copy")))
 	encoderVideoFlag := flag.AddParameter(p, "c:v", true, ptr(flag.String("")))
@@ -113,8 +115,9 @@ func parseFlags(args []string) Flags {
 		InsecureDebug:         insecureDebug.Value(),
 		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
 
-		Inputs: inputs,
-		Output: output,
+		HWAccelGlobal: hwAccelFlag.Value(),
+		Inputs:        inputs,
+		Output:        output,
 	}
 
 	if v := encoderBothFlag.Value(); v != "" {

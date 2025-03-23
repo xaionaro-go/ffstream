@@ -9,9 +9,9 @@ import (
 	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/xaionaro-go/observability"
-	"github.com/xaionaro-go/recoder/libav/recoder"
 	"github.com/xaionaro-go/astiavlogger"
+	"github.com/xaionaro-go/avpipeline"
+	"github.com/xaionaro-go/observability"
 )
 
 func initRuntime(
@@ -34,7 +34,7 @@ func initRuntime(
 		})
 	}
 
-	astiav.SetLogLevel(recoder.LogLevelToAstiav(logger.FromCtx(ctx).Level()))
+	astiav.SetLogLevel(avpipeline.LogLevelToAstiav(logger.FromCtx(ctx).Level()))
 	astiav.SetLogCallback(astiavlogger.Callback(l))
 
 	ctx, cancelFn := context.WithCancel(ctx)

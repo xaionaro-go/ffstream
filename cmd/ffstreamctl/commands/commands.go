@@ -10,9 +10,9 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
-	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
+	"github.com/xaionaro-go/observability"
 )
 
 var (
@@ -202,7 +202,7 @@ func encoderConfigGet(cmd *cobra.Command, args []string) {
 
 	client := client.New(remoteAddr)
 
-	cfg, err := client.GetEncoderConfig(ctx)
+	cfg, err := client.GetRecoderConfig(ctx)
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), cfg)
@@ -211,12 +211,12 @@ func encoderConfigGet(cmd *cobra.Command, args []string) {
 func encoderConfigSet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
-	cfg := jsonInput[types.EncoderConfig](ctx, cmd.InOrStdin())
+	cfg := jsonInput[types.RecoderConfig](ctx, cmd.InOrStdin())
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
 	assertNoError(ctx, err)
 	client := client.New(remoteAddr)
 
-	err = client.SetEncoderConfig(ctx, cfg)
+	err = client.SetRecoderConfig(ctx, cfg)
 	assertNoError(ctx, err)
 }

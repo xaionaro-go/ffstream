@@ -4,12 +4,13 @@ import (
 	"context"
 	"sync"
 
-	"github.com/xaionaro-go/libsrt"
-	"github.com/xaionaro-go/libsrt/threadsafe"
-	"github.com/xaionaro-go/recoder/libav/recoder"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
+	"github.com/xaionaro-go/libsrt"
+	"github.com/xaionaro-go/libsrt/threadsafe"
+	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xcontext"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -39,9 +40,13 @@ func (srv *GRPCServer) AddInput(
 	ctx context.Context,
 	req *ffstream_grpc.AddInputRequest,
 ) (*ffstream_grpc.AddInputReply, error) {
-	input, err := recoder.NewInputFromURL(ctx, req.GetUrl(), "", recoder.InputConfig{
-		CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
-	})
+	input, err := kernel.NewInputFromURL(
+		ctx,
+		req.GetUrl(), secret.New(""),
+		kernel.InputConfig{
+			CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
+		},
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to open the input: %v", err)
 	}
@@ -60,9 +65,13 @@ func (srv *GRPCServer) AddOutput(
 	ctx context.Context,
 	req *ffstream_grpc.AddOutputRequest,
 ) (*ffstream_grpc.AddOutputReply, error) {
-	output, err := recoder.NewOutputFromURL(ctx, req.GetUrl(), "", recoder.OutputConfig{
-		CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
-	})
+	output, err := kernel.NewOutputFromURL(
+		ctx,
+		req.GetUrl(), secret.New(""),
+		kernel.OutputConfig{
+			CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
+		},
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to open the output: %v", err)
 	}
@@ -77,37 +86,25 @@ func (srv *GRPCServer) AddOutput(
 	}, nil
 }
 
-func (srv *GRPCServer) RemoveOutput(
-	ctx context.Context,
-	req *ffstream_grpc.RemoveOutputRequest,
-) (*ffstream_grpc.RemoveOutputReply, error) {
-	err := srv.FFStream.RemoveOutput(ctx, recoder.OutputID(req.GetId()))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to remove the output %d: %v", req.GetId(), err)
-	}
-
-	return &ffstream_grpc.RemoveOutputReply{}, nil
-}
-
 func (srv *GRPCServer) GetEncoderConfig(
 	ctx context.Context,
-	req *ffstream_grpc.GetEncoderConfigRequest,
-) (*ffstream_grpc.GetEncoderConfigReply, error) {
-	cfg := srv.FFStream.GetEncoderConfig(ctx)
-	return &ffstream_grpc.GetEncoderConfigReply{
-		Config: goconv.EncoderConfigToGRPC(cfg),
+	req *ffstream_grpc.GetRecoderConfigRequest,
+) (*ffstream_grpc.GetRecoderConfigReply, error) {
+	cfg := srv.FFStream.GetRecoderConfig(ctx)
+	return &ffstream_grpc.GetRecoderConfigReply{
+		Config: goconv.RecoderConfigToGRPC(cfg),
 	}, nil
 }
 
 func (srv *GRPCServer) SetEncoderConfig(
 	ctx context.Context,
-	req *ffstream_grpc.SetEncoderConfigRequest,
-) (*ffstream_grpc.SetEncoderConfigReply, error) {
-	err := srv.FFStream.SetEncoderConfig(ctx, goconv.EncoderConfigFromGRPC(req.GetConfig()))
+	req *ffstream_grpc.SetRecoderConfigRequest,
+) (*ffstream_grpc.SetRecoderConfigReply, error) {
+	err := srv.FFStream.SetRecoderConfig(ctx, goconv.RecoderConfigFromGRPC(req.GetConfig()))
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to configure the encoder: %v", err)
 	}
-	return &ffstream_grpc.SetEncoderConfigReply{}, nil
+	return &ffstream_grpc.SetRecoderConfigReply{}, nil
 }
 
 func (srv *GRPCServer) Start(
@@ -129,11 +126,11 @@ func (srv *GRPCServer) Start(
 	return &ffstream_grpc.StartReply{}, nil
 }
 
-func (srv *GRPCServer) GetEncoderStats(
+func (srv *GRPCServer) GetStats(
 	ctx context.Context,
 	req *ffstream_grpc.GetEncoderStatsRequest,
 ) (*ffstream_grpc.GetEncoderStatsReply, error) {
-	stats := srv.FFStream.GetEncoderStats(ctx)
+	stats := srv.FFStream.GetStats(ctx)
 	if stats == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the statistics")
 	}

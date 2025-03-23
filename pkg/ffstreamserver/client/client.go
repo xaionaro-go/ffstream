@@ -7,12 +7,14 @@ import (
 	"io"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	"github.com/xaionaro-go/libsrt"
-	"github.com/xaionaro-go/observability"
-	recodertypes "github.com/xaionaro-go/recoder/libav/recoder/types"
+	"github.com/xaionaro-go/avpipeline"
+	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/types"
 	ffstreamtypes "github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
+	"github.com/xaionaro-go/libsrt"
+	"github.com/xaionaro-go/observability"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -81,8 +83,8 @@ func (c *Client) SetLoggingLevel(
 func (c *Client) AddInput(
 	ctx context.Context,
 	url string,
-	customOptions []recodertypes.CustomOption,
-) (_ recodertypes.InputID, _err error) {
+	customOptions []types.DictionaryItem,
+) (_ kernel.InputID, _err error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return 0, err
@@ -100,14 +102,14 @@ func (c *Client) AddInput(
 		return 0, fmt.Errorf("query error: %w", err)
 	}
 
-	return recodertypes.InputID(resp.GetId()), nil
+	return kernel.InputID(resp.GetId()), nil
 }
 
 func (c *Client) AddOutput(
 	ctx context.Context,
 	url string,
-	customOptions []recodertypes.CustomOption,
-) (recodertypes.OutputID, error) {
+	customOptions []types.DictionaryItem,
+) (kernel.OutputID, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return 0, err
@@ -122,12 +124,12 @@ func (c *Client) AddOutput(
 		return 0, fmt.Errorf("query error: %w", err)
 	}
 
-	return recodertypes.OutputID(resp.GetId()), nil
+	return kernel.OutputID(resp.GetId()), nil
 }
 
 func (c *Client) RemoveOutput(
 	ctx context.Context,
-	outputID recodertypes.OutputID,
+	outputID kernel.OutputID,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -145,26 +147,26 @@ func (c *Client) RemoveOutput(
 	return nil
 }
 
-func (c *Client) GetEncoderConfig(
+func (c *Client) GetRecoderConfig(
 	ctx context.Context,
-) (*ffstreamtypes.EncoderConfig, error) {
+) (*ffstreamtypes.RecoderConfig, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	resp, err := client.GetEncoderConfig(ctx, &ffstream_grpc.GetEncoderConfigRequest{})
+	resp, err := client.GetRecoderConfig(ctx, &ffstream_grpc.GetRecoderConfigRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
 	}
 
-	return ptr(goconv.EncoderConfigFromGRPC(resp.GetConfig())), nil
+	return ptr(goconv.RecoderConfigFromGRPC(resp.GetConfig())), nil
 }
 
-func (c *Client) SetEncoderConfig(
+func (c *Client) SetRecoderConfig(
 	ctx context.Context,
-	cfg ffstreamtypes.EncoderConfig,
+	cfg ffstreamtypes.RecoderConfig,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -172,8 +174,8 @@ func (c *Client) SetEncoderConfig(
 	}
 	defer conn.Close()
 
-	_, err = client.SetEncoderConfig(ctx, &ffstream_grpc.SetEncoderConfigRequest{
-		Config: goconv.EncoderConfigToGRPC(cfg),
+	_, err = client.SetRecoderConfig(ctx, &ffstream_grpc.SetRecoderConfigRequest{
+		Config: goconv.RecoderConfigToGRPC(cfg),
 	})
 	if err != nil {
 		return fmt.Errorf("query error: %w", err)
@@ -218,7 +220,7 @@ func (c *Client) End(
 
 func (c *Client) GetEncoderStats(
 	ctx context.Context,
-) (*recodertypes.EncoderStatistics, error) {
+) (*avpipeline.NodeStatistics, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err

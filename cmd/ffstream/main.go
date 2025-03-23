@@ -5,10 +5,13 @@ import (
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/codec"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
+	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
 	"github.com/xaionaro-go/observability"
-	"github.com/xaionaro-go/recoder/libav/recoder"
+	"github.com/xaionaro-go/secret"
 )
 
 func main() {
@@ -24,7 +27,7 @@ func main() {
 	ctx, cancelFunc := initRuntime(ctx, flags)
 	defer cancelFunc()
 
-	s := ffstream.New()
+	s := ffstream.New(ctx)
 
 	if flags.ListenControlSocket != "" {
 		logger.Debugf(ctx, "flags.ListenControlSocket == '%s'", flags.ListenControlSocket)
@@ -38,27 +41,28 @@ func main() {
 	}
 
 	for _, input := range flags.Inputs {
-		input, err := recoder.NewInputFromURL(ctx, input.URL, "", recoder.InputConfig{
+		input, err := kernel.NewInputFromURL(ctx, input.URL, secret.New(""), kernel.InputConfig{
 			CustomOptions: convertUnknownOptionsToCustomOptions(input.Options),
 		})
 		assertNoError(ctx, err)
 		s.AddInput(ctx, input)
 	}
 
-	output, err := recoder.NewOutputFromURL(ctx, flags.Output.URL, "", recoder.OutputConfig{
+	output, err := kernel.NewOutputFromURL(ctx, flags.Output.URL, secret.New(""), kernel.OutputConfig{
 		CustomOptions: convertUnknownOptionsToCustomOptions(flags.Output.Options),
 	})
 	assertNoError(ctx, err)
 	s.AddOutput(ctx, output)
 
-	err = s.SetEncoderConfig(ctx, ffstream.EncoderConfig{
-		Audio: ffstream.CodecConfig{
+	err = s.SetRecoderConfig(ctx, types.RecoderConfig{
+		Audio: types.CodecConfig{
 			CodecName:     flags.AudioEncoder.Codec,
 			CustomOptions: convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
 		},
-		Video: ffstream.CodecConfig{
-			CodecName:     flags.VideoEncoder.Codec,
-			CustomOptions: convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options),
+		Video: types.CodecConfig{
+			CodecName:          flags.VideoEncoder.Codec,
+			CustomOptions:      convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options),
+			HardwareDeviceName: codec.HardwareDeviceName(flags.HWAccelGlobal),
 		},
 	})
 	assertNoError(ctx, err)

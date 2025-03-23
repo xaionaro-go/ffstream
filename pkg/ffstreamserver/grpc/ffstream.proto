@@ -7,10 +7,10 @@ service FFStream {
   rpc AddInput(AddInputRequest) returns (AddInputReply) {}
   rpc AddOutput(AddOutputRequest) returns (AddOutputReply) {}
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
-  rpc GetEncoderConfig(GetEncoderConfigRequest) returns (GetEncoderConfigReply) {}
-  rpc SetEncoderConfig(SetEncoderConfigRequest) returns (SetEncoderConfigReply) {}
+  rpc GetRecoderConfig(GetRecoderConfigRequest) returns (GetRecoderConfigReply) {}
+  rpc SetRecoderConfig(SetRecoderConfigRequest) returns (SetRecoderConfigReply) {}
   rpc Start(StartRequest) returns (StartReply) {}
-  rpc GetEncoderStats(GetEncoderStatsRequest) returns (GetEncoderStatsReply) {}
+  rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest) returns (GetOutputSRTStatsReply) {}
   rpc GetFlagInt(GetFlagIntRequest) returns (GetFlagIntReply) {}
   rpc SetFlagInt(SetFlagIntRequest) returns (SetFlagIntReply) {}
@@ -64,37 +64,40 @@ message CodecConfig {
   string codecName = 1;
   uint64 averagingPeriod = 2;
   uint64 AverageBitRate = 3;
-  repeated customOption customOptions = 4;
+  string hardwareDeviceType = 4;
+  string hardwareDeviceName = 5;
+  repeated customOption customOptions = 6;
 }
-message EncoderConfig {
+message RecoderConfig {
   CodecConfig audio = 1;
   CodecConfig video = 2;
 }
-message GetEncoderConfigRequest {}
-message GetEncoderConfigReply {
-  EncoderConfig config = 1;
+message GetRecoderConfigRequest {}
+message GetRecoderConfigReply {
+  RecoderConfig config = 1;
 }
-message SetEncoderConfigRequest {
-  EncoderConfig config = 1;
+message SetRecoderConfigRequest {
+  RecoderConfig config = 1;
 }
-message SetEncoderConfigReply {}
+message SetRecoderConfigReply {}
 message StartRequest {}
 message StartReply {}
-message GetEncoderStatsRequest {}
-message GetEncoderStatsReply {
+message GetStatsRequest {}
+message GetStatsReply {
   uint64 BytesCountRead = 1;
   uint64 BytesCountWrote = 2;
-  uint64 FramesReadUnparsed = 3;
-  uint64 FramesReadVideoUnprocessed = 4;
-  uint64 FramesReadAudioUnprocessed = 5;
-  uint64 FramesReadVideoProcessed = 6;
-  uint64 FramesReadAudioProcessed = 7;
-  uint64 FramesWroteUnparsed = 8;
-  uint64 FramesWroteVideoUnprocessed = 9;
-  uint64 FramesWroteAudioUnprocessed = 10;
-  uint64 FramesWroteVideoProcessed = 11;
-  uint64 FramesWroteAudioProcessed = 12;
+  CommonsProcessingFramesStatistics FramesRead = 3;
+  CommonsProcessingFramesStatistics FramesMissed = 4;
+  CommonsProcessingFramesStatistics FramesWrote = 5;
 }
+
+message CommonsProcessingFramesStatistics {
+  uint64 Unknown = 1;
+  uint64 Other = 2;
+  uint64 Video = 3;
+  uint64 Audio = 4;
+}
+
 message GetOutputSRTStatsRequest {}
 message GetOutputSRTStatsReply {
   int64 msTimeStamp = 1;

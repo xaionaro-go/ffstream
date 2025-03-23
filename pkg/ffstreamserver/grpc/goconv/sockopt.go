@@ -1,9 +1,9 @@
 package goconv
 
 import (
+	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/libsrt"
 	"github.com/xaionaro-go/libsrt/sockopt"
-	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func SockoptIntFromGRPC(
