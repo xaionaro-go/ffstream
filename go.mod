@@ -17,7 +17,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250111161208-642cc9658e30
-	github.com/xaionaro-go/avpipeline v0.0.0-20250330124107-99d9ba9f0ed1
+	github.com/xaionaro-go/avpipeline v0.0.0-20250331013640-965f27ebf9c5
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250105232601-e760c79b2bc3
 	github.com/xaionaro-go/observability v0.0.0-20250309200059-047fad8d76e4

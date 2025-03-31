@@ -2,7 +2,9 @@ package ffstream
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/asticode/go-astiav"
@@ -97,16 +99,25 @@ func (s *FFStream) configureRecoder(
 	ctx context.Context,
 	cfg types.RecoderConfig,
 ) error {
+	if s.Recoder == nil {
+		if err := s.initRecoder(ctx, cfg); err != nil {
+			return fmt.Errorf("unable to initialize the recoder: %w", err)
+		}
+		return nil
+	}
 	if cfg.Audio.CodecName != "copy" {
 		return fmt.Errorf("we currently do not support audio recoding: '%s' != 'copy'", cfg.Audio.CodecName)
 	}
 	if cfg.Video.CodecName == "copy" {
-		return s.configureRecoderCopy(ctx, cfg)
+		if err := s.reconfigureRecoderCopy(ctx, cfg); err != nil {
+			return fmt.Errorf("unable to reconfigure to copying: %w", err)
+		}
+		return nil
 	}
-	if s.Recoder != nil {
-		return s.reconfigureRecoder(ctx, cfg)
+	if err := s.reconfigureRecoder(ctx, cfg); err != nil {
+		return fmt.Errorf("unable to reconfigure the recoder: %w", err)
 	}
-	return s.initRecoder(ctx, cfg)
+	return nil
 }
 
 func (s *FFStream) initRecoder(
@@ -120,8 +131,8 @@ func (s *FFStream) initRecoder(
 	var err error
 	s.Recoder, err = kernel.NewRecoder(
 		ctx,
-		codec.NewNaiveDecoderFactory(cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName),
-		codec.NewNaiveEncoderFactory(cfg.Video.CodecName, "copy", cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName),
+		codec.NewNaiveDecoderFactory(ctx, cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName, nil),
+		codec.NewNaiveEncoderFactory(ctx, cfg.Video.CodecName, "copy", cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName, nil),
 		nil,
 	)
 	if err != nil {
@@ -161,6 +172,7 @@ func (s *FFStream) reconfigureRecoder(
 		}
 	}
 
+	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
 	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 1)
 	if err != nil {
 		return fmt.Errorf("unable to switch to recoding: %w", err)
@@ -170,10 +182,20 @@ func (s *FFStream) reconfigureRecoder(
 	return nil
 }
 
-func (s *FFStream) configureRecoderCopy(
+func assertHealthyNodeRecoder(
+	ctx context.Context,
+	nodeRecoder *avpipeline.Node[*processor.FromKernel[*kernel.Switch[kernel.Abstract]]],
+) {
+	assert(ctx, nodeRecoder != nil, "nodeRecoder != nil")
+	assert(ctx, nodeRecoder.Processor != nil, "Processor != nil")
+	assert(ctx, nodeRecoder.Processor.Kernel != nil, "Kernel != nil")
+}
+
+func (s *FFStream) reconfigureRecoderCopy(
 	ctx context.Context,
 	cfg types.RecoderConfig,
 ) error {
+	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
 	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("unable to switch to passthrough: %w", err)
@@ -217,7 +239,7 @@ func (s *FFStream) Start(
 	)
 	s.nodeRecoder = avpipeline.NewNodeFromKernel(
 		ctx,
-		kernel.NewSwitch[kernel.Abstract](kernel.Passthrough{}, s.Recoder),
+		kernel.NewSwitch[kernel.Abstract](s.Recoder, kernel.Passthrough{}),
 		processor.DefaultOptionsRecoder()...,
 	)
 	s.nodeRecoder.Processor.Kernel.SetVerifySwitchOutput(condition.And{
@@ -236,7 +258,7 @@ func (s *FFStream) Start(
 
 	ctx, cancelFn := context.WithCancel(ctx)
 
-	errCh := make(chan avpipeline.ErrNode, 1)
+	errCh := make(chan avpipeline.ErrNode, 10)
 	s.waitGroup.Add(1)
 	observability.Go(ctx, func() {
 		defer s.waitGroup.Done()
@@ -253,7 +275,16 @@ func (s *FFStream) Start(
 					return
 				}
 
-				logger.Errorf(ctx, "got an error: %v", err)
+				if errors.Is(err.Err, context.Canceled) {
+					logger.Debugf(ctx, "cancelled: %#+v", err)
+					continue
+				}
+				if errors.Is(err.Err, io.EOF) {
+					logger.Debugf(ctx, "EOF: %#+v", err)
+					continue
+				}
+				logger.Errorf(ctx, "stopping because received error: %v", err)
+				return
 			}
 		}
 	})
