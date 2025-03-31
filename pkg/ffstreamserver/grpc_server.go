@@ -5,7 +5,9 @@ import (
 	"sync"
 
 	"github.com/xaionaro-go/avpipeline/kernel"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
+	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/secret"
@@ -34,6 +36,17 @@ func (srv *GRPCServer) SetLoggingLevel(
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented, yet")
 }
 
+func convertCustomOptionsToAVPipeline(customOptions types.DictionaryItems) avptypes.DictionaryItems {
+	result := make(avptypes.DictionaryItems, 0, len(customOptions))
+	for _, opt := range customOptions {
+		result = append(result, avptypes.DictionaryItem{
+			Key:   opt.Key,
+			Value: opt.Value,
+		})
+	}
+	return result
+}
+
 func (srv *GRPCServer) AddInput(
 	ctx context.Context,
 	req *ffstream_grpc.AddInputRequest,
@@ -42,7 +55,7 @@ func (srv *GRPCServer) AddInput(
 		ctx,
 		req.GetUrl(), secret.New(""),
 		kernel.InputConfig{
-			CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
+			CustomOptions: convertCustomOptionsToAVPipeline(goconv.CustomOptionsFromGRPC(req.GetCustomOptions())),
 		},
 	)
 	if err != nil {
@@ -67,7 +80,7 @@ func (srv *GRPCServer) AddOutput(
 		ctx,
 		req.GetUrl(), secret.New(""),
 		kernel.OutputConfig{
-			CustomOptions: goconv.CustomOptionsFromGRPC(req.GetCustomOptions()),
+			CustomOptions: convertCustomOptionsToAVPipeline(goconv.CustomOptionsFromGRPC(req.GetCustomOptions())),
 		},
 	)
 	if err != nil {
@@ -133,7 +146,7 @@ func (srv *GRPCServer) GetStats(
 		return nil, status.Errorf(codes.Unknown, "unable to get the statistics")
 	}
 
-	return goconv.EncoderStatsToGRPC(stats), nil
+	return stats, nil
 }
 
 func (srv *GRPCServer) WaitChan(

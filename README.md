@@ -31,6 +31,33 @@ After that you may use `ffstreamctl` to manage the actively running `ffstream`, 
 <TBD>
 ```
 
+# Android
+
+On Android it works based on [Termux](https://en.wikipedia.org/wiki/Termux). If you already have Termux on your phone, then you can just build on your computer the tool:
+```sh
+make bin/ffstream-android-arm64.deb
+```
+(it will use Docker for that)
+
+then install the `deb` file `bin/ffstream-android-termux-arm64.deb` in your Termux environment.
+
+If you also need `ffstreamctl` then just build the static binary for normal Linux:
+```sh
+make bin/ffstreamctl-linux-arm64
+```
+and copy to `/data/data/com.termux/files/usr/bin/ffstreamctl` (it will be a static binary, so it works in any Linux environment)
+
+But on the bright side when you succeed you get access to [MediaCodec](https://developer.android.com/reference/android/media/MediaCodec) (hardware encoder) as well:
+```sh
+~ $ ffstream -encoders | grep mediacodec
+00000000000000E2 av1_mediacodec
+000000000000001B h264_mediacodec
+00000000000000AD hevc_mediacodec
+000000000000000C mpeg4_mediacodec
+000000000000008B vp8_mediacodec
+00000000000000A7 vp9_mediacodec
+```
+
 # Debugging
 For debugging, you may:
 

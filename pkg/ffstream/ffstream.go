@@ -15,7 +15,9 @@ import (
 	"github.com/xaionaro-go/avpipeline/packet/condition"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/avpipeline/quality"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
+	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/observability"
 )
 
@@ -131,8 +133,18 @@ func (s *FFStream) initRecoder(
 	var err error
 	s.Recoder, err = kernel.NewRecoder(
 		ctx,
-		codec.NewNaiveDecoderFactory(ctx, cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName, nil),
-		codec.NewNaiveEncoderFactory(ctx, cfg.Video.CodecName, "copy", cfg.Video.HardwareDeviceType, cfg.Video.HardwareDeviceName, nil),
+		codec.NewNaiveDecoderFactory(ctx,
+			avptypes.HardwareDeviceType(cfg.Video.HardwareDeviceType),
+			avptypes.HardwareDeviceName(cfg.Video.HardwareDeviceName),
+			nil,
+		),
+		codec.NewNaiveEncoderFactory(ctx,
+			cfg.Video.CodecName,
+			"copy",
+			avptypes.HardwareDeviceType(cfg.Video.HardwareDeviceType),
+			avptypes.HardwareDeviceName(cfg.Video.HardwareDeviceName),
+			nil,
+		),
 		nil,
 	)
 	if err != nil {
@@ -207,23 +219,29 @@ func (s *FFStream) reconfigureRecoderCopy(
 
 func (s *FFStream) GetStats(
 	ctx context.Context,
-) *avpipeline.NodeStatistics {
-	result := &avpipeline.NodeStatistics{}
-	result.BytesCountRead.Store(s.nodeInput.NodeStatistics.BytesCountWrote.Load())
-	result.BytesCountWrote.Store(s.nodeOutput.NodeStatistics.BytesCountRead.Load())
-
-	inputStats := &s.nodeInput.NodeStatistics.FramesWrote
-	result.FramesRead.Unknown.Store(inputStats.Unknown.Load())
-	result.FramesRead.Other.Store(inputStats.Other.Load())
-	result.FramesRead.Video.Store(inputStats.Video.Load())
-	result.FramesRead.Audio.Store(inputStats.Audio.Load())
-
-	outputStats := &s.nodeOutput.NodeStatistics.FramesRead
-	result.FramesWrote.Unknown.Store(outputStats.Unknown.Load())
-	result.FramesWrote.Other.Store(outputStats.Other.Load())
-	result.FramesWrote.Video.Store(outputStats.Video.Load())
-	result.FramesWrote.Audio.Store(outputStats.Audio.Load())
-	return result
+) *ffstream_grpc.GetEncoderStatsReply {
+	return &ffstream_grpc.GetEncoderStatsReply{
+		BytesCountRead:  s.nodeInput.NodeStatistics.BytesCountWrote.Load(),
+		BytesCountWrote: s.nodeOutput.NodeStatistics.BytesCountRead.Load(),
+		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Unknown: s.nodeInput.NodeStatistics.FramesRead.Unknown.Load(),
+			Other:   s.nodeInput.NodeStatistics.FramesRead.Other.Load(),
+			Video:   s.nodeInput.NodeStatistics.FramesRead.Video.Load(),
+			Audio:   s.nodeInput.NodeStatistics.FramesRead.Audio.Load(),
+		},
+		FramesMissed: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Unknown: s.nodeInput.NodeStatistics.FramesMissed.Unknown.Load(),
+			Other:   s.nodeInput.NodeStatistics.FramesMissed.Other.Load(),
+			Video:   s.nodeInput.NodeStatistics.FramesMissed.Video.Load(),
+			Audio:   s.nodeInput.NodeStatistics.FramesMissed.Audio.Load(),
+		},
+		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Unknown: s.nodeInput.NodeStatistics.FramesWrote.Unknown.Load(),
+			Other:   s.nodeInput.NodeStatistics.FramesWrote.Other.Load(),
+			Video:   s.nodeInput.NodeStatistics.FramesWrote.Video.Load(),
+			Audio:   s.nodeInput.NodeStatistics.FramesWrote.Audio.Load(),
+		},
+	}
 }
 
 func (s *FFStream) Start(

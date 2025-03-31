@@ -5,7 +5,6 @@ import (
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
-	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
@@ -42,14 +41,14 @@ func main() {
 
 	for _, input := range flags.Inputs {
 		input, err := kernel.NewInputFromURL(ctx, input.URL, secret.New(""), kernel.InputConfig{
-			CustomOptions: convertUnknownOptionsToCustomOptions(input.Options),
+			CustomOptions: convertUnknownOptionsToAVPCustomOptions(input.Options),
 		})
 		assertNoError(ctx, err)
 		s.AddInput(ctx, input)
 	}
 
 	output, err := kernel.NewOutputFromURL(ctx, flags.Output.URL, secret.New(""), kernel.OutputConfig{
-		CustomOptions: convertUnknownOptionsToCustomOptions(flags.Output.Options),
+		CustomOptions: convertUnknownOptionsToAVPCustomOptions(flags.Output.Options),
 	})
 	assertNoError(ctx, err)
 	s.AddOutput(ctx, output)
@@ -62,7 +61,7 @@ func main() {
 		Video: types.CodecConfig{
 			CodecName:          flags.VideoEncoder.Codec,
 			CustomOptions:      convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options),
-			HardwareDeviceName: codec.HardwareDeviceName(flags.HWAccelGlobal),
+			HardwareDeviceName: types.HardwareDeviceName(flags.HWAccelGlobal),
 		},
 	})
 	assertNoError(ctx, err)

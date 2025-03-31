@@ -59,11 +59,24 @@ func parseFlags(args []string) Flags {
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	version := flag.AddFlag(p, "version", false)
 
+	encoders := flag.AddFlag(p, "encoders", false)
+	decoders := flag.AddFlag(p, "decoders", false)
+
 	err := p.Parse(args[1:])
 	assertNoError(context.TODO(), err)
 
 	if version.Value() {
 		printBuildInfo(context.TODO(), os.Stdout)
+		os.Exit(0)
+	}
+
+	if encoders.Value() {
+		printEncoders()
+		os.Exit(0)
+	}
+
+	if decoders.Value() {
+		printDecoders()
 		os.Exit(0)
 	}
 

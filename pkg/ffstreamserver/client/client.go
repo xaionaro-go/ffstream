@@ -7,9 +7,7 @@ import (
 	"io"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	"github.com/xaionaro-go/avpipeline"
-	"github.com/xaionaro-go/avpipeline/kernel"
-	"github.com/xaionaro-go/avpipeline/types"
+	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	ffstreamtypes "github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
@@ -17,6 +15,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+type InputID uint64
+type OutputID uint64
 
 type Client struct {
 	Target string
@@ -83,7 +84,7 @@ func (c *Client) AddInput(
 	ctx context.Context,
 	url string,
 	customOptions []types.DictionaryItem,
-) (_ kernel.InputID, _err error) {
+) (_ InputID, _err error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return 0, err
@@ -101,14 +102,14 @@ func (c *Client) AddInput(
 		return 0, fmt.Errorf("query error: %w", err)
 	}
 
-	return kernel.InputID(resp.GetId()), nil
+	return InputID(resp.GetId()), nil
 }
 
 func (c *Client) AddOutput(
 	ctx context.Context,
 	url string,
 	customOptions []types.DictionaryItem,
-) (kernel.OutputID, error) {
+) (OutputID, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return 0, err
@@ -123,12 +124,12 @@ func (c *Client) AddOutput(
 		return 0, fmt.Errorf("query error: %w", err)
 	}
 
-	return kernel.OutputID(resp.GetId()), nil
+	return OutputID(resp.GetId()), nil
 }
 
 func (c *Client) RemoveOutput(
 	ctx context.Context,
-	outputID kernel.OutputID,
+	outputID OutputID,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -219,7 +220,7 @@ func (c *Client) End(
 
 func (c *Client) GetEncoderStats(
 	ctx context.Context,
-) (*avpipeline.NodeStatistics, error) {
+) (*ffstream_grpc.GetEncoderStatsReply, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err
@@ -231,7 +232,7 @@ func (c *Client) GetEncoderStats(
 		return nil, fmt.Errorf("query error: %w", err)
 	}
 
-	return goconv.EncoderStatsFromGRPC(resp), nil
+	return resp, nil
 }
 
 func (c *Client) WaitChan(
