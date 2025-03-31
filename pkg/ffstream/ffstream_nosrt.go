@@ -1,18 +1,16 @@
-//go:build !libsrt
-// +build !libsrt
+//go:build !with_libsrt
+// +build !with_libsrt
 
 package ffstream
 
 import (
 	"context"
 	"fmt"
-
-	"github.com/xaionaro-go/libsrt/threadsafe"
 )
 
 func (s *FFStream) WithSRTOutput(
 	ctx context.Context,
-	callback func(*threadsafe.Socket) error,
+	callback func(any) error,
 ) error {
-	return fmt.Errorf("compiled without libsrt")
+	return fmt.Errorf("compiled without with_libsrt")
 }
