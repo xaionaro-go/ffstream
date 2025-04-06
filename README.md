@@ -71,6 +71,11 @@ ffstream -v trace -i rtmp://127.0.0.1:1937/test/stream0 -c:v libx264 -f flv rtmp
 ffstream -v trace -listen_net_pprof 0.0.0.0:12345 -i rtmp://127.0.0.1:1937/test/stream0 -c:v libx264 -f flv rtmp://127.0.0.1:1937/test/stream1
 ```
 
+This allows to debug the app as any other Go app, e.g.:
+```sh
+curl http://127.0.0.1:12345/debug/pprof/goroutine?debug=1 | less
+```
+
 3. Collect all logs to a centralized logging server (for investigating rarely occurring problems), e.g.:
 ```sh
 ffstream -v trace -logstash_addr udp://my.logstash.server:9600 -sentry_dsn https://my.sentry.server/URI -i rtmp://127.0.0.1:1937/test/stream0 -c:v libx264 -f flv rtmp://127.0.0.1:1937/test/stream1
