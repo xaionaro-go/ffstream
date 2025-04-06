@@ -24,7 +24,7 @@ type FFStreamClient interface {
 	GetRecoderConfig(ctx context.Context, in *GetRecoderConfigRequest, opts ...grpc.CallOption) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(ctx context.Context, in *SetRecoderConfigRequest, opts ...grpc.CallOption) (*SetRecoderConfigReply, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
-	GetEncoderStats(ctx context.Context, in *GetEncoderStatsRequest, opts ...grpc.CallOption) (*GetEncoderStatsReply, error)
+	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsReply, error)
 	GetOutputSRTStats(ctx context.Context, in *GetOutputSRTStatsRequest, opts ...grpc.CallOption) (*GetOutputSRTStatsReply, error)
 	GetFlagInt(ctx context.Context, in *GetFlagIntRequest, opts ...grpc.CallOption) (*GetFlagIntReply, error)
 	SetFlagInt(ctx context.Context, in *SetFlagIntRequest, opts ...grpc.CallOption) (*SetFlagIntReply, error)
@@ -103,9 +103,9 @@ func (c *fFStreamClient) Start(ctx context.Context, in *StartRequest, opts ...gr
 	return out, nil
 }
 
-func (c *fFStreamClient) GetEncoderStats(ctx context.Context, in *GetEncoderStatsRequest, opts ...grpc.CallOption) (*GetEncoderStatsReply, error) {
-	out := new(GetEncoderStatsReply)
-	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/GetEncoderStats", in, out, opts...)
+func (c *fFStreamClient) GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsReply, error) {
+	out := new(GetStatsReply)
+	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/GetStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ type FFStreamServer interface {
 	GetRecoderConfig(context.Context, *GetRecoderConfigRequest) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(context.Context, *SetRecoderConfigRequest) (*SetRecoderConfigReply, error)
 	Start(context.Context, *StartRequest) (*StartReply, error)
-	GetEncoderStats(context.Context, *GetEncoderStatsRequest) (*GetEncoderStatsReply, error)
+	GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error)
 	GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error)
 	GetFlagInt(context.Context, *GetFlagIntRequest) (*GetFlagIntReply, error)
 	SetFlagInt(context.Context, *SetFlagIntRequest) (*SetFlagIntReply, error)
@@ -225,8 +225,8 @@ func (UnimplementedFFStreamServer) SetRecoderConfig(context.Context, *SetRecoder
 func (UnimplementedFFStreamServer) Start(context.Context, *StartRequest) (*StartReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
 }
-func (UnimplementedFFStreamServer) GetEncoderStats(context.Context, *GetEncoderStatsRequest) (*GetEncoderStatsReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEncoderStats not implemented")
+func (UnimplementedFFStreamServer) GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
 }
 func (UnimplementedFFStreamServer) GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOutputSRTStats not implemented")
@@ -382,20 +382,20 @@ func _FFStream_Start_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FFStream_GetEncoderStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEncoderStatsRequest)
+func _FFStream_GetStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStatsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FFStreamServer).GetEncoderStats(ctx, in)
+		return srv.(FFStreamServer).GetStats(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ffstream_grpc.FFStream/GetEncoderStats",
+		FullMethod: "/ffstream_grpc.FFStream/GetStats",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).GetEncoderStats(ctx, req.(*GetEncoderStatsRequest))
+		return srv.(FFStreamServer).GetStats(ctx, req.(*GetStatsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -526,8 +526,8 @@ var _FFStream_serviceDesc = grpc.ServiceDesc{
 			Handler:    _FFStream_Start_Handler,
 		},
 		{
-			MethodName: "GetEncoderStats",
-			Handler:    _FFStream_GetEncoderStats_Handler,
+			MethodName: "GetStats",
+			Handler:    _FFStream_GetStats_Handler,
 		},
 		{
 			MethodName: "GetOutputSRTStats",

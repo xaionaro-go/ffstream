@@ -3,7 +3,9 @@ package ffstreamserver
 import (
 	"context"
 	"net"
+	"runtime/debug"
 
+	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/experimental/errmon"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
@@ -28,6 +30,7 @@ func (s *FFStreamServer) ServeContext(
 ) error {
 	opts := []grpc_recovery.Option{
 		grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
+			ctx = belt.WithField(ctx, "stack_trace", debug.Stack())
 			errmon.ObserveRecoverCtx(ctx, p)
 			return nil
 		}),

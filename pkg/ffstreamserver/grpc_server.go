@@ -97,7 +97,7 @@ func (srv *GRPCServer) AddOutput(
 	}, nil
 }
 
-func (srv *GRPCServer) GetEncoderConfig(
+func (srv *GRPCServer) GetRecoderConfig(
 	ctx context.Context,
 	req *ffstream_grpc.GetRecoderConfigRequest,
 ) (*ffstream_grpc.GetRecoderConfigReply, error) {
@@ -107,7 +107,7 @@ func (srv *GRPCServer) GetEncoderConfig(
 	}, nil
 }
 
-func (srv *GRPCServer) SetEncoderConfig(
+func (srv *GRPCServer) SetRecoderConfig(
 	ctx context.Context,
 	req *ffstream_grpc.SetRecoderConfigRequest,
 ) (*ffstream_grpc.SetRecoderConfigReply, error) {
@@ -139,8 +139,8 @@ func (srv *GRPCServer) Start(
 
 func (srv *GRPCServer) GetStats(
 	ctx context.Context,
-	req *ffstream_grpc.GetEncoderStatsRequest,
-) (*ffstream_grpc.GetEncoderStatsReply, error) {
+	req *ffstream_grpc.GetStatsRequest,
+) (*ffstream_grpc.GetStatsReply, error) {
 	stats := srv.FFStream.GetStats(ctx)
 	if stats == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the statistics")

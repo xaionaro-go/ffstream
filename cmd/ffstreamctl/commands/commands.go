@@ -91,7 +91,7 @@ func init() {
 	EncoderConfig.AddCommand(EncoderConfigSet)
 
 	Root.PersistentFlags().Var(&LoggerLevel, "log-level", "")
-	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the path to the config file")
+	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the address to an ffstream instance")
 	Root.PersistentFlags().String("go-net-pprof-addr", "", "address to listen to for net/pprof requests")
 
 	StatsEncoder.PersistentFlags().String("title", "", "stream title")
@@ -112,7 +112,7 @@ func statsEncoder(cmd *cobra.Command, args []string) {
 
 	client := client.New(remoteAddr)
 
-	stats, err := client.GetEncoderStats(ctx)
+	stats, err := client.GetStats(ctx)
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), stats)

@@ -218,16 +218,16 @@ func (c *Client) End(
 	return nil
 }
 
-func (c *Client) GetEncoderStats(
+func (c *Client) GetStats(
 	ctx context.Context,
-) (*ffstream_grpc.GetEncoderStatsReply, error) {
+) (*ffstream_grpc.GetStatsReply, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	resp, err := client.GetEncoderStats(ctx, &ffstream_grpc.GetEncoderStatsRequest{})
+	resp, err := client.GetStats(ctx, &ffstream_grpc.GetStatsRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
 	}

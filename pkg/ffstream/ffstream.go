@@ -19,14 +19,16 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xsync"
 )
 
 type FFStream struct {
-	Switch         *kernel.Switch[kernel.Abstract]
-	Recoder        *kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]
-	Input          *kernel.Input
-	Output         *kernel.Output
-	FilterThrottle *condition.VideoAverageBitrateLower
+	Input            *kernel.Input
+	Switch           *kernel.Switch[kernel.Abstract]
+	FilterThrottle   *condition.VideoAverageBitrateLower
+	Recoder          *kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]
+	MapStreamIndices *kernel.MapStreamIndices
+	Output           *kernel.Output
 
 	RecodingConfig types.RecoderConfig
 
@@ -39,14 +41,16 @@ type FFStream struct {
 }
 
 /*
-//              +----> COPY ->--+      THROTTLE
-// INPUT -> SWITCH              +---------------------> OUTPUT
-//              +--> RECODER ->-+
+//              +----> COPY ----> THROTTLE ->---+
+// INPUT -> SWITCH                              +--> MAP INDICES --> OUTPUT
+//              +---------> RECODER -->---------+
 */
 func New(ctx context.Context) *FFStream {
-	return &FFStream{
+	s := &FFStream{
 		FilterThrottle: condition.NewVideoAverageBitrateLower(ctx, 0, 0),
 	}
+	s.MapStreamIndices = kernel.NewMapStreamIndices(ctx, newStreamIndexAssigner(s))
+	return s
 }
 
 func (s *FFStream) AddInput(
@@ -77,16 +81,27 @@ func (s *FFStream) AddOutput(
 
 func (s *FFStream) GetRecoderConfig(
 	ctx context.Context,
-) types.RecoderConfig {
+) (_ret types.RecoderConfig) {
+	logger.Tracef(ctx, "GetRecoderConfig")
+	defer func() { logger.Tracef(ctx, "/GetRecoderConfig: %v", _ret) }()
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	return s.RecodingConfig
+	encoderKernelIndex := s.Switch.GetKernelIndex(ctx)
+	logger.Tracef(ctx, "encoderKernelIndex: %v", encoderKernelIndex)
+	if encoderKernelIndex == 0 {
+		return s.RecodingConfig
+	}
+	cpy := s.RecodingConfig
+	cpy.Video.CodecName = codec.CodecNameCopy
+	return cpy
 }
 
 func (s *FFStream) SetRecoderConfig(
 	ctx context.Context,
 	cfg types.RecoderConfig,
-) error {
+) (_err error) {
+	logger.Tracef(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
+	defer func() { logger.Tracef(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
 	s.locker.Lock()
 	defer s.locker.Unlock()
 	err := s.configureRecoder(ctx, cfg)
@@ -137,13 +152,15 @@ func (s *FFStream) initRecoder(
 			avptypes.HardwareDeviceType(cfg.Video.HardwareDeviceType),
 			avptypes.HardwareDeviceName(cfg.Video.HardwareDeviceName),
 			nil,
+			nil,
 		),
 		codec.NewNaiveEncoderFactory(ctx,
 			cfg.Video.CodecName,
 			"copy",
 			avptypes.HardwareDeviceType(cfg.Video.HardwareDeviceType),
 			avptypes.HardwareDeviceName(cfg.Video.HardwareDeviceName),
-			nil,
+			convertCustomOptions(cfg.Video.CustomOptions),
+			convertCustomOptions(cfg.Audio.CustomOptions),
 		),
 		nil,
 	)
@@ -151,6 +168,17 @@ func (s *FFStream) initRecoder(
 		return fmt.Errorf("unable to initialize a recoder: %w", err)
 	}
 
+	s.Switch = kernel.NewSwitch[kernel.Abstract](
+		s.Recoder,
+		kernel.NewSequence[kernel.Abstract](
+			kernel.NewFilter(s.FilterThrottle, nil),
+			kernel.NewMapStreamIndices(ctx, nil),
+		),
+	)
+	s.Switch.SetVerifySwitchOutput(condition.And{
+		condition.MediaType(astiav.MediaTypeVideo),
+		condition.IsKeyFrame(true),
+	})
 	return nil
 }
 
@@ -163,33 +191,56 @@ func (s *FFStream) reconfigureRecoder(
 		return fmt.Errorf("unable to change the encoding codec on the fly, yet: '%s' != '%s'", cfg.Video.CodecName, encoderFactory.VideoCodec)
 	}
 
-	encoder := s.Recoder.EncoderFactory.VideoEncoders[0]
-	q := encoder.GetQuality(ctx)
-	if q == nil {
-		logger.Errorf(ctx, "unable to get the current encoding quality")
-		q = quality.ConstantBitrate(0)
-	}
+	err := xsync.DoR1(ctx, &s.Recoder.EncoderFactory.Locker, func() error {
+		if len(s.Recoder.EncoderFactory.VideoEncoders) == 0 {
+			logger.Debugf(ctx, "the encoder is not yet initialized, so asking it to have the correct settings when it will be being initialized")
 
-	needsChangingBitrate := true
-	if q, ok := q.(quality.ConstantBitrate); ok {
-		if q == quality.ConstantBitrate(cfg.Video.AverageBitRate) {
-			needsChangingBitrate = false
-		}
-	}
+			if s.Recoder.EncoderFactory.VideoOptions == nil {
+				s.Recoder.EncoderFactory.VideoOptions = astiav.NewDictionary()
+				setFinalizerFree(ctx, s.Recoder.EncoderFactory.VideoOptions)
+			}
 
-	if needsChangingBitrate {
-		err := encoder.SetQuality(ctx, quality.ConstantBitrate(cfg.Video.AverageBitRate), nil)
-		if err != nil {
-			return fmt.Errorf("unable to set bitrate to %v: %w", cfg.Video.AverageBitRate, err)
+			if cfg.Video.AverageBitRate == 0 {
+				s.Recoder.EncoderFactory.VideoOptions.Unset("b")
+			} else {
+				s.Recoder.EncoderFactory.VideoOptions.Set("b", fmt.Sprintf("%d", cfg.Video.AverageBitRate), 0)
+			}
+			return nil
 		}
+
+		logger.Debugf(ctx, "the encoder is already initialized, so modifying it if needed")
+		encoder := s.Recoder.EncoderFactory.VideoEncoders[0]
+
+		q := encoder.GetQuality(ctx)
+		if q == nil {
+			logger.Errorf(ctx, "unable to get the current encoding quality")
+			q = quality.ConstantBitrate(0)
+		}
+
+		needsChangingBitrate := true
+		if q, ok := q.(quality.ConstantBitrate); ok {
+			if q == quality.ConstantBitrate(cfg.Video.AverageBitRate) {
+				needsChangingBitrate = false
+			}
+		}
+
+		if needsChangingBitrate {
+			err := encoder.SetQuality(ctx, quality.ConstantBitrate(cfg.Video.AverageBitRate), nil)
+			if err != nil {
+				return fmt.Errorf("unable to set bitrate to %v: %w", cfg.Video.AverageBitRate, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
-	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 1)
+	err = s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("unable to switch to recoding: %w", err)
 	}
-	s.FilterThrottle.AverageBitRate = 0 // disable the throttler
 
 	return nil
 }
@@ -208,7 +259,7 @@ func (s *FFStream) reconfigureRecoderCopy(
 	cfg types.RecoderConfig,
 ) error {
 	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
-	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 0)
+	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 1)
 	if err != nil {
 		return fmt.Errorf("unable to switch to passthrough: %w", err)
 	}
@@ -219,27 +270,27 @@ func (s *FFStream) reconfigureRecoderCopy(
 
 func (s *FFStream) GetStats(
 	ctx context.Context,
-) *ffstream_grpc.GetEncoderStatsReply {
-	return &ffstream_grpc.GetEncoderStatsReply{
+) *ffstream_grpc.GetStatsReply {
+	return &ffstream_grpc.GetStatsReply{
 		BytesCountRead:  s.nodeInput.NodeStatistics.BytesCountWrote.Load(),
 		BytesCountWrote: s.nodeOutput.NodeStatistics.BytesCountRead.Load(),
 		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.nodeInput.NodeStatistics.FramesRead.Unknown.Load(),
-			Other:   s.nodeInput.NodeStatistics.FramesRead.Other.Load(),
-			Video:   s.nodeInput.NodeStatistics.FramesRead.Video.Load(),
-			Audio:   s.nodeInput.NodeStatistics.FramesRead.Audio.Load(),
-		},
-		FramesMissed: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.nodeInput.NodeStatistics.FramesMissed.Unknown.Load(),
-			Other:   s.nodeInput.NodeStatistics.FramesMissed.Other.Load(),
-			Video:   s.nodeInput.NodeStatistics.FramesMissed.Video.Load(),
-			Audio:   s.nodeInput.NodeStatistics.FramesMissed.Audio.Load(),
-		},
-		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
 			Unknown: s.nodeInput.NodeStatistics.FramesWrote.Unknown.Load(),
 			Other:   s.nodeInput.NodeStatistics.FramesWrote.Other.Load(),
 			Video:   s.nodeInput.NodeStatistics.FramesWrote.Video.Load(),
 			Audio:   s.nodeInput.NodeStatistics.FramesWrote.Audio.Load(),
+		},
+		FramesMissed: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Unknown: s.nodeRecoder.NodeStatistics.FramesMissed.Unknown.Load(),
+			Other:   s.nodeRecoder.NodeStatistics.FramesMissed.Other.Load(),
+			Video:   s.nodeRecoder.NodeStatistics.FramesMissed.Video.Load(),
+			Audio:   s.nodeRecoder.NodeStatistics.FramesMissed.Audio.Load(),
+		},
+		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Unknown: s.nodeOutput.NodeStatistics.FramesRead.Unknown.Load(),
+			Other:   s.nodeOutput.NodeStatistics.FramesRead.Other.Load(),
+			Video:   s.nodeOutput.NodeStatistics.FramesRead.Video.Load(),
+			Audio:   s.nodeOutput.NodeStatistics.FramesRead.Audio.Load(),
 		},
 	}
 }
@@ -257,19 +308,14 @@ func (s *FFStream) Start(
 	)
 	s.nodeRecoder = avpipeline.NewNodeFromKernel(
 		ctx,
-		kernel.NewSwitch[kernel.Abstract](s.Recoder, kernel.Passthrough{}),
+		s.Switch,
 		processor.DefaultOptionsRecoder()...,
 	)
-	s.nodeRecoder.Processor.Kernel.SetVerifySwitchOutput(condition.And{
-		condition.MediaType(astiav.MediaTypeVideo),
-		condition.IsKeyFrame(true),
-	})
 	s.nodeOutput = avpipeline.NewNodeFromKernel(
 		ctx,
 		s.Output,
 		processor.DefaultOptionsOutput()...,
 	)
-	s.nodeOutput.InputPacketCondition = s.FilterThrottle
 
 	s.nodeInput.PushPacketsTo.Add(s.nodeRecoder)
 	s.nodeRecoder.PushPacketsTo.Add(s.nodeOutput)
@@ -306,12 +352,18 @@ func (s *FFStream) Start(
 			}
 		}
 	})
+
+	err := avpipeline.NotifyAboutPacketSourcesRecursively(ctx, nil, s.nodeInput)
+	if err != nil {
+		return fmt.Errorf("receive an error while notifying nodes about packet sources: %w", err)
+	}
+
 	s.waitGroup.Add(1)
 	observability.Go(ctx, func() {
 		defer s.waitGroup.Done()
 		defer cancelFn()
 		defer logger.Debugf(ctx, "finished the serving routine")
-		avpipeline.ServeRecursively(ctx, s.nodeInput, avpipeline.ServeConfig{}, errCh)
+		avpipeline.ServeRecursively(ctx, avpipeline.ServeConfig{}, errCh, s.nodeInput)
 	})
 
 	return nil

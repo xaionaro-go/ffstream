@@ -23,6 +23,7 @@ type Flags struct {
 	RemoveSecretsFromLogs bool
 	VideoEncoder          Encoder
 	AudioEncoder          Encoder
+	PassthroughEncoder    bool
 	Output                Resource
 }
 
@@ -36,9 +37,7 @@ type Resource struct {
 	Options []string
 }
 
-func parseFlags(args []string) Flags {
-	ctx := context.TODO()
-
+func parseFlags(ctx context.Context, args []string) Flags {
 	p := flag.NewParser()
 	hwAccelFlag := flag.AddParameter(p, "hwaccel", false, ptr(flag.String("none")))
 	inputsFlag := flag.AddParameter(p, "i", true, ptr(flag.StringsAsSeparateFlags(nil)))
@@ -57,16 +56,17 @@ func parseFlags(args []string) Flags {
 	filterFlag := flag.AddParameter(p, "filter", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
+	passthroughEncoder := flag.AddFlag(p, "passthrough_encoder", false)
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
 	decoders := flag.AddFlag(p, "decoders", false)
 
 	err := p.Parse(args[1:])
-	assertNoError(context.TODO(), err)
+	assertNoError(ctx, err)
 
 	if version.Value() {
-		printBuildInfo(context.TODO(), os.Stdout)
+		printBuildInfo(ctx, os.Stdout)
 		os.Exit(0)
 	}
 
@@ -127,6 +127,7 @@ func parseFlags(args []string) Flags {
 
 		InsecureDebug:         insecureDebug.Value(),
 		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
+		PassthroughEncoder:    passthroughEncoder.Value(),
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,

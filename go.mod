@@ -4,7 +4,9 @@ go 1.24.1
 
 replace github.com/rs/zerolog v1.33.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.35.1 => github.com/xaionaro-go/astiav v0.0.0-20250401003159-fe890da0a1a9
+replace github.com/asticode/go-astiav v0.35.1 => github.com/xaionaro-go/astiav v0.0.0-20250406220418-87d14d2908f9
+
+replace github.com/xaionaro-go/avpipeline v0.0.0-20250407015002-37433bbb12f2 => /home/builder/avpipeline
 
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
@@ -17,13 +19,14 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250331013640-965f27ebf9c5
+	github.com/xaionaro-go/avpipeline v0.0.0-20250407015002-37433bbb12f2
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250105232601-e760c79b2bc3
 	github.com/xaionaro-go/observability v0.0.0-20250309200059-047fad8d76e4
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
+	github.com/xaionaro-go/xsync v0.0.0-20250113213958-aedf9c8786f5
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.2
 )
@@ -53,7 +56,7 @@ require (
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/xaionaro-go/avmediacodec v0.0.0-20250317164140-f4ce53d9a1cc // indirect
+	github.com/xaionaro-go/avmediacodec v0.0.0-20250406231401-a2c73dde769f // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
 	github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c // indirect
@@ -61,7 +64,6 @@ require (
 	github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 // indirect
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
 	github.com/xaionaro-go/unsafetools v0.0.0-20241024014258-a46e1ce3763e // indirect
-	github.com/xaionaro-go/xsync v0.0.0-20250113213958-aedf9c8786f5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
