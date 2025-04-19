@@ -10,7 +10,7 @@ func convertUnknownOptionsToCustomOptions(
 ) types.DictionaryItems {
 	var result types.DictionaryItems
 
-	for idx := 0; idx < len(unknownOpts)-1; idx++ {
+	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
 
 		opt := arg
@@ -30,7 +30,7 @@ func convertUnknownOptionsToAVPCustomOptions(
 ) avptypes.DictionaryItems {
 	var result avptypes.DictionaryItems
 
-	for idx := 0; idx < len(unknownOpts)-1; idx++ {
+	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
 
 		opt := arg

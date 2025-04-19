@@ -12,7 +12,10 @@ import (
 	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/kernel/bitstreamfilter"
+	"github.com/xaionaro-go/avpipeline/packet"
 	"github.com/xaionaro-go/avpipeline/packet/condition"
+	"github.com/xaionaro-go/avpipeline/packet/filter"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/avpipeline/quality"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -22,18 +25,26 @@ import (
 	"github.com/xaionaro-go/xsync"
 )
 
+const (
+	switchOnlyOnKeyFrames    = false
+	recoderInSeparateTracks  = false
+	notifyAboutPacketSources = true
+	startWithPassthrough     = false
+)
+
 type FFStream struct {
-	Input            *kernel.Input
-	Switch           *kernel.Switch[kernel.Abstract]
-	FilterThrottle   *condition.VideoAverageBitrateLower
-	Recoder          *kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]
-	MapStreamIndices *kernel.MapStreamIndices
-	Output           *kernel.Output
+	Input             *kernel.Input
+	FilterThrottle    *condition.VideoAverageBitrateLower
+	PassthroughSwitch *condition.Switch
+	BothPipesSwitch   *condition.Static
+	Recoder           *kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]
+	MapStreamIndices  *kernel.MapStreamIndices
+	Output            *kernel.Output
 
 	RecodingConfig types.RecoderConfig
 
 	nodeInput   *avpipeline.Node[*processor.FromKernel[*kernel.Input]]
-	nodeRecoder *avpipeline.Node[*processor.FromKernel[*kernel.Switch[kernel.Abstract]]]
+	nodeRecoder *avpipeline.Node[*processor.FromKernel[*kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]]]
 	nodeOutput  *avpipeline.Node[*processor.FromKernel[*kernel.Output]]
 
 	locker    sync.Mutex
@@ -41,13 +52,21 @@ type FFStream struct {
 }
 
 /*
-//              +----> COPY ----> THROTTLE ->---+
-// INPUT -> SWITCH                              +--> MAP INDICES --> OUTPUT
-//              +---------> RECODER -->---------+
+//           +--> THROTTLE ->---+
+// INPUT ->--+                  +--> (MAP INDICES) --> OUTPUT
+//           +--> RECODER -->---+
 */
 func New(ctx context.Context) *FFStream {
 	s := &FFStream{
-		FilterThrottle: condition.NewVideoAverageBitrateLower(ctx, 0, 0),
+		FilterThrottle:    condition.NewVideoAverageBitrateLower(ctx, 0, 0),
+		PassthroughSwitch: condition.NewSwitch(),
+		BothPipesSwitch:   ptr(condition.Static(false)),
+	}
+	if switchOnlyOnKeyFrames {
+		s.PassthroughSwitch.SetKeepUnless(condition.And{
+			condition.MediaType(astiav.MediaTypeVideo),
+			condition.IsKeyFrame(true),
+		})
 	}
 	s.MapStreamIndices = kernel.NewMapStreamIndices(ctx, newStreamIndexAssigner(s))
 	return s
@@ -86,9 +105,9 @@ func (s *FFStream) GetRecoderConfig(
 	defer func() { logger.Tracef(ctx, "/GetRecoderConfig: %v", _ret) }()
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	encoderKernelIndex := s.Switch.GetKernelIndex(ctx)
-	logger.Tracef(ctx, "encoderKernelIndex: %v", encoderKernelIndex)
-	if encoderKernelIndex == 0 {
+	switchValue := s.PassthroughSwitch.GetValue(ctx)
+	logger.Tracef(ctx, "switchValue: %v", switchValue)
+	if switchValue == 0 {
 		return s.RecodingConfig
 	}
 	cpy := s.RecodingConfig
@@ -167,18 +186,6 @@ func (s *FFStream) initRecoder(
 	if err != nil {
 		return fmt.Errorf("unable to initialize a recoder: %w", err)
 	}
-
-	s.Switch = kernel.NewSwitch[kernel.Abstract](
-		s.Recoder,
-		kernel.NewSequence[kernel.Abstract](
-			kernel.NewFilter(s.FilterThrottle, nil),
-			kernel.NewMapStreamIndices(ctx, nil),
-		),
-	)
-	s.Switch.SetVerifySwitchOutput(condition.And{
-		condition.MediaType(astiav.MediaTypeVideo),
-		condition.IsKeyFrame(true),
-	})
 	return nil
 }
 
@@ -225,7 +232,11 @@ func (s *FFStream) reconfigureRecoder(
 		}
 
 		if needsChangingBitrate {
-			err := encoder.SetQuality(ctx, quality.ConstantBitrate(cfg.Video.AverageBitRate), nil)
+			var q quality.Quality = quality.ConstantBitrate(cfg.Video.AverageBitRate)
+			if cfg.Video.AverageBitRate <= 0 {
+				q = nil
+			}
+			err := encoder.SetQuality(ctx, q, nil)
 			if err != nil {
 				return fmt.Errorf("unable to set bitrate to %v: %w", cfg.Video.AverageBitRate, err)
 			}
@@ -236,8 +247,7 @@ func (s *FFStream) reconfigureRecoder(
 		return err
 	}
 
-	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
-	err = s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 0)
+	err = s.PassthroughSwitch.SetValue(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("unable to switch to recoding: %w", err)
 	}
@@ -245,21 +255,11 @@ func (s *FFStream) reconfigureRecoder(
 	return nil
 }
 
-func assertHealthyNodeRecoder(
-	ctx context.Context,
-	nodeRecoder *avpipeline.Node[*processor.FromKernel[*kernel.Switch[kernel.Abstract]]],
-) {
-	assert(ctx, nodeRecoder != nil, "nodeRecoder != nil")
-	assert(ctx, nodeRecoder.Processor != nil, "Processor != nil")
-	assert(ctx, nodeRecoder.Processor.Kernel != nil, "Kernel != nil")
-}
-
 func (s *FFStream) reconfigureRecoderCopy(
 	ctx context.Context,
 	cfg types.RecoderConfig,
 ) error {
-	assertHealthyNodeRecoder(ctx, s.nodeRecoder)
-	err := s.nodeRecoder.Processor.Kernel.SetKernelIndex(ctx, 1)
+	err := s.PassthroughSwitch.SetValue(ctx, 1)
 	if err != nil {
 		return fmt.Errorf("unable to switch to passthrough: %w", err)
 	}
@@ -295,12 +295,58 @@ func (s *FFStream) GetStats(
 	}
 }
 
+func (s *FFStream) GetAllStats(
+	ctx context.Context,
+) map[string]*avpipeline.ProcessingStatistics {
+	return map[string]*avpipeline.ProcessingStatistics{
+		"Input":   s.nodeInput.GetStats(),
+		"Recoder": s.nodeRecoder.GetStats(),
+		"Output":  s.nodeOutput.GetStats(),
+	}
+}
+
+func tryNewBSF(
+	ctx context.Context,
+	codecID astiav.CodecID,
+) *avpipeline.Node[*processor.FromKernel[*kernel.BitstreamFilter]] {
+	recoderBSFName := bitstreamfilter.NameMP4ToAnnexB(codecID)
+	if recoderBSFName == bitstreamfilter.NameNull {
+		return nil
+	}
+
+	bitstreamFilter, err := kernel.NewBitstreamFilter(ctx, map[condition.Condition]bitstreamfilter.Name{
+		condition.MediaType(astiav.MediaTypeVideo): recoderBSFName,
+	})
+	if err != nil {
+		logger.Errorf(ctx, "unable to initialize the bitstream filter '%s': %w", recoderBSFName, err)
+		return nil
+	}
+
+	return avpipeline.NewNodeFromKernel(
+		ctx,
+		bitstreamFilter,
+		processor.DefaultOptionsOutput()...,
+	)
+}
+
+func getVideoCodecNameFromStreams(streams []*astiav.Stream) astiav.CodecID {
+	for _, stream := range streams {
+		if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
+			return stream.CodecParameters().CodecID()
+		}
+	}
+	return astiav.CodecIDNone
+}
+
 func (s *FFStream) Start(
 	ctx context.Context,
 ) error {
 	if s.Recoder == nil {
 		return fmt.Errorf("Recoder is not configured")
 	}
+
+	// == configure ==
+
 	s.nodeInput = avpipeline.NewNodeFromKernel(
 		ctx,
 		s.Input,
@@ -308,8 +354,13 @@ func (s *FFStream) Start(
 	)
 	s.nodeRecoder = avpipeline.NewNodeFromKernel(
 		ctx,
-		s.Switch,
+		s.Recoder,
 		processor.DefaultOptionsRecoder()...,
+	)
+	nodeFilterThrottle := avpipeline.NewNodeFromKernel(
+		ctx,
+		kernel.NewFilter(s.FilterThrottle, nil),
+		processor.DefaultOptionsOutput()...,
 	)
 	s.nodeOutput = avpipeline.NewNodeFromKernel(
 		ctx,
@@ -317,10 +368,110 @@ func (s *FFStream) Start(
 		processor.DefaultOptionsOutput()...,
 	)
 
-	s.nodeInput.PushPacketsTo.Add(s.nodeRecoder)
-	s.nodeRecoder.PushPacketsTo.Add(s.nodeOutput)
+	outputFormatName := s.nodeOutput.Processor.Kernel.FormatContext.OutputFormat().Name()
+	logger.Infof(ctx, "output format: '%s'", outputFormatName)
+
+	var nodeBSFRecoder, nodeBSFPassthrough *avpipeline.Node[*processor.FromKernel[*kernel.BitstreamFilter]]
+	switch outputFormatName {
+	case "mpegts":
+		inputVideoCodecID := getVideoCodecNameFromStreams(
+			s.nodeInput.Processor.Kernel.FormatContext.Streams(),
+		)
+		nodeBSFRecoder = tryNewBSF(ctx, s.Recoder.EncoderFactory.VideoCodecID())
+		nodeBSFPassthrough = tryNewBSF(ctx, inputVideoCodecID)
+	}
+
+	keyFrameCount := 0
+	bothPipesSwitch := condition.And{
+		condition.Or{
+			condition.IsKeyFrame(true),
+			condition.Not{condition.MediaType(astiav.MediaTypeVideo)},
+		},
+		condition.And{
+			s.BothPipesSwitch,
+			condition.Or{
+				condition.NewUntil(condition.Function(func(ctx context.Context, pkt packet.Input) bool {
+					if pkt.Stream.CodecParameters().MediaType() != astiav.MediaTypeVideo {
+						return false
+					}
+					if !pkt.Flags().Has(astiav.PacketFlagKey) {
+						return false
+					}
+					keyFrameCount++
+					if keyFrameCount < 3 {
+						return false
+					}
+					*s.BothPipesSwitch = false
+					logger.Infof(ctx, "ending the period of two-streams working simultaneously")
+					return true
+				})),
+				condition.Static(true),
+			},
+		},
+	}
+
+	s.nodeInput.PushPacketsTo.Add(
+		s.nodeRecoder,
+		condition.Or{
+			s.PassthroughSwitch.Condition(0),
+			bothPipesSwitch,
+		},
+	)
+	s.nodeInput.PushPacketsTo.Add(
+		nodeFilterThrottle,
+		condition.Or{
+			s.PassthroughSwitch.Condition(1),
+			bothPipesSwitch,
+		},
+	)
+
+	if startWithPassthrough {
+		s.PassthroughSwitch.SetValue(ctx, 1)
+	}
+
+	var recoderOutput avpipeline.AbstractNode = s.nodeRecoder
+	if nodeBSFRecoder != nil {
+		logger.Debugf(ctx, "inserting %s to the recoder's output", nodeBSFRecoder.Processor.Kernel)
+		s.nodeRecoder.AddPushPacketsTo(nodeBSFRecoder)
+		recoderOutput = nodeBSFRecoder
+	}
+
+	var passthroughOutput avpipeline.AbstractNode = s.nodeRecoder
+	if nodeBSFPassthrough != nil {
+		logger.Debugf(ctx, "inserting %s to the passthrough output", nodeBSFPassthrough.Processor.Kernel)
+		nodeFilterThrottle.AddPushPacketsTo(nodeBSFPassthrough)
+		passthroughOutput = nodeBSFPassthrough
+	}
+
+	if recoderInSeparateTracks {
+		*s.BothPipesSwitch = true
+		nodeMapStreamIndices := avpipeline.NewNodeFromKernel(
+			ctx,
+			s.MapStreamIndices,
+			processor.DefaultOptionsOutput()...,
+		)
+		recoderOutput.AddPushPacketsTo(nodeMapStreamIndices)
+		passthroughOutput.AddPushPacketsTo(nodeMapStreamIndices)
+		nodeMapStreamIndices.PushPacketsTo.Add(s.nodeOutput)
+	} else {
+		*s.BothPipesSwitch = false
+		bothPipesSwitch[0] = condition.Static(false)
+		bothPipesSwitch = bothPipesSwitch[:1]
+		if !startWithPassthrough || notifyAboutPacketSources {
+			nodeFilterThrottle.InputPacketCondition = filter.NewRescaleTSBetweenKernels(
+				s.nodeInput.Processor.Kernel,
+				s.nodeRecoder.Processor.Kernel,
+			)
+		} else {
+			logger.Warnf(ctx, "unable to configure rescale_ts because startWithPassthrough && !notifyAboutPacketSources")
+		}
+		recoderOutput.AddPushPacketsTo(s.nodeOutput)
+		passthroughOutput.AddPushPacketsTo(s.nodeOutput)
+	}
 
 	ctx, cancelFn := context.WithCancel(ctx)
+
+	// == spawn an observer ==
 
 	errCh := make(chan avpipeline.ErrNode, 10)
 	s.waitGroup.Add(1)
@@ -353,10 +504,18 @@ func (s *FFStream) Start(
 		}
 	})
 
-	err := avpipeline.NotifyAboutPacketSourcesRecursively(ctx, nil, s.nodeInput)
-	if err != nil {
-		return fmt.Errorf("receive an error while notifying nodes about packet sources: %w", err)
+	// == prepare ==
+
+	if notifyAboutPacketSources {
+		err := avpipeline.NotifyAboutPacketSourcesRecursively(ctx, nil, s.nodeInput)
+		if err != nil {
+			return fmt.Errorf("receive an error while notifying nodes about packet sources: %w", err)
+		}
 	}
+	logger.Infof(ctx, "resulting pipeline: %s", s.nodeInput.String())
+	logger.Infof(ctx, "resulting pipeline: %s", s.nodeInput.DotString(false))
+
+	// == launch ==
 
 	s.waitGroup.Add(1)
 	observability.Go(ctx, func() {

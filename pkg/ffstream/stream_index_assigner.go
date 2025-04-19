@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/facebookincubator/go-belt/tool/logger"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/typing"
 	"github.com/xaionaro-go/xsync"
@@ -37,10 +38,12 @@ func (s *streamIndexAssigner) streamIndexAssign(
 ) (typing.Optional[int], error) {
 	switch input.Packet.Source {
 	case s.FFStream.Input:
-		return typing.Opt(input.Frame.StreamIndex), nil
-	case s.FFStream.Recoder.Encoder:
+		logger.Tracef(ctx, "passing through index %d as is", input.GetStreamIndex())
+		return typing.Opt(input.GetStreamIndex()), nil
+	case s.FFStream.Recoder, s.FFStream.Recoder.Encoder:
 		inputStreamIndex := input.GetStreamIndex()
 		if v, ok := s.PreviousResultsMap[inputStreamIndex]; ok {
+			logger.Debugf(ctx, "reassigning %d as %d (cache)", inputStreamIndex, v)
 			return typing.Opt(v), nil
 		}
 
@@ -53,11 +56,14 @@ func (s *streamIndexAssigner) streamIndexAssign(
 
 		result := maxStreamIndex + 1
 		for {
-			if _, ok := s.AlreadyAssignedMap[result]; !ok {
-				s.PreviousResultsMap[result] = result
-				return typing.Opt(result), nil
+			if _, ok := s.AlreadyAssignedMap[result]; ok {
+				result++
+				continue
 			}
-			result++
+			s.PreviousResultsMap[inputStreamIndex] = result
+			s.AlreadyAssignedMap[result] = struct{}{}
+			logger.Debugf(ctx, "reassigning %d as %d", inputStreamIndex, result)
+			return typing.Opt(result), nil
 		}
 	default:
 		return typing.Optional[int]{}, fmt.Errorf("unexpected source: %T", input.Packet.Source)
