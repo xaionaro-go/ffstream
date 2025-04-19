@@ -128,7 +128,7 @@ func (srv *GRPCServer) Start(
 		return nil, status.Errorf(codes.FailedPrecondition, "recoding is already started")
 	}
 	ctx, cancelFn := context.WithCancel(xcontext.DetachDone(ctx))
-	err := srv.FFStream.Start(ctx)
+	err := srv.FFStream.Start(ctx, false)
 	if err != nil {
 		cancelFn()
 		return nil, status.Errorf(codes.Unknown, "unable to start the recoding: %v", err)

@@ -26,10 +26,11 @@ import (
 )
 
 const (
-	switchOnlyOnKeyFrames    = false
-	recoderInSeparateTracks  = false
-	notifyAboutPacketSources = true
-	startWithPassthrough     = false
+	switchOnlyOnKeyFrames      = false
+	notifyAboutPacketSources   = true
+	startWithPassthrough       = false
+	autoInsertBitstreamFilters = true
+	passthroughSupport         = true
 )
 
 type FFStream struct {
@@ -340,7 +341,9 @@ func getVideoCodecNameFromStreams(streams []*astiav.Stream) astiav.CodecID {
 
 func (s *FFStream) Start(
 	ctx context.Context,
+	recoderInSeparateTracks bool,
 ) error {
+	ctx, cancelFn := context.WithCancel(ctx)
 	if s.Recoder == nil {
 		return fmt.Errorf("Recoder is not configured")
 	}
@@ -359,7 +362,7 @@ func (s *FFStream) Start(
 	)
 	nodeFilterThrottle := avpipeline.NewNodeFromKernel(
 		ctx,
-		kernel.NewFilter(s.FilterThrottle, nil),
+		kernel.NewPacketFilter(s.FilterThrottle, nil),
 		processor.DefaultOptionsOutput()...,
 	)
 	s.nodeOutput = avpipeline.NewNodeFromKernel(
@@ -373,7 +376,7 @@ func (s *FFStream) Start(
 
 	var nodeBSFRecoder, nodeBSFPassthrough *avpipeline.Node[*processor.FromKernel[*kernel.BitstreamFilter]]
 	switch outputFormatName {
-	case "mpegts":
+	case "mpegts", "rtsp":
 		inputVideoCodecID := getVideoCodecNameFromStreams(
 			s.nodeInput.Processor.Kernel.FormatContext.Streams(),
 		)
@@ -381,95 +384,112 @@ func (s *FFStream) Start(
 		nodeBSFPassthrough = tryNewBSF(ctx, inputVideoCodecID)
 	}
 
+	audioFrameCount := 0
 	keyFrameCount := 0
 	bothPipesSwitch := condition.And{
+		condition.Static(recoderInSeparateTracks),
+		s.BothPipesSwitch,
 		condition.Or{
-			condition.IsKeyFrame(true),
-			condition.Not{condition.MediaType(astiav.MediaTypeVideo)},
-		},
-		condition.And{
-			s.BothPipesSwitch,
-			condition.Or{
-				condition.NewUntil(condition.Function(func(ctx context.Context, pkt packet.Input) bool {
-					if pkt.Stream.CodecParameters().MediaType() != astiav.MediaTypeVideo {
-						return false
-					}
-					if !pkt.Flags().Has(astiav.PacketFlagKey) {
-						return false
-					}
+			condition.And{
+				condition.IsKeyFrame(true),
+				condition.MediaType(astiav.MediaTypeVideo),
+				condition.Function(func(ctx context.Context, pkt packet.Input) bool {
 					keyFrameCount++
-					if keyFrameCount < 3 {
-						return false
+					if keyFrameCount%10 == 1 || true {
+						logger.Debugf(ctx, "frame size: %d", len(pkt.Data()))
+						return true
 					}
-					*s.BothPipesSwitch = false
-					logger.Infof(ctx, "ending the period of two-streams working simultaneously")
-					return true
-				})),
-				condition.Static(true),
+					return false
+				}),
+			},
+			condition.And{
+				condition.MediaType(astiav.MediaTypeAudio),
+				condition.Function(func(ctx context.Context, pkt packet.Input) bool {
+					audioFrameCount++
+					if audioFrameCount%10 == 1 || true {
+						return true
+					}
+					return false
+				}),
+			},
+			condition.Not{
+				condition.MediaType(astiav.MediaTypeAudio),
+				condition.MediaType(astiav.MediaTypeVideo),
 			},
 		},
 	}
 
-	s.nodeInput.PushPacketsTo.Add(
-		s.nodeRecoder,
-		condition.Or{
-			s.PassthroughSwitch.Condition(0),
-			bothPipesSwitch,
-		},
-	)
-	s.nodeInput.PushPacketsTo.Add(
-		nodeFilterThrottle,
-		condition.Or{
-			s.PassthroughSwitch.Condition(1),
-			bothPipesSwitch,
-		},
-	)
-
-	if startWithPassthrough {
-		s.PassthroughSwitch.SetValue(ctx, 1)
-	}
-
 	var recoderOutput avpipeline.AbstractNode = s.nodeRecoder
-	if nodeBSFRecoder != nil {
+	if autoInsertBitstreamFilters && nodeBSFRecoder != nil {
 		logger.Debugf(ctx, "inserting %s to the recoder's output", nodeBSFRecoder.Processor.Kernel)
-		s.nodeRecoder.AddPushPacketsTo(nodeBSFRecoder)
+		recoderOutput.AddPushPacketsTo(nodeBSFRecoder)
 		recoderOutput = nodeBSFRecoder
 	}
 
-	var passthroughOutput avpipeline.AbstractNode = s.nodeRecoder
-	if nodeBSFPassthrough != nil {
-		logger.Debugf(ctx, "inserting %s to the passthrough output", nodeBSFPassthrough.Processor.Kernel)
-		nodeFilterThrottle.AddPushPacketsTo(nodeBSFPassthrough)
-		passthroughOutput = nodeBSFPassthrough
-	}
-
-	if recoderInSeparateTracks {
-		*s.BothPipesSwitch = true
-		nodeMapStreamIndices := avpipeline.NewNodeFromKernel(
-			ctx,
-			s.MapStreamIndices,
-			processor.DefaultOptionsOutput()...,
-		)
-		recoderOutput.AddPushPacketsTo(nodeMapStreamIndices)
-		passthroughOutput.AddPushPacketsTo(nodeMapStreamIndices)
-		nodeMapStreamIndices.PushPacketsTo.Add(s.nodeOutput)
-	} else {
-		*s.BothPipesSwitch = false
-		bothPipesSwitch[0] = condition.Static(false)
-		bothPipesSwitch = bothPipesSwitch[:1]
-		if !startWithPassthrough || notifyAboutPacketSources {
-			nodeFilterThrottle.InputPacketCondition = filter.NewRescaleTSBetweenKernels(
-				s.nodeInput.Processor.Kernel,
-				s.nodeRecoder.Processor.Kernel,
-			)
-		} else {
-			logger.Warnf(ctx, "unable to configure rescale_ts because startWithPassthrough && !notifyAboutPacketSources")
+	if passthroughSupport {
+		var passthroughOutput avpipeline.AbstractNode = nodeFilterThrottle
+		if autoInsertBitstreamFilters && nodeBSFPassthrough != nil {
+			logger.Debugf(ctx, "inserting %s to the passthrough output", nodeBSFPassthrough.Processor.Kernel)
+			passthroughOutput.AddPushPacketsTo(nodeBSFPassthrough)
+			passthroughOutput = nodeBSFPassthrough
 		}
-		recoderOutput.AddPushPacketsTo(s.nodeOutput)
-		passthroughOutput.AddPushPacketsTo(s.nodeOutput)
-	}
 
-	ctx, cancelFn := context.WithCancel(ctx)
+		s.nodeInput.PushPacketsTo.Add(
+			s.nodeRecoder,
+			condition.Or{
+				s.PassthroughSwitch.Condition(0),
+				bothPipesSwitch,
+			},
+		)
+		s.nodeInput.PushPacketsTo.Add(
+			nodeFilterThrottle,
+			condition.Or{
+				s.PassthroughSwitch.Condition(1),
+				bothPipesSwitch,
+			},
+		)
+
+		if startWithPassthrough {
+			s.PassthroughSwitch.SetValue(ctx, 1)
+		}
+
+		if recoderInSeparateTracks {
+			*s.BothPipesSwitch = true
+			nodeMapStreamIndices := avpipeline.NewNodeFromKernel(
+				ctx,
+				s.MapStreamIndices,
+				processor.DefaultOptionsOutput()...,
+			)
+			recoderOutput.AddPushPacketsTo(
+				nodeMapStreamIndices,
+			)
+			passthroughOutput.AddPushPacketsTo(
+				nodeMapStreamIndices,
+			)
+			nodeMapStreamIndices.AddPushPacketsTo(s.nodeOutput)
+		} else {
+			if !startWithPassthrough || notifyAboutPacketSources {
+				nodeFilterThrottle.InputPacketCondition = filter.NewRescaleTSBetweenKernels(
+					s.nodeInput.Processor.Kernel,
+					s.nodeRecoder.Processor.Kernel,
+				)
+			} else {
+				logger.Warnf(ctx, "unable to configure rescale_ts because startWithPassthrough && !notifyAboutPacketSources")
+			}
+
+			recoderOutput.AddPushPacketsTo(
+				s.nodeOutput,
+				s.PassthroughSwitch.Condition(0),
+			)
+			passthroughOutput.AddPushPacketsTo(
+				s.nodeOutput,
+				s.PassthroughSwitch.Condition(1),
+			)
+		}
+	} else {
+		s.nodeInput.AddPushPacketsTo(s.nodeRecoder)
+		recoderOutput.AddPushPacketsTo(s.nodeOutput)
+	}
 
 	// == spawn an observer ==
 

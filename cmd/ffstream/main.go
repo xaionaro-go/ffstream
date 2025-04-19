@@ -117,7 +117,7 @@ func main() {
 		s.PassthroughSwitch.CurrentValue.Store(1)
 	}
 
-	err = s.Start(ctx)
+	err = s.Start(ctx, flags.RecoderInSeparateTracks)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {

@@ -10,21 +10,22 @@ import (
 )
 
 type Flags struct {
-	HWAccelGlobal         string
-	Inputs                []Resource
-	ListenControlSocket   string
-	ListenNetPprof        string
-	LoggerLevel           logger.Level
-	LogstashAddr          string
-	SentryDSN             string
-	LogFile               string
-	LockTimeout           time.Duration
-	InsecureDebug         bool
-	RemoveSecretsFromLogs bool
-	VideoEncoder          Encoder
-	AudioEncoder          Encoder
-	PassthroughEncoder    bool
-	Output                Resource
+	HWAccelGlobal           string
+	Inputs                  []Resource
+	ListenControlSocket     string
+	ListenNetPprof          string
+	LoggerLevel             logger.Level
+	LogstashAddr            string
+	SentryDSN               string
+	LogFile                 string
+	LockTimeout             time.Duration
+	InsecureDebug           bool
+	RemoveSecretsFromLogs   bool
+	VideoEncoder            Encoder
+	AudioEncoder            Encoder
+	PassthroughEncoder      bool
+	RecoderInSeparateTracks bool
+	Output                  Resource
 }
 
 type Encoder struct {
@@ -57,6 +58,7 @@ func parseFlags(ctx context.Context, args []string) Flags {
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	passthroughEncoder := flag.AddFlag(p, "passthrough_encoder", false)
+	recoderInSeparateTracks := flag.AddFlag(p, "recoder_in_separate_tracks", false)
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
@@ -125,9 +127,10 @@ func parseFlags(ctx context.Context, args []string) Flags {
 		LogFile:             logFile.Value(),
 		LockTimeout:         lockTimeout.Value(),
 
-		InsecureDebug:         insecureDebug.Value(),
-		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
-		PassthroughEncoder:    passthroughEncoder.Value(),
+		InsecureDebug:           insecureDebug.Value(),
+		RemoveSecretsFromLogs:   removeSecretsFromLogs.Value(),
+		PassthroughEncoder:      passthroughEncoder.Value(),
+		RecoderInSeparateTracks: recoderInSeparateTracks.Value(),
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,

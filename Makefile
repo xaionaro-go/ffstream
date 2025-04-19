@@ -42,7 +42,7 @@ PASSTHROUGH_AVPIPELINE?=false
 
 dockerbuilder-android-arm64:
 	docker pull  $(DOCKER_IMAGE)
-	if ! docker start $(DOCKER_IMAGE) >/dev/null 2>&1; then \
+	if ! docker start $(DOCKER_CONTAINER_NAME) >/dev/null 2>&1; then \
 		docker run \
 			--detach \
 			--init \
