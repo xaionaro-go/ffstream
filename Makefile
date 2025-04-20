@@ -77,6 +77,13 @@ ffstream-android-arm64-in-docker: /home/builder/go/bin/pkg-config-wrapper
 	chmod -R +w /home/builder/.termux-build/ffstream 2>/dev/null || /bin/true
 	rm -rf /home/builder/.termux-build/ffstream /data/data/.built-packages/ffstream
 	cd /home/builder/termux-packages && \
+		if ! [ -f ./packages/ffmpeg/mediacodec_set_parameters.patch-rebuilt ]; then \
+			cp /project/build/termux/ffmpeg_mediacodec_set_parameters.patch ./packages/ffmpeg/mediacodec_set_parameters.patch; \
+			if ! grep TERMUX_PKG_API_LEVEL ./packages/ffmpeg/build.sh; then \
+				sed -i '1s/^/TERMUX_PKG_API_LEVEL=35\n/' ./packages/ffmpeg/build.sh; \
+			fi; \
+			bash -x ./build-package.sh -I -f ffmpeg && touch ./packages/ffmpeg/mediacodec_set_parameters.patch-rebuilt; \
+		fi && \
 		mkdir -p packages/ffstream && \
 		cp /project/build/termux/build.sh ./packages/ffstream/build.sh && \
 		bash -x ./build-package.sh ffstream
@@ -97,8 +104,8 @@ ffstream-android-arm64-in-termux: build
 	PKG_CONFIG='/home/builder/go/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='/data/data/com.termux/files/usr/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I/data/data/com.termux/files/usr/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bdynamic -ldl -lc -landroid -landroid-glob -landroid-posix-semaphore -lcamera2ndk -lmediandk -lv4lconvert -lcrypto -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/24/ -L/data/data/com.termux/files/usr/lib' \
+	CGO_LDFLAGS='-v -Wl,-Bdynamic -ldl -lc -landroid -landroid-glob -landroid-posix-semaphore -lcamera2ndk -lmediandk -lv4lconvert -lcrypto -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L/data/data/com.termux/files/usr/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	PATH="${PATH}:${HOME}/go/bin" \
-	GOFLAGS="$(GOBUILD_FLAGS),mediacodec -ldflags=$(shell echo ${LINKER_FLAGS_ANDROID} | tr " " ",")" \
+	GOFLAGS="$(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags=$(shell echo ${LINKER_FLAGS_ANDROID} | tr " " ",")" \
 	go build -x -o bin/ffstream-android-arm64 ./cmd/ffstream

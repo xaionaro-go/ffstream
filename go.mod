@@ -2,7 +2,7 @@ module github.com/xaionaro-go/ffstream
 
 go 1.24.1
 
-replace github.com/rs/zerolog v1.33.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
+replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
 replace github.com/asticode/go-astiav v0.35.1 => github.com/xaionaro-go/astiav v0.0.0-20250419202405-6baea371bdeb
 
@@ -10,14 +10,14 @@ require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.35.1
 	github.com/facebookincubator/go-belt v0.0.0-20250308011339-62fb7027b11f
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.32.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/prometheus/client_golang v1.20.5
-	github.com/rs/zerolog v1.33.0
+	github.com/prometheus/client_golang v1.22.0
+	github.com/rs/zerolog v1.34.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250420145942-aa8f9c9b9d23
+	github.com/xaionaro-go/avpipeline v0.0.0-20250420204827-03ac0e4aca39
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250105232601-e760c79b2bc3
 	github.com/xaionaro-go/observability v0.0.0-20250420133500-5c4d2e045932
@@ -26,8 +26,8 @@ require (
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
 	github.com/xaionaro-go/xsync v0.0.0-20250420144932-1e27f4332d4d
-	google.golang.org/grpc v1.69.2
-	google.golang.org/protobuf v1.36.2
+	google.golang.org/grpc v1.71.1
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
@@ -47,17 +47,17 @@ require (
 	github.com/huandu/go-tls v1.0.1 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/phuslu/goid v1.0.2 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
-	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
+	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/xaionaro-go/avmediacodec v0.0.0-20250419184228-96422828753a // indirect
+	github.com/xaionaro-go/avmediacodec v0.0.0-20250420203032-865fb2e3a9c9 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
+	github.com/xaionaro-go/ndk v0.0.0-20250420195304-361bb98583bf // indirect
 	github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c // indirect
 	github.com/xaionaro-go/proxy v0.0.0-20250111150848-1f0e7b262638 // indirect
 	github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 // indirect
@@ -66,9 +66,9 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
 	lukechampine.com/blake3 v1.4.0 // indirect
 )
