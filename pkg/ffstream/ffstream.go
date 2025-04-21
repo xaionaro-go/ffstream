@@ -380,7 +380,11 @@ func (s *FFStream) Start(
 		inputVideoCodecID := getVideoCodecNameFromStreams(
 			s.nodeInput.Processor.Kernel.FormatContext.Streams(),
 		)
-		nodeBSFRecoder = tryNewBSF(ctx, s.Recoder.EncoderFactory.VideoCodecID())
+		recodedVideoCodecID := s.Recoder.EncoderFactory.VideoCodecID()
+		if recodedVideoCodecID == 0 { // vcodec: 'copy'
+			recodedVideoCodecID = inputVideoCodecID
+		}
+		nodeBSFRecoder = tryNewBSF(ctx, recodedVideoCodecID)
 		nodeBSFPassthrough = tryNewBSF(ctx, inputVideoCodecID)
 	}
 
