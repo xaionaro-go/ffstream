@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	switchOnlyOnKeyFrames      = false
+	rescaleTS                  = false
 	notifyAboutPacketSources   = true
 	startWithPassthrough       = false
 	autoInsertBitstreamFilters = true
@@ -37,6 +37,7 @@ type FFStream struct {
 	Input             *kernel.Input
 	FilterThrottle    *condition.VideoAverageBitrateLower
 	PassthroughSwitch *condition.Switch
+	PostSwitchFilter  *condition.Switch
 	BothPipesSwitch   *condition.Static
 	Recoder           *kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]
 	MapStreamIndices  *kernel.MapStreamIndices
@@ -61,14 +62,13 @@ func New(ctx context.Context) *FFStream {
 	s := &FFStream{
 		FilterThrottle:    condition.NewVideoAverageBitrateLower(ctx, 0, 0),
 		PassthroughSwitch: condition.NewSwitch(),
+		PostSwitchFilter:  condition.NewSwitch(),
 		BothPipesSwitch:   ptr(condition.Static(false)),
 	}
-	if switchOnlyOnKeyFrames {
-		s.PassthroughSwitch.SetKeepUnless(condition.And{
-			condition.MediaType(astiav.MediaTypeVideo),
-			condition.IsKeyFrame(true),
-		})
-	}
+	s.PostSwitchFilter.SetKeepUnless(condition.And{
+		condition.MediaType(astiav.MediaTypeVideo),
+		condition.IsKeyFrame(true),
+	})
 	s.MapStreamIndices = kernel.NewMapStreamIndices(ctx, newStreamIndexAssigner(s))
 	return s
 }
@@ -232,12 +232,8 @@ func (s *FFStream) reconfigureRecoder(
 			}
 		}
 
-		if needsChangingBitrate {
-			var q quality.Quality = quality.ConstantBitrate(cfg.Video.AverageBitRate)
-			if cfg.Video.AverageBitRate <= 0 {
-				q = nil
-			}
-			err := encoder.SetQuality(ctx, q, nil)
+		if needsChangingBitrate && cfg.Video.AverageBitRate > 0 {
+			err := encoder.SetQuality(ctx, quality.ConstantBitrate(cfg.Video.AverageBitRate), nil)
 			if err != nil {
 				return fmt.Errorf("unable to set bitrate to %v: %w", cfg.Video.AverageBitRate, err)
 			}
@@ -250,7 +246,12 @@ func (s *FFStream) reconfigureRecoder(
 
 	err = s.PassthroughSwitch.SetValue(ctx, 0)
 	if err != nil {
-		return fmt.Errorf("unable to switch to recoding: %w", err)
+		return fmt.Errorf("unable to switch the pre-filter to recoding: %w", err)
+	}
+
+	err = s.PostSwitchFilter.SetValue(ctx, 0)
+	if err != nil {
+		return fmt.Errorf("unable to switch the post-filter to recoding: %w", err)
 	}
 
 	return nil
@@ -262,7 +263,11 @@ func (s *FFStream) reconfigureRecoderCopy(
 ) error {
 	err := s.PassthroughSwitch.SetValue(ctx, 1)
 	if err != nil {
-		return fmt.Errorf("unable to switch to passthrough: %w", err)
+		return fmt.Errorf("unable to switch the pre-filter to passthrough: %w", err)
+	}
+	err = s.PostSwitchFilter.SetValue(ctx, 1)
+	if err != nil {
+		return fmt.Errorf("unable to switch the post-filter to passthrough: %w", err)
 	}
 	s.FilterThrottle.BitrateAveragingPeriod = cfg.Video.AveragingPeriod
 	s.FilterThrottle.AverageBitRate = cfg.Video.AverageBitRate // if AverageBitRate != 0 then here we also enable the throttler (if it was disabled)
@@ -343,10 +348,10 @@ func (s *FFStream) Start(
 	ctx context.Context,
 	recoderInSeparateTracks bool,
 ) error {
-	ctx, cancelFn := context.WithCancel(ctx)
 	if s.Recoder == nil {
-		return fmt.Errorf("Recoder is not configured")
+		return fmt.Errorf("s.Recoder is not configured")
 	}
+	ctx, cancelFn := context.WithCancel(ctx)
 
 	// == configure ==
 
@@ -388,41 +393,6 @@ func (s *FFStream) Start(
 		nodeBSFPassthrough = tryNewBSF(ctx, inputVideoCodecID)
 	}
 
-	audioFrameCount := 0
-	keyFrameCount := 0
-	bothPipesSwitch := condition.And{
-		condition.Static(recoderInSeparateTracks),
-		s.BothPipesSwitch,
-		condition.Or{
-			condition.And{
-				condition.IsKeyFrame(true),
-				condition.MediaType(astiav.MediaTypeVideo),
-				condition.Function(func(ctx context.Context, pkt packet.Input) bool {
-					keyFrameCount++
-					if keyFrameCount%10 == 1 || true {
-						logger.Debugf(ctx, "frame size: %d", len(pkt.Data()))
-						return true
-					}
-					return false
-				}),
-			},
-			condition.And{
-				condition.MediaType(astiav.MediaTypeAudio),
-				condition.Function(func(ctx context.Context, pkt packet.Input) bool {
-					audioFrameCount++
-					if audioFrameCount%10 == 1 || true {
-						return true
-					}
-					return false
-				}),
-			},
-			condition.Not{
-				condition.MediaType(astiav.MediaTypeAudio),
-				condition.MediaType(astiav.MediaTypeVideo),
-			},
-		},
-	}
-
 	var recoderOutput avpipeline.AbstractNode = s.nodeRecoder
 	if autoInsertBitstreamFilters && nodeBSFRecoder != nil {
 		logger.Debugf(ctx, "inserting %s to the recoder's output", nodeBSFRecoder.Processor.Kernel)
@@ -431,6 +401,41 @@ func (s *FFStream) Start(
 	}
 
 	if passthroughSupport {
+		audioFrameCount := 0
+		keyFrameCount := 0
+		bothPipesSwitch := condition.And{
+			condition.Static(recoderInSeparateTracks),
+			s.BothPipesSwitch,
+			condition.Or{
+				condition.And{
+					condition.IsKeyFrame(true),
+					condition.MediaType(astiav.MediaTypeVideo),
+					condition.Function(func(ctx context.Context, pkt packet.Input) bool {
+						keyFrameCount++
+						if keyFrameCount%10 == 1 || true {
+							logger.Debugf(ctx, "frame size: %d", len(pkt.Data()))
+							return true
+						}
+						return false
+					}),
+				},
+				condition.And{
+					condition.MediaType(astiav.MediaTypeAudio),
+					condition.Function(func(ctx context.Context, pkt packet.Input) bool {
+						audioFrameCount++
+						if audioFrameCount%10 == 1 || true {
+							return true
+						}
+						return false
+					}),
+				},
+				condition.Not{
+					condition.MediaType(astiav.MediaTypeAudio),
+					condition.MediaType(astiav.MediaTypeVideo),
+				},
+			},
+		}
+
 		var passthroughOutput avpipeline.AbstractNode = nodeFilterThrottle
 		if autoInsertBitstreamFilters && nodeBSFPassthrough != nil {
 			logger.Debugf(ctx, "inserting %s to the passthrough output", nodeBSFPassthrough.Processor.Kernel)
@@ -441,20 +446,27 @@ func (s *FFStream) Start(
 		s.nodeInput.PushPacketsTo.Add(
 			s.nodeRecoder,
 			condition.Or{
-				s.PassthroughSwitch.Condition(0),
+				condition.And{
+					s.PassthroughSwitch.Condition(0),
+					s.PostSwitchFilter.Condition(0),
+				},
 				bothPipesSwitch,
 			},
 		)
 		s.nodeInput.PushPacketsTo.Add(
 			nodeFilterThrottle,
 			condition.Or{
-				s.PassthroughSwitch.Condition(1),
+				condition.And{
+					s.PassthroughSwitch.Condition(1),
+					s.PostSwitchFilter.Condition(1),
+				},
 				bothPipesSwitch,
 			},
 		)
 
 		if startWithPassthrough {
-			s.PassthroughSwitch.SetValue(ctx, 1)
+			s.PassthroughSwitch.CurrentValue.Store(1)
+			s.PostSwitchFilter.CurrentValue.Store(1)
 		}
 
 		if recoderInSeparateTracks {
@@ -472,7 +484,7 @@ func (s *FFStream) Start(
 			)
 			nodeMapStreamIndices.AddPushPacketsTo(s.nodeOutput)
 		} else {
-			if !startWithPassthrough || notifyAboutPacketSources {
+			if rescaleTS && (!startWithPassthrough || notifyAboutPacketSources) {
 				nodeFilterThrottle.InputPacketCondition = filter.NewRescaleTSBetweenKernels(
 					s.nodeInput.Processor.Kernel,
 					s.nodeRecoder.Processor.Kernel,
@@ -483,11 +495,17 @@ func (s *FFStream) Start(
 
 			recoderOutput.AddPushPacketsTo(
 				s.nodeOutput,
-				s.PassthroughSwitch.Condition(0),
+				condition.And{
+					s.PassthroughSwitch.Condition(0),
+					s.PostSwitchFilter.Condition(0),
+				},
 			)
 			passthroughOutput.AddPushPacketsTo(
 				s.nodeOutput,
-				s.PassthroughSwitch.Condition(1),
+				condition.And{
+					s.PassthroughSwitch.Condition(1),
+					s.PostSwitchFilter.Condition(1),
+				},
 			)
 		}
 	} else {

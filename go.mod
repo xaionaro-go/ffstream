@@ -6,6 +6,8 @@ replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.
 
 replace github.com/asticode/go-astiav v0.35.1 => github.com/xaionaro-go/astiav v0.0.0-20250419202405-6baea371bdeb
 
+replace github.com/xaionaro-go/avpipeline v0.0.0-20250503212551-ab30e81e6598 => /home/builder/avpipeline
+
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.35.1
@@ -17,7 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250421140231-156721ee71a7
+	github.com/xaionaro-go/avpipeline v0.0.0-20250503212551-ab30e81e6598
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250105232601-e760c79b2bc3
 	github.com/xaionaro-go/observability v0.0.0-20250420133500-5c4d2e045932
@@ -54,7 +56,7 @@ require (
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/xaionaro-go/avmediacodec v0.0.0-20250420203032-865fb2e3a9c9 // indirect
+	github.com/xaionaro-go/avmediacodec v0.0.0-20250421150856-ddd390422c21 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
 	github.com/xaionaro-go/ndk v0.0.0-20250420195304-361bb98583bf // indirect
