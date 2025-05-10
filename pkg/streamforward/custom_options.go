@@ -1,8 +1,8 @@
-package ffstream
+package streamforward
 
 import (
 	avptypes "github.com/xaionaro-go/avpipeline/types"
-	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
+	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 )
 
 func convertCustomOptions(

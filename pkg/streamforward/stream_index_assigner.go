@@ -1,46 +1,48 @@
-package ffstream
+package streamforward
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/asticode/go-astiav"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/processor"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/typing"
 	"github.com/xaionaro-go/xsync"
 )
 
-type streamIndexAssigner struct {
-	FFStream           *FFStream
+type streamIndexAssigner[C any, P processor.Abstract] struct {
+	StreamForward      *StreamForward[C, P]
 	PreviousResultsMap map[int]int
 	AlreadyAssignedMap map[int]struct{}
 	Locker             xsync.Mutex
 }
 
-func newStreamIndexAssigner(f *FFStream) *streamIndexAssigner {
-	return &streamIndexAssigner{
-		FFStream:           f,
+func newStreamIndexAssigner[C any, P processor.Abstract](s *StreamForward[C, P]) *streamIndexAssigner[C, P] {
+	return &streamIndexAssigner[C, P]{
+		StreamForward:      s,
 		PreviousResultsMap: make(map[int]int),
 		AlreadyAssignedMap: make(map[int]struct{}),
 	}
 }
 
-func (s *streamIndexAssigner) StreamIndexAssign(
+func (s *streamIndexAssigner[C, P]) StreamIndexAssign(
 	ctx context.Context,
 	input avptypes.InputPacketOrFrameUnion,
 ) (typing.Optional[int], error) {
 	return xsync.DoA2R2(ctx, &s.Locker, s.streamIndexAssign, ctx, input)
 }
 
-func (s *streamIndexAssigner) streamIndexAssign(
+func (s *streamIndexAssigner[C, P]) streamIndexAssign(
 	ctx context.Context,
 	input avptypes.InputPacketOrFrameUnion,
 ) (typing.Optional[int], error) {
 	switch input.Packet.Source {
-	case s.FFStream.Input:
+	case s.StreamForward.inputAsPacketSource:
 		logger.Tracef(ctx, "passing through index %d as is", input.GetStreamIndex())
 		return typing.Opt(input.GetStreamIndex()), nil
-	case s.FFStream.Recoder, s.FFStream.Recoder.Encoder:
+	case s.StreamForward.Recoder, s.StreamForward.Recoder.Encoder:
 		inputStreamIndex := input.GetStreamIndex()
 		if v, ok := s.PreviousResultsMap[inputStreamIndex]; ok {
 			logger.Debugf(ctx, "reassigning %d as %d (cache)", inputStreamIndex, v)
@@ -48,11 +50,13 @@ func (s *streamIndexAssigner) streamIndexAssign(
 		}
 
 		maxStreamIndex := 0
-		for _, stream := range s.FFStream.Input.FormatContext.Streams() {
-			if stream.Index() > maxStreamIndex {
-				maxStreamIndex = stream.Index()
+		s.StreamForward.inputAsPacketSource.WithFormatContext(ctx, func(fmtCtx *astiav.FormatContext) {
+			for _, stream := range fmtCtx.Streams() {
+				if stream.Index() > maxStreamIndex {
+					maxStreamIndex = stream.Index()
+				}
 			}
-		}
+		})
 
 		result := maxStreamIndex + 1
 		for {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
-	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
+	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/observability"
 )
 

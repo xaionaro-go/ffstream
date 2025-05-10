@@ -1,4 +1,4 @@
-package ffstream
+package streamforward
 
 import (
 	"context"

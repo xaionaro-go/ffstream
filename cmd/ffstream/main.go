@@ -11,8 +11,8 @@ import (
 	"github.com/xaionaro-go/avpipeline/kernel"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
-	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
+	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
@@ -114,7 +114,10 @@ func main() {
 
 	if flags.PassthroughEncoder {
 		logger.Infof(ctx, "passing through the encoder due to the flag provided")
-		s.PassthroughSwitch.CurrentValue.Store(1)
+		s.StreamForward.PassthroughSwitch.CurrentValue.Store(1)
+		s.StreamForward.PostSwitchFilter.CurrentValue.Store(1)
+		s.StreamForward.PassthroughSwitch.NextValue.Store(1)
+		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
 	}
 
 	err = s.Start(ctx, flags.RecoderInSeparateTracks)

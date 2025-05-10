@@ -7,10 +7,9 @@ import (
 	"io"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
-	ffstreamtypes "github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
+	streamforwardtypes "github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/observability"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -83,7 +82,7 @@ func (c *Client) SetLoggingLevel(
 func (c *Client) AddInput(
 	ctx context.Context,
 	url string,
-	customOptions []types.DictionaryItem,
+	customOptions []streamforwardtypes.DictionaryItem,
 ) (_ InputID, _err error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -108,7 +107,7 @@ func (c *Client) AddInput(
 func (c *Client) AddOutput(
 	ctx context.Context,
 	url string,
-	customOptions []types.DictionaryItem,
+	customOptions []streamforwardtypes.DictionaryItem,
 ) (OutputID, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -149,7 +148,7 @@ func (c *Client) RemoveOutput(
 
 func (c *Client) GetRecoderConfig(
 	ctx context.Context,
-) (*ffstreamtypes.RecoderConfig, error) {
+) (*streamforwardtypes.RecoderConfig, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err
@@ -166,7 +165,7 @@ func (c *Client) GetRecoderConfig(
 
 func (c *Client) SetRecoderConfig(
 	ctx context.Context,
-	cfg ffstreamtypes.RecoderConfig,
+	cfg streamforwardtypes.RecoderConfig,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {

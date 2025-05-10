@@ -1,7 +1,7 @@
 //go:build with_libsrt
 // +build with_libsrt
 
-package ffstream
+package streamforward
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/xaionaro-go/libsrt/threadsafe"
 )
 
-func (s *FFStream) WithSRTOutput(
+func (s *StreamForward) WithSRTOutput(
 	ctx context.Context,
 	callback func(*threadsafe.Socket) error,
 ) error {

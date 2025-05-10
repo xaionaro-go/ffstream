@@ -1,14 +1,14 @@
 //go:build !with_libsrt
 // +build !with_libsrt
 
-package ffstream
+package streamforward
 
 import (
 	"context"
 	"fmt"
 )
 
-func (s *FFStream) WithSRTOutput(
+func (s *StreamForward[C, P]) WithSRTOutput(
 	ctx context.Context,
 	callback func(any) error,
 ) error {

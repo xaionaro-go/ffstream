@@ -1,8 +1,8 @@
 package goconv
 
 import (
-	"github.com/xaionaro-go/ffstream/pkg/ffstream/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
+	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 )
 
 func RecoderConfigFromGRPC(
