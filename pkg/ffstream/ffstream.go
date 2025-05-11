@@ -10,10 +10,10 @@ import (
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	"github.com/xaionaro-go/avpipeline/node/transcoder"
+	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
-	"github.com/xaionaro-go/ffstream/pkg/streamforward"
-	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/observability"
 )
 
@@ -21,7 +21,7 @@ type FFStream struct {
 	NodeInput  *node.Node[*processor.FromKernel[*kernel.Input]]
 	NodeOutput *node.Node[*processor.FromKernel[*kernel.Output]]
 
-	StreamForward *streamforward.StreamForward[struct{}, *processor.FromKernel[*kernel.Input]]
+	StreamForward *transcoder.Transcoder[struct{}, *processor.FromKernel[*kernel.Input]]
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
@@ -77,13 +77,13 @@ func (s *FFStream) AddOutput(
 
 func (s *FFStream) GetRecoderConfig(
 	ctx context.Context,
-) (_ret types.RecoderConfig) {
+) (_ret transcodertypes.RecoderConfig) {
 	return s.StreamForward.GetRecoderConfig(ctx)
 }
 
 func (s *FFStream) SetRecoderConfig(
 	ctx context.Context,
-	cfg types.RecoderConfig,
+	cfg transcodertypes.RecoderConfig,
 ) (_err error) {
 	return s.StreamForward.SetRecoderConfig(ctx, cfg)
 }
@@ -133,7 +133,7 @@ func (s *FFStream) Start(
 	s.addCancelFnLocked(cancelFn)
 
 	var err error
-	s.StreamForward, err = streamforward.New(
+	s.StreamForward, err = transcoder.New(
 		ctx,
 		s.NodeInput,
 		s.NodeOutput,

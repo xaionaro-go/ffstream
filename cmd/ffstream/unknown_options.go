@@ -1,14 +1,14 @@
 package main
 
 import (
+	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
-	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 )
 
 func convertUnknownOptionsToCustomOptions(
 	unknownOpts []string,
-) types.DictionaryItems {
-	var result types.DictionaryItems
+) transcodertypes.DictionaryItems {
+	var result transcodertypes.DictionaryItems
 
 	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
@@ -16,7 +16,7 @@ func convertUnknownOptionsToCustomOptions(
 		opt := arg
 		value := unknownOpts[idx+1]
 
-		result = append(result, types.DictionaryItem{
+		result = append(result, transcodertypes.DictionaryItem{
 			Key:   opt,
 			Value: value,
 		})

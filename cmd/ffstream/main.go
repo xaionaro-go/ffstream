@@ -9,10 +9,10 @@ import (
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
-	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
@@ -92,22 +92,22 @@ func main() {
 	for _, v := range outputOptions {
 		switch v.Key {
 		case "g", "r", "bufsize":
-			encoderVideoOptions = append(encoderVideoOptions, types.DictionaryItem{
+			encoderVideoOptions = append(encoderVideoOptions, transcodertypes.DictionaryItem{
 				Key:   v.Key,
 				Value: v.Value,
 			})
 		}
 	}
 
-	err = s.SetRecoderConfig(ctx, types.RecoderConfig{
-		Audio: types.CodecConfig{
+	err = s.SetRecoderConfig(ctx, transcodertypes.RecoderConfig{
+		Audio: transcodertypes.CodecConfig{
 			CodecName:     flags.AudioEncoder.Codec,
 			CustomOptions: convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
 		},
-		Video: types.CodecConfig{
+		Video: transcodertypes.CodecConfig{
 			CodecName:          flags.VideoEncoder.Codec,
 			CustomOptions:      encoderVideoOptions,
-			HardwareDeviceName: types.HardwareDeviceName(flags.HWAccelGlobal),
+			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
 		},
 	})
 	assertNoError(ctx, err)

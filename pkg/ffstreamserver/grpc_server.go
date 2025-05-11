@@ -5,11 +5,11 @@ import (
 	"sync"
 
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
-	"github.com/xaionaro-go/ffstream/pkg/streamforward/types"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xcontext"
 	"google.golang.org/grpc/codes"

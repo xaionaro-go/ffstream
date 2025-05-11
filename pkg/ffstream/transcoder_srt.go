@@ -1,7 +1,7 @@
 //go:build with_libsrt
 // +build with_libsrt
 
-package streamforward
+package ffstream
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"github.com/xaionaro-go/libsrt/threadsafe"
 )
 
-func (s *StreamForward) WithSRTOutput(
+func (s *FFStream) WithSRTOutput(
 	ctx context.Context,
 	callback func(*threadsafe.Socket) error,
 ) error {
-	sock, err := s.Output.SRT(ctx)
+	sock, err := s.NodeOutput.Processor.Kernel.SRT(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get the SRT socket handler: %w", err)
 	}
