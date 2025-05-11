@@ -8,7 +8,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
-	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
+	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
 )

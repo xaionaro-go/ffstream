@@ -8,8 +8,8 @@ import (
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
-	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
@@ -100,15 +100,17 @@ func main() {
 	}
 
 	err = s.SetRecoderConfig(ctx, transcodertypes.RecoderConfig{
-		Audio: transcodertypes.CodecConfig{
+		AudioTracks: []transcodertypes.TrackConfig{{
+			InputTrackIDs: []int{0, 1, 2, 3, 4, 5, 6, 7},
 			CodecName:     flags.AudioEncoder.Codec,
 			CustomOptions: convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
-		},
-		Video: transcodertypes.CodecConfig{
+		}},
+		VideoTracks: []transcodertypes.TrackConfig{{
+			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			CodecName:          flags.VideoEncoder.Codec,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
-		},
+		}},
 	})
 	assertNoError(ctx, err)
 

@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
+	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"

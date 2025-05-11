@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
+	transcoder "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough"
+	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
-	"github.com/xaionaro-go/avpipeline/node/transcoder"
-	transcodertypes "github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/observability"
@@ -21,7 +21,7 @@ type FFStream struct {
 	NodeInput  *node.Node[*processor.FromKernel[*kernel.Input]]
 	NodeOutput *node.Node[*processor.FromKernel[*kernel.Output]]
 
-	StreamForward *transcoder.Transcoder[struct{}, *processor.FromKernel[*kernel.Input]]
+	StreamForward *transcoder.TranscoderWithPassthrough[struct{}, *processor.FromKernel[*kernel.Input]]
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex

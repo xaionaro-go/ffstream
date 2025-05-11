@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
-	"github.com/xaionaro-go/avpipeline/node/transcoder/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
