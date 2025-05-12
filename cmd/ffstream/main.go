@@ -99,7 +99,7 @@ func main() {
 		}
 	}
 
-	err = s.SetRecoderConfig(ctx, transcodertypes.RecoderConfig{
+	recoderConfig := transcodertypes.RecoderConfig{
 		AudioTracks: []transcodertypes.TrackConfig{{
 			InputTrackIDs: []int{0, 1, 2, 3, 4, 5, 6, 7},
 			CodecName:     flags.AudioEncoder.Codec,
@@ -111,8 +111,7 @@ func main() {
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
 		}},
-	})
-	assertNoError(ctx, err)
+	}
 
 	if flags.PassthroughEncoder {
 		logger.Infof(ctx, "passing through the encoder due to the flag provided")
@@ -122,7 +121,7 @@ func main() {
 		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
 	}
 
-	err = s.Start(ctx, flags.RecoderInSeparateTracks)
+	err = s.Start(ctx, recoderConfig, flags.RecoderInSeparateTracks)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
+	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
@@ -18,9 +18,10 @@ import (
 
 type GRPCServer struct {
 	ffstream_grpc.UnimplementedFFStreamServer
-	FFStream         *ffstream.FFStream
-	locker           sync.Mutex
-	stopRecodingFunc context.CancelFunc
+	FFStream             *ffstream.FFStream
+	locker               sync.Mutex
+	stopRecodingFunc     context.CancelFunc
+	initialRecoderConfig transcodertypes.RecoderConfig
 }
 
 func NewGRPCServer(ffStream *ffstream.FFStream) *GRPCServer {
@@ -36,7 +37,7 @@ func (srv *GRPCServer) SetLoggingLevel(
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented, yet")
 }
 
-func convertCustomOptionsToAVPipeline(customOptions types.DictionaryItems) avptypes.DictionaryItems {
+func convertCustomOptionsToAVPipeline(customOptions transcodertypes.DictionaryItems) avptypes.DictionaryItems {
 	result := make(avptypes.DictionaryItems, 0, len(customOptions))
 	for _, opt := range customOptions {
 		result = append(result, avptypes.DictionaryItem{
@@ -111,7 +112,12 @@ func (srv *GRPCServer) SetRecoderConfig(
 	ctx context.Context,
 	req *ffstream_grpc.SetRecoderConfigRequest,
 ) (*ffstream_grpc.SetRecoderConfigReply, error) {
-	err := srv.FFStream.SetRecoderConfig(ctx, goconv.RecoderConfigFromGRPC(req.GetConfig()))
+	cfg := goconv.RecoderConfigFromGRPC(req.GetConfig())
+	if srv.FFStream.StreamForward == nil {
+		srv.initialRecoderConfig = cfg
+		return &ffstream_grpc.SetRecoderConfigReply{}, nil
+	}
+	err := srv.FFStream.SetRecoderConfig(ctx, cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to configure the encoder: %v", err)
 	}
@@ -128,7 +134,7 @@ func (srv *GRPCServer) Start(
 		return nil, status.Errorf(codes.FailedPrecondition, "recoding is already started")
 	}
 	ctx, cancelFn := context.WithCancel(xcontext.DetachDone(ctx))
-	err := srv.FFStream.Start(ctx, false)
+	err := srv.FFStream.Start(ctx, srv.initialRecoderConfig, false)
 	if err != nil {
 		cancelFn()
 		return nil, status.Errorf(codes.Unknown, "unable to start the recoding: %v", err)

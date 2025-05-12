@@ -85,6 +85,11 @@ func (s *FFStream) SetRecoderConfig(
 	ctx context.Context,
 	cfg transcodertypes.RecoderConfig,
 ) (_err error) {
+	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
+	defer func() { logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
+	if s.StreamForward == nil {
+		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
+	}
 	return s.StreamForward.SetRecoderConfig(ctx, cfg)
 }
 
@@ -123,10 +128,17 @@ func (s *FFStream) GetAllStats(
 
 func (s *FFStream) Start(
 	ctx context.Context,
+	recoderConfig transcodertypes.RecoderConfig,
 	recoderInSeparateTracks bool,
 ) error {
 	if s.StreamForward != nil {
 		return fmt.Errorf("this ffstream was already used")
+	}
+	if s.NodeInput == nil {
+		return fmt.Errorf("no inputs added")
+	}
+	if s.NodeOutput == nil {
+		return fmt.Errorf("no outputs added")
 	}
 
 	ctx, cancelFn := context.WithCancel(ctx)
@@ -140,6 +152,10 @@ func (s *FFStream) Start(
 	)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a StreamForward: %w", err)
+	}
+
+	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
+		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
 	}
 
 	err = s.StreamForward.Start(ctx, recoderInSeparateTracks)
