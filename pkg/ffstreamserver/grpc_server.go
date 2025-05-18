@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
@@ -134,7 +134,7 @@ func (srv *GRPCServer) Start(
 		return nil, status.Errorf(codes.FailedPrecondition, "recoding is already started")
 	}
 	ctx, cancelFn := context.WithCancel(xcontext.DetachDone(ctx))
-	err := srv.FFStream.Start(ctx, srv.initialRecoderConfig, false)
+	err := srv.FFStream.Start(ctx, srv.initialRecoderConfig, false, false)
 	if err != nil {
 		cancelFn()
 		return nil, status.Errorf(codes.Unknown, "unable to start the recoding: %v", err)

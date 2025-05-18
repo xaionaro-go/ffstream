@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcoder "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough"
-	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	transcoder "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/observability"
@@ -97,25 +97,25 @@ func (s *FFStream) GetStats(
 	ctx context.Context,
 ) *ffstream_grpc.GetStatsReply {
 	return &ffstream_grpc.GetStatsReply{
-		BytesCountRead:  s.NodeInput.NodeStatistics.BytesCountWrote.Load(),
-		BytesCountWrote: s.NodeOutput.NodeStatistics.BytesCountRead.Load(),
+		BytesCountRead:  s.NodeInput.Statistics.BytesCountWrote.Load(),
+		BytesCountWrote: s.NodeOutput.Statistics.BytesCountRead.Load(),
 		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.NodeInput.NodeStatistics.FramesWrote.Unknown.Load(),
-			Other:   s.NodeInput.NodeStatistics.FramesWrote.Other.Load(),
-			Video:   s.NodeInput.NodeStatistics.FramesWrote.Video.Load(),
-			Audio:   s.NodeInput.NodeStatistics.FramesWrote.Audio.Load(),
+			Unknown: s.NodeInput.Statistics.FramesWrote.Unknown.Load(),
+			Other:   s.NodeInput.Statistics.FramesWrote.Other.Load(),
+			Video:   s.NodeInput.Statistics.FramesWrote.Video.Load(),
+			Audio:   s.NodeInput.Statistics.FramesWrote.Audio.Load(),
 		},
 		FramesMissed: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.StreamForward.NodeRecoder.NodeStatistics.FramesMissed.Unknown.Load(),
-			Other:   s.StreamForward.NodeRecoder.NodeStatistics.FramesMissed.Other.Load(),
-			Video:   s.StreamForward.NodeRecoder.NodeStatistics.FramesMissed.Video.Load(),
-			Audio:   s.StreamForward.NodeRecoder.NodeStatistics.FramesMissed.Audio.Load(),
+			Unknown: s.StreamForward.NodeRecoder.Statistics.FramesMissed.Unknown.Load(),
+			Other:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Other.Load(),
+			Video:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Video.Load(),
+			Audio:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Audio.Load(),
 		},
 		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.NodeOutput.NodeStatistics.FramesRead.Unknown.Load(),
-			Other:   s.NodeOutput.NodeStatistics.FramesRead.Other.Load(),
-			Video:   s.NodeOutput.NodeStatistics.FramesRead.Video.Load(),
-			Audio:   s.NodeOutput.NodeStatistics.FramesRead.Audio.Load(),
+			Unknown: s.NodeOutput.Statistics.FramesRead.Unknown.Load(),
+			Other:   s.NodeOutput.Statistics.FramesRead.Other.Load(),
+			Video:   s.NodeOutput.Statistics.FramesRead.Video.Load(),
+			Audio:   s.NodeOutput.Statistics.FramesRead.Audio.Load(),
 		},
 	}
 }
@@ -130,6 +130,7 @@ func (s *FFStream) Start(
 	ctx context.Context,
 	recoderConfig transcodertypes.RecoderConfig,
 	recoderInSeparateTracks bool,
+	passthroughEncoderByDefault bool,
 ) error {
 	if s.StreamForward != nil {
 		return fmt.Errorf("this ffstream was already used")
@@ -145,17 +146,26 @@ func (s *FFStream) Start(
 	s.addCancelFnLocked(cancelFn)
 
 	var err error
-	s.StreamForward, err = transcoder.New(
+	s.StreamForward, err = transcoder.New[struct{}, *processor.FromKernel[*kernel.Input]](
 		ctx,
-		s.NodeInput,
+		s.NodeInput.Processor.Kernel,
 		s.NodeOutput,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a StreamForward: %w", err)
 	}
+	s.NodeInput.AddPushPacketsTo(s.StreamForward.Input())
 
 	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
 		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
+	}
+
+	if passthroughEncoderByDefault {
+		logger.Infof(ctx, "passing through the encoder due to the flag provided")
+		s.StreamForward.PassthroughSwitch.CurrentValue.Store(1)
+		s.StreamForward.PostSwitchFilter.CurrentValue.Store(1)
+		s.StreamForward.PassthroughSwitch.NextValue.Store(1)
+		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
 	}
 
 	err = s.StreamForward.Start(ctx, recoderInSeparateTracks)

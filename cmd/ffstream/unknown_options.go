@@ -1,7 +1,7 @@
 package main
 
 import (
-	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 

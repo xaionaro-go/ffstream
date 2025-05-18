@@ -8,7 +8,7 @@ import (
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcodertypes "github.com/xaionaro-go/avpipeline/chain/transcoderwithpassthrough/types"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
@@ -113,15 +113,7 @@ func main() {
 		}},
 	}
 
-	if flags.PassthroughEncoder {
-		logger.Infof(ctx, "passing through the encoder due to the flag provided")
-		s.StreamForward.PassthroughSwitch.CurrentValue.Store(1)
-		s.StreamForward.PostSwitchFilter.CurrentValue.Store(1)
-		s.StreamForward.PassthroughSwitch.NextValue.Store(1)
-		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
-	}
-
-	err = s.Start(ctx, recoderConfig, flags.RecoderInSeparateTracks)
+	err = s.Start(ctx, recoderConfig, flags.RecoderInSeparateTracks, flags.PassthroughEncoder)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {
