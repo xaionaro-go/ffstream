@@ -29,8 +29,8 @@ func (s *FFStreamServer) ServeContext(
 	listener net.Listener,
 ) error {
 	opts := []grpc_recovery.Option{
-		grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
-			ctx = belt.WithField(ctx, "stack_trace", debug.Stack())
+		grpc_recovery.WithRecoveryHandler(func(p any) (err error) {
+			ctx = belt.WithField(ctx, "stack_trace", string(debug.Stack()))
 			errmon.ObserveRecoverCtx(ctx, p)
 			return nil
 		}),

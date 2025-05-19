@@ -14,7 +14,7 @@ termux_step_make() {
 
 	mkdir -p "$GOPATH"/src/github.com/xaionaro-go
 	cp -a "$TERMUX_PKG_SRCDIR" "$GOPATH"/src/github.com/xaionaro-go/ffstream
-	cd "$GOPATH"/src/github.com/xaionaro-go/ffstream
+	cd "$GOPATH"/src/github.com/xaionaro-go/ffstream || exit
 
 	make ffstream-android-arm64-in-termux ENABLE_LIBAV=true
 }

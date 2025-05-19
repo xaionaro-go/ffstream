@@ -6,6 +6,8 @@ replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.
 
 replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250419202405-6baea371bdeb
 
+replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
+
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.36.0
