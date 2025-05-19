@@ -74,7 +74,7 @@ func (p *Parser) Parse(args []string) error {
 
 		flag := p.findOptionByName(arg[1:])
 		if flag == nil {
-			p.nextCollectorOfUnknownOptions = append(p.nextCollectorOfUnknownOptions, arg[1:])
+			p.nextCollectorOfUnknownOptions = append(p.nextCollectorOfUnknownOptions, arg)
 			continue
 		}
 

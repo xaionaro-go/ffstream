@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	transcoder "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough"
@@ -18,8 +19,8 @@ import (
 )
 
 type FFStream struct {
-	NodeInput  *node.Node[*processor.FromKernel[*kernel.Input]]
-	NodeOutput *node.Node[*processor.FromKernel[*kernel.Output]]
+	NodeInput   *node.Node[*processor.FromKernel[*kernel.Input]]
+	NodeOutputs []*node.Node[*processor.FromKernel[*kernel.Output]]
 
 	StreamForward *transcoder.TranscoderWithPassthrough[struct{}, *processor.FromKernel[*kernel.Input]]
 
@@ -66,12 +67,9 @@ func (s *FFStream) AddOutput(
 ) error {
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	if s.NodeOutput != nil {
-		return fmt.Errorf("currently we support only one output")
-	}
 	ctx, cancelFn := context.WithCancel(ctx)
 	s.addCancelFnLocked(cancelFn)
-	s.NodeOutput = node.NewFromKernel(ctx, output, processor.DefaultOptionsOutput()...)
+	s.NodeOutputs = append(s.NodeOutputs, node.NewFromKernel(ctx, output, processor.DefaultOptionsOutput()...))
 	return nil
 }
 
@@ -96,9 +94,10 @@ func (s *FFStream) SetRecoderConfig(
 func (s *FFStream) GetStats(
 	ctx context.Context,
 ) *ffstream_grpc.GetStatsReply {
+	// TODO: fix me: add support of multiple outputs
 	return &ffstream_grpc.GetStatsReply{
 		BytesCountRead:  s.NodeInput.Statistics.BytesCountWrote.Load(),
-		BytesCountWrote: s.NodeOutput.Statistics.BytesCountRead.Load(),
+		BytesCountWrote: s.NodeOutputs[0].Statistics.BytesCountRead.Load(),
 		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
 			Unknown: s.NodeInput.Statistics.FramesWrote.Unknown.Load(),
 			Other:   s.NodeInput.Statistics.FramesWrote.Other.Load(),
@@ -112,10 +111,10 @@ func (s *FFStream) GetStats(
 			Audio:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Audio.Load(),
 		},
 		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.NodeOutput.Statistics.FramesRead.Unknown.Load(),
-			Other:   s.NodeOutput.Statistics.FramesRead.Other.Load(),
-			Video:   s.NodeOutput.Statistics.FramesRead.Video.Load(),
-			Audio:   s.NodeOutput.Statistics.FramesRead.Audio.Load(),
+			Unknown: s.NodeOutputs[0].Statistics.FramesRead.Unknown.Load(),
+			Other:   s.NodeOutputs[0].Statistics.FramesRead.Other.Load(),
+			Video:   s.NodeOutputs[0].Statistics.FramesRead.Video.Load(),
+			Audio:   s.NodeOutputs[0].Statistics.FramesRead.Audio.Load(),
 		},
 	}
 }
@@ -129,7 +128,7 @@ func (s *FFStream) GetAllStats(
 func (s *FFStream) Start(
 	ctx context.Context,
 	recoderConfig transcodertypes.RecoderConfig,
-	recoderInSeparateTracks bool,
+	passthroughMode transcodertypes.PassthroughMode,
 	passthroughEncoderByDefault bool,
 ) error {
 	if s.StreamForward != nil {
@@ -138,8 +137,13 @@ func (s *FFStream) Start(
 	if s.NodeInput == nil {
 		return fmt.Errorf("no inputs added")
 	}
-	if s.NodeOutput == nil {
+	if len(s.NodeOutputs) == 0 {
 		return fmt.Errorf("no outputs added")
+	}
+
+	var nodeOutputs []node.Abstract
+	for _, nodeOutput := range s.NodeOutputs {
+		nodeOutputs = append(nodeOutputs, nodeOutput)
 	}
 
 	ctx, cancelFn := context.WithCancel(ctx)
@@ -149,7 +153,7 @@ func (s *FFStream) Start(
 	s.StreamForward, err = transcoder.New[struct{}, *processor.FromKernel[*kernel.Input]](
 		ctx,
 		s.NodeInput.Processor.Kernel,
-		s.NodeOutput,
+		nodeOutputs...,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a StreamForward: %w", err)
@@ -168,7 +172,7 @@ func (s *FFStream) Start(
 		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
 	}
 
-	err = s.StreamForward.Start(ctx, recoderInSeparateTracks)
+	err = s.StreamForward.Start(ctx, passthroughMode)
 	if err != nil {
 		return fmt.Errorf("unable to start the StreamForward: %w", err)
 	}
@@ -186,7 +190,7 @@ func (s *FFStream) Start(
 		wg.Add(1)
 		observability.Go(ctx, func() {
 			wg.Done()
-			s.NodeOutput.Serve(ctx, node.ServeConfig{}, errCh)
+			avpipeline.Serve(ctx, avpipeline.ServeConfig{}, errCh, s.NodeOutputs...)
 		})
 	})
 

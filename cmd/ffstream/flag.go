@@ -3,29 +3,31 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
 )
 
 type Flags struct {
-	HWAccelGlobal           string
-	Inputs                  []Resource
-	ListenControlSocket     string
-	ListenNetPprof          string
-	LoggerLevel             logger.Level
-	LogstashAddr            string
-	SentryDSN               string
-	LogFile                 string
-	LockTimeout             time.Duration
-	InsecureDebug           bool
-	RemoveSecretsFromLogs   bool
-	VideoEncoder            Encoder
-	AudioEncoder            Encoder
-	PassthroughEncoder      bool
-	RecoderInSeparateTracks bool
-	Output                  Resource
+	HWAccelGlobal         string
+	Inputs                []Resource
+	ListenControlSocket   string
+	ListenNetPprof        string
+	LoggerLevel           logger.Level
+	LogstashAddr          string
+	SentryDSN             string
+	LogFile               string
+	LockTimeout           time.Duration
+	InsecureDebug         bool
+	RemoveSecretsFromLogs bool
+	VideoEncoder          Encoder
+	AudioEncoder          Encoder
+	PassthroughEncoder    bool
+	PassthroughMode       transcodertypes.PassthroughMode
+	Outputs               []Resource
 }
 
 type Encoder struct {
@@ -38,7 +40,7 @@ type Resource struct {
 	Options []string
 }
 
-func parseFlags(ctx context.Context, args []string) Flags {
+func parseFlags(args []string) (context.Context, Flags) {
 	p := flag.NewParser()
 	hwAccelFlag := flag.AddParameter(p, "hwaccel", false, ptr(flag.String("none")))
 	inputsFlag := flag.AddParameter(p, "i", true, ptr(flag.StringsAsSeparateFlags(nil)))
@@ -57,14 +59,17 @@ func parseFlags(ctx context.Context, args []string) Flags {
 	filterFlag := flag.AddParameter(p, "filter", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
+	passthroughModeString := flag.AddParameter(p, "passthrough_mode", false, ptr(flag.String("same_tracks")))
 	passthroughEncoder := flag.AddFlag(p, "passthrough_encoder", false)
-	recoderInSeparateTracks := flag.AddFlag(p, "recoder_in_separate_tracks", false)
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
 	decoders := flag.AddFlag(p, "decoders", false)
 
 	err := p.Parse(args[1:])
+	ctx := getContext(Flags{
+		LoggerLevel: loggerLevel.Value(),
+	})
 	assertNoError(ctx, err)
 
 	if version.Value() {
@@ -83,18 +88,38 @@ func parseFlags(ctx context.Context, args []string) Flags {
 	}
 
 	if len(p.CollectedUnknownOptions) == 0 && len(p.CollectedNonFlags) == 0 {
-		fatal(ctx, "expected one output, but have not received any")
+		fatal(ctx, "expected at least one output, but have not received any")
 	}
-	if len(p.CollectedNonFlags) > 1 {
-		fatal(ctx, "expected one output, but received %d", len(p.CollectedNonFlags))
+	logger.Debugf(ctx, "p.CollectedNonFlags: %#+v", p.CollectedNonFlags)
+	logger.Debugf(ctx, "p.CollectedUnknownOptions: %#+v", p.CollectedUnknownOptions)
+	var unknownOptions [][]string
+	var nextUnknownOptions []string
+	var unknownNonOptions []string
+	var nextIsOption bool
+	for _, opt := range p.CollectedUnknownOptions {
+		if strings.HasPrefix(opt, "-") && len(opt) != 1 {
+			nextUnknownOptions = append(nextUnknownOptions, opt)
+			nextIsOption = true
+			continue
+		}
+		if nextIsOption {
+			nextUnknownOptions = append(nextUnknownOptions, opt)
+			nextIsOption = false
+			continue
+		}
+		unknownOptions = append(unknownOptions, nextUnknownOptions)
+		nextUnknownOptions = nil
+		unknownNonOptions = append(unknownNonOptions, opt)
 	}
-	if len(p.CollectedNonFlags) == 0 {
-		p.CollectedNonFlags = p.CollectedUnknownOptions[len(p.CollectedUnknownOptions)-1:]
-		p.CollectedUnknownOptions = p.CollectedUnknownOptions[:len(p.CollectedUnknownOptions)-1]
-	}
-	output := Resource{
-		URL:     p.CollectedNonFlags[0],
-		Options: p.CollectedUnknownOptions,
+
+	logger.Debugf(ctx, "unknownNonOptions: %#+v", unknownNonOptions)
+	logger.Debugf(ctx, "unknownOptions: %#+v", unknownOptions)
+	var outputs []Resource
+	for idx, nonFlag := range unknownNonOptions {
+		outputs = append(outputs, Resource{
+			URL:     nonFlag,
+			Options: unknownOptions[idx],
+		})
 	}
 
 	var inputs []Resource
@@ -118,6 +143,11 @@ func parseFlags(ctx context.Context, args []string) Flags {
 		fatal(ctx, "filters are not supported yet")
 	}
 
+	passthroughMode := transcodertypes.PassthroughModeFromString(passthroughModeString.Value())
+	if passthroughMode == transcodertypes.UndefinedPassthroughMode {
+		fatal(ctx, "unable to parse passthrough mode", passthroughModeString)
+	}
+
 	flags := Flags{
 		ListenControlSocket: listenControlSocket.Value(),
 		ListenNetPprof:      listenNetPprof.Value(),
@@ -127,15 +157,16 @@ func parseFlags(ctx context.Context, args []string) Flags {
 		LogFile:             logFile.Value(),
 		LockTimeout:         lockTimeout.Value(),
 
-		InsecureDebug:           insecureDebug.Value(),
-		RemoveSecretsFromLogs:   removeSecretsFromLogs.Value(),
-		PassthroughEncoder:      passthroughEncoder.Value(),
-		RecoderInSeparateTracks: recoderInSeparateTracks.Value(),
+		InsecureDebug:         insecureDebug.Value(),
+		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
+		PassthroughEncoder:    passthroughEncoder.Value(),
+		PassthroughMode:       passthroughMode,
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,
-		Output:        output,
+		Outputs:       outputs,
 	}
+	ctx = getContext(flags)
 
 	if v := encoderBothFlag.Value(); v != "" {
 		flags.AudioEncoder = Encoder{
@@ -162,5 +193,5 @@ func parseFlags(ctx context.Context, args []string) Flags {
 		}
 	}
 
-	return flags
+	return ctx, flags
 }

@@ -14,7 +14,8 @@ func (s *FFStream) WithSRTOutput(
 	ctx context.Context,
 	callback func(*threadsafe.Socket) error,
 ) error {
-	sock, err := s.NodeOutput.Processor.Kernel.SRT(ctx)
+	// TODO: add support for multiple outputs
+	sock, err := s.NodeOutputs[0].Processor.Kernel.SRT(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get the SRT socket handler: %w", err)
 	}

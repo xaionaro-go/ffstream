@@ -11,17 +11,9 @@ func RecoderConfigFromGRPC(
 	audioDeviceTypeName := types.HardwareDeviceTypeFromString(req.GetAudio().GetHardwareDeviceType())
 	videoDeviceTypeName := types.HardwareDeviceTypeFromString(req.GetVideo().GetHardwareDeviceType())
 	return types.RecoderConfig{
-		AudioTracks: []types.TrackConfig{{
+		VideoTrackConfigs: []types.TrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
-			CodecName:          req.GetAudio().GetCodecName(),
-			AveragingPeriod:    DurationFromGRPC(int64(req.GetAudio().GetAveragingPeriod())),
-			AverageBitRate:     req.GetAudio().GetAverageBitRate(),
-			CustomOptions:      CustomOptionsFromGRPC(req.GetAudio().GetCustomOptions()),
-			HardwareDeviceType: types.HardwareDeviceType(audioDeviceTypeName),
-			HardwareDeviceName: types.HardwareDeviceName(req.GetAudio().GetHardwareDeviceName()),
-		}},
-		VideoTracks: []types.TrackConfig{{
-			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
+			OutputTrackIDs:     []int{0},
 			CodecName:          req.GetVideo().GetCodecName(),
 			AveragingPeriod:    DurationFromGRPC(int64(req.GetVideo().GetAveragingPeriod())),
 			AverageBitRate:     req.GetVideo().GetAverageBitRate(),
@@ -29,14 +21,24 @@ func RecoderConfigFromGRPC(
 			HardwareDeviceType: types.HardwareDeviceType(videoDeviceTypeName),
 			HardwareDeviceName: types.HardwareDeviceName(req.GetVideo().GetHardwareDeviceName()),
 		}},
+		AudioTrackConfigs: []types.TrackConfig{{
+			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
+			OutputTrackIDs:     []int{1},
+			CodecName:          req.GetAudio().GetCodecName(),
+			AveragingPeriod:    DurationFromGRPC(int64(req.GetAudio().GetAveragingPeriod())),
+			AverageBitRate:     req.GetAudio().GetAverageBitRate(),
+			CustomOptions:      CustomOptionsFromGRPC(req.GetAudio().GetCustomOptions()),
+			HardwareDeviceType: types.HardwareDeviceType(audioDeviceTypeName),
+			HardwareDeviceName: types.HardwareDeviceName(req.GetAudio().GetHardwareDeviceName()),
+		}},
 	}
 }
 
 func RecoderConfigToGRPC(
 	cfg types.RecoderConfig,
 ) *ffstream_grpc.RecoderConfig {
-	audio := cfg.AudioTracks[0]
-	video := cfg.VideoTracks[0]
+	audio := cfg.AudioTrackConfigs[0]
+	video := cfg.VideoTrackConfigs[0]
 	return &ffstream_grpc.RecoderConfig{
 		Audio: &ffstream_grpc.CodecConfig{
 			CodecName:          audio.CodecName,

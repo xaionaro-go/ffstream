@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"time"
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
@@ -25,8 +24,7 @@ func main() {
 	}
 	defer child_process_manager.DisposeChildProcessManager()
 
-	flags := parseFlags(context.TODO(), os.Args)
-	ctx := getContext(flags)
+	ctx, flags := parseFlags(os.Args)
 
 	ctx, cancelFunc := initRuntime(ctx, flags)
 	defer cancelFunc()
@@ -57,63 +55,69 @@ func main() {
 		s.AddInput(ctx, input)
 	}
 
-	outputOptions := convertUnknownOptionsToAVPCustomOptions(flags.Output.Options)
-	var outputFormat string
-	for _, v := range outputOptions {
-		switch v.Key {
-		case "f":
-			outputFormat = v.Value
-		}
-	}
-	if outputFormat == "mpegts" {
-		var movFlags *avptypes.DictionaryItem
-		for idx, item := range outputOptions {
-			if item.Key == "movflags" {
-				movFlags = &outputOptions[idx]
-				break
+	encoderVideoOptions := convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)
+	for _, outputParams := range flags.Outputs {
+		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
+		outputOptions := convertUnknownOptionsToAVPCustomOptions(outputParams.Options)
+		var outputFormat string
+		for _, v := range outputOptions {
+			switch v.Key {
+			case "f":
+				outputFormat = v.Value
 			}
 		}
-		if movFlags == nil {
-			outputOptions = append(outputOptions, avptypes.DictionaryItem{Key: "movflags"})
-			movFlags = &outputOptions[len(outputOptions)-1]
+		if outputFormat == "mpegts" {
+			var movFlags *avptypes.DictionaryItem
+			for idx, item := range outputOptions {
+				if item.Key == "movflags" {
+					movFlags = &outputOptions[idx]
+					break
+				}
+			}
+			if movFlags == nil {
+				outputOptions = append(outputOptions, avptypes.DictionaryItem{Key: "movflags"})
+				movFlags = &outputOptions[len(outputOptions)-1]
+			}
+			if movFlags.Value != "" {
+				movFlags.Value += "+"
+			}
+			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
 		}
-		if movFlags.Value != "" {
-			movFlags.Value += "+"
-		}
-		movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
-	}
-	output, err := kernel.NewOutputFromURL(ctx, flags.Output.URL, secret.New(""), kernel.OutputConfig{
-		CustomOptions: outputOptions,
-	})
-	assertNoError(ctx, err)
-	s.AddOutput(ctx, output)
 
-	encoderVideoOptions := convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)
-	for _, v := range outputOptions {
-		switch v.Key {
-		case "g", "r", "bufsize":
-			encoderVideoOptions = append(encoderVideoOptions, transcodertypes.DictionaryItem{
-				Key:   v.Key,
-				Value: v.Value,
-			})
+		output, err := kernel.NewOutputFromURL(ctx, outputParams.URL, secret.New(""), kernel.OutputConfig{
+			CustomOptions: outputOptions,
+		})
+		assertNoError(ctx, err)
+		s.AddOutput(ctx, output)
+
+		for _, v := range outputOptions {
+			switch v.Key {
+			case "g", "r", "bufsize":
+				encoderVideoOptions = append(encoderVideoOptions, transcodertypes.DictionaryItem{
+					Key:   v.Key,
+					Value: v.Value,
+				})
+			}
 		}
 	}
 
 	recoderConfig := transcodertypes.RecoderConfig{
-		AudioTracks: []transcodertypes.TrackConfig{{
-			InputTrackIDs: []int{0, 1, 2, 3, 4, 5, 6, 7},
-			CodecName:     flags.AudioEncoder.Codec,
-			CustomOptions: convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
-		}},
-		VideoTracks: []transcodertypes.TrackConfig{{
+		VideoTrackConfigs: []transcodertypes.TrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
+			OutputTrackIDs:     []int{0},
 			CodecName:          flags.VideoEncoder.Codec,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
 		}},
+		AudioTrackConfigs: []transcodertypes.TrackConfig{{
+			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
+			OutputTrackIDs: []int{1},
+			CodecName:      flags.AudioEncoder.Codec,
+			CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
+		}},
 	}
 
-	err = s.Start(ctx, recoderConfig, flags.RecoderInSeparateTracks, flags.PassthroughEncoder)
+	err = s.Start(ctx, recoderConfig, flags.PassthroughMode, flags.PassthroughEncoder)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {
