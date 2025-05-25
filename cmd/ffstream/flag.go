@@ -32,6 +32,7 @@ type Flags struct {
 
 type Encoder struct {
 	Codec   string
+	BitRate uint64
 	Options []string
 }
 
@@ -47,6 +48,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	encoderBothFlag := flag.AddParameter(p, "c", true, ptr(flag.String("copy")))
 	encoderVideoFlag := flag.AddParameter(p, "c:v", true, ptr(flag.String("")))
 	encoderAudioFlag := flag.AddParameter(p, "c:a", true, ptr(flag.String("")))
+	bitrateVideoFlag := flag.AddParameter(p, "b:v", true, ptr(flag.Uint64(0)))
 	listenControlSocket := flag.AddParameter(p, "listen_control", false, ptr(flag.String("")))
 	listenNetPprof := flag.AddParameter(p, "listen_net_pprof", false, ptr(flag.String("")))
 	loggerLevel := flag.AddParameter(p, "v", false, ptr(flag.LogLevel(logger.LevelInfo)))
@@ -182,6 +184,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	if v := encoderVideoFlag.Value(); v != "" {
 		flags.VideoEncoder = Encoder{
 			Codec:   v,
+			BitRate: bitrateVideoFlag.Value(),
 			Options: encoderVideoFlag.CollectedUnknownOptions[0],
 		}
 	}

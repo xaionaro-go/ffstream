@@ -11,6 +11,7 @@ replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.36.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/facebookincubator/go-belt v0.0.0-20250308011339-62fb7027b11f
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
@@ -19,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250525155625-57eb5eadceae
+	github.com/xaionaro-go/avpipeline v0.0.0-20250525171421-a7d3e17541e2
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250525153415-e6c2d935ab34

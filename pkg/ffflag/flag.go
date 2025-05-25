@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	loggertypes "github.com/facebookincubator/go-belt/tool/logger"
 )
 
@@ -45,6 +46,21 @@ type abstractWrapper[V any] struct {
 
 func (w abstractWrapper[V]) Value() any {
 	return w.Wrapped.Value()
+}
+
+type Uint64 uint64
+
+func (v *Uint64) Parse(input string) error {
+	i, err := humanize.ParseBytes(input)
+	if err != nil {
+		return err
+	}
+	*v = Uint64(i)
+	return nil
+}
+
+func (v *Uint64) Value() uint64 {
+	return uint64(*v)
 }
 
 type String string

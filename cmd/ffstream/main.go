@@ -107,6 +107,7 @@ func main() {
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
 			CodecName:          flags.VideoEncoder.Codec,
+			AverageBitRate:     flags.VideoEncoder.BitRate,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
 		}},
@@ -114,6 +115,7 @@ func main() {
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs: []int{1},
 			CodecName:      flags.AudioEncoder.Codec,
+			AverageBitRate: flags.AudioEncoder.BitRate,
 			CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
 		}},
 	}
