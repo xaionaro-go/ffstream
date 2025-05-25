@@ -4,7 +4,7 @@ go 1.24.1
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250419202405-6baea371bdeb
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250521203320-7402f3e25a7c
 
 replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
 
