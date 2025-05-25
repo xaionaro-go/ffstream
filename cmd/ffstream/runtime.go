@@ -23,7 +23,7 @@ func initRuntime(
 	l := logger.FromCtx(ctx)
 
 	if flags.ListenNetPprof != "" {
-		observability.Go(ctx, func() {
+		observability.Go(ctx, func(ctx context.Context) {
 			http.Handle(
 				"/metrics",
 				promhttp.Handler(),

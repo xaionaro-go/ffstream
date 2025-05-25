@@ -48,7 +48,7 @@ func (s *FFStreamServer) ServeContext(
 
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
-	observability.Go(ctx, func() {
+	observability.Go(ctx, func(ctx context.Context) {
 		<-ctx.Done()
 		grpcServer.Stop()
 	})

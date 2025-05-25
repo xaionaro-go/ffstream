@@ -249,7 +249,7 @@ func (c *Client) WaitChan(
 
 	result := make(chan struct{})
 	waiter.CloseSend()
-	observability.Go(ctx, func() {
+	observability.Go(ctx, func(ctx context.Context) {
 		defer conn.Close()
 		defer func() {
 			close(result)

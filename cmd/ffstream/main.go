@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"time"
@@ -39,7 +40,7 @@ func main() {
 		listener, err := getListener(ctx, flags.ListenControlSocket)
 		assertNoError(ctx, err)
 
-		observability.Go(ctx, func() {
+		observability.Go(ctx, func(ctx context.Context) {
 			logger.Infof(ctx, "listening for gRPC clients at %s (%T)", listener.Addr(), listener)
 			ffstreamserver.New(s).ServeContext(ctx, listener)
 		})
@@ -121,7 +122,7 @@ func main() {
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {
-		observability.Go(ctx, func() {
+		observability.Go(ctx, func(ctx context.Context) {
 			t := time.NewTicker(time.Second)
 			defer t.Stop()
 			for {

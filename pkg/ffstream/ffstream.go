@@ -130,7 +130,10 @@ func (s *FFStream) Start(
 	recoderConfig transcodertypes.RecoderConfig,
 	passthroughMode transcodertypes.PassthroughMode,
 	passthroughEncoderByDefault bool,
-) error {
+) (_err error) {
+	logger.Debugf(ctx, "Start")
+	defer func() { logger.Debugf(ctx, "/Start: %v", _err) }()
+
 	if s.StreamForward != nil {
 		return fmt.Errorf("this ffstream was already used")
 	}
@@ -178,23 +181,23 @@ func (s *FFStream) Start(
 	}
 
 	errCh := make(chan node.Error, 100)
-	observability.Go(ctx, func() {
+	observability.Go(ctx, func(ctx context.Context) {
 		defer close(errCh)
 		var wg sync.WaitGroup
 		defer wg.Wait()
 		wg.Add(1)
-		observability.Go(ctx, func() {
+		observability.Go(ctx, func(ctx context.Context) {
 			defer wg.Done()
 			s.NodeInput.Serve(ctx, node.ServeConfig{}, errCh)
 		})
 		wg.Add(1)
-		observability.Go(ctx, func() {
+		observability.Go(ctx, func(ctx context.Context) {
 			wg.Done()
 			avpipeline.Serve(ctx, avpipeline.ServeConfig{}, errCh, s.NodeOutputs...)
 		})
 	})
 
-	observability.Go(ctx, func() {
+	observability.Go(ctx, func(ctx context.Context) {
 		defer s.cancelFunc()
 		select {
 		case <-ctx.Done():
