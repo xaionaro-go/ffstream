@@ -19,7 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250519040721-43f661cd0871
+	github.com/xaionaro-go/avpipeline v0.0.0-20250525005811-edc4186a8621
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250420133500-5c4d2e045932
@@ -27,7 +27,7 @@ require (
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
 	github.com/xaionaro-go/xsync v0.0.0-20250511184922-deec5fb01a0f
-	google.golang.org/grpc v1.71.1
+	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )
 

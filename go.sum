@@ -133,8 +133,6 @@ github.com/xaionaro-go/avcommon v0.0.0-20250510235605-840f8210b727 h1:uQ8V1T3Oer
 github.com/xaionaro-go/avcommon v0.0.0-20250510235605-840f8210b727/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 h1:FZn9+TN3uHhohfpanWkR9lFNHApizznZbML6XjvEgTU=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8/go.mod h1:2W2Kp/HJFXcFBppQ4YytgDy/ydFL3hGc23xSB1U/Luc=
-github.com/xaionaro-go/avpipeline v0.0.0-20250519040721-43f661cd0871 h1:NpBP/kme1XvbF3CzlqQX/vh3YXKuzR1a+wEuUXJLmLA=
-github.com/xaionaro-go/avpipeline v0.0.0-20250519040721-43f661cd0871/go.mod h1:WVE6ODsZ+9OJd4OaswTOAdVMtuYF93ETsx/tFOLN6Yw=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7TlNavGKzAgCf598zWRfZCSpi1HTKDbjbwg=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=
@@ -217,8 +215,8 @@ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwY
 golang.org/x/net v0.39.0 h1:ZCu7HMWDxpXpaiKdhzIfaltL9Lp31x/3fCP11bc6/fY=
 golang.org/x/net v0.39.0/go.mod h1:X7NRbYVEA+ewNkCNyJ513WmMdQ3BineSwVtN2zD/d+E=
 golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
-golang.org/x/oauth2 v0.25.0 h1:CY4y7XT9v0cRI9oupztF8AgiIu99L/ksR/Xp/6jrZ70=
-golang.org/x/oauth2 v0.25.0/go.mod h1:XYTD2NtWslqkgxebSiOHnXEap4TF09sJSc7H1sXbhtI=
+golang.org/x/oauth2 v0.26.0 h1:afQXWNNaeC4nvZ0Ed9XvCCzXM6UHJG7iCg0W4fPqSBE=
+golang.org/x/oauth2 v0.26.0/go.mod h1:XYTD2NtWslqkgxebSiOHnXEap4TF09sJSc7H1sXbhtI=
 golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20181108010431-42b317875d0f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
@@ -263,8 +261,8 @@ google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyac
 google.golang.org/grpc v1.25.1/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
 google.golang.org/grpc v1.29.1/go.mod h1:itym6AZVZYACWQqET3MqgPpjcuV5QH3BxFS3IjizoKk=
-google.golang.org/grpc v1.71.1 h1:ffsFWr7ygTUscGPI0KKK6TLrGz0476KUvvsbqWK0rPI=
-google.golang.org/grpc v1.71.1/go.mod h1:H0GRtasmQOh9LkFoCPDu3ZrwUtD1YGE+b2vYBYd/8Ec=
+google.golang.org/grpc v1.72.1 h1:HR03wO6eyZ7lknl75XlxABNVLLFc2PAb6mHlYh756mA=
+google.golang.org/grpc v1.72.1/go.mod h1:wH5Aktxcg25y1I3w7H69nHfXdOG3UiadoBtjh3izSDM=
 google.golang.org/protobuf v1.36.6 h1:z1NpPI8ku2WgiWnf+t9wTPsn6eP1L7ksHUlkfLvd9xY=
 google.golang.org/protobuf v1.36.6/go.mod h1:jduwjTPXsFjZGTmRluh+L6NjiWu7pchiJ2/5YcXBHnY=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

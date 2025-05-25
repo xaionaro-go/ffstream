@@ -84,7 +84,7 @@ func (s *FFStream) SetRecoderConfig(
 	cfg transcodertypes.RecoderConfig,
 ) (_err error) {
 	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
-	defer func() { logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
+	defer func() { logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
 	if s.StreamForward == nil {
 		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
 	}
