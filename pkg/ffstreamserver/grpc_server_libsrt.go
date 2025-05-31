@@ -35,9 +35,9 @@ func (srv *GRPCServer) GetOutputSRTStats(
 
 func (srv *GRPCServer) SetFlagInt(
 	ctx context.Context,
-	req *ffstream_grpc.SetFlagIntRequest,
-) (*ffstream_grpc.SetFlagIntReply, error) {
-	sockOpt, ok := goconv.SockoptIntFromGRPC(req.GetFlag())
+	req *ffstream_grpc.SetSRTFlagIntRequest,
+) (*ffstream_grpc.SetSRTFlagIntReply, error) {
+	sockOpt, ok := goconv.SRTSockoptIntFromGRPC(req.GetFlag())
 	if !ok {
 		return nil, status.Errorf(codes.Unknown, "unknown SRT socket option: %d", req.GetFlag())
 	}
@@ -50,14 +50,14 @@ func (srv *GRPCServer) SetFlagInt(
 		return nil, status.Errorf(codes.Unknown, "unable to set the SRT socket option: %v", err)
 	}
 
-	return &ffstream_grpc.SetFlagIntReply{}, nil
+	return &ffstream_grpc.SetSRTFlagIntReply{}, nil
 }
 
 func (srv *GRPCServer) GetFlagInt(
 	ctx context.Context,
-	req *ffstream_grpc.GetFlagIntRequest,
-) (*ffstream_grpc.GetFlagIntReply, error) {
-	sockOpt, ok := goconv.SockoptIntFromGRPC(req.GetFlag())
+	req *ffstream_grpc.GetSRTFlagIntRequest,
+) (*ffstream_grpc.GetSRTFlagIntReply, error) {
+	sockOpt, ok := goconv.SRTSockoptIntFromGRPC(req.GetFlag())
 	if !ok {
 		return nil, status.Errorf(codes.Unknown, "unknown SRT socket option: %d", req.GetFlag())
 	}
@@ -70,7 +70,7 @@ func (srv *GRPCServer) GetFlagInt(
 		return nil, status.Errorf(codes.Unknown, "unable to set the SRT socket option: %v", err)
 	}
 
-	return &ffstream_grpc.GetFlagIntReply{
+	return &ffstream_grpc.GetSRTFlagIntReply{
 		Value: int64(v),
 	}, nil
 }

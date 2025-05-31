@@ -9,11 +9,13 @@ service FFStream {
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
   rpc GetRecoderConfig(GetRecoderConfigRequest) returns (GetRecoderConfigReply) {}
   rpc SetRecoderConfig(SetRecoderConfigRequest) returns (SetRecoderConfigReply) {}
+  rpc GetTolerableOutputQueueSizeBytes(GetTolerableOutputQueueSizeBytesRequest) returns (GetTolerableOutputQueueSizeBytesReply) {}
+  rpc SetTolerableOutputQueueSizeBytes(SetTolerableOutputQueueSizeBytesRequest) returns (SetTolerableOutputQueueSizeBytesReply) {}
   rpc Start(StartRequest) returns (StartReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest) returns (GetOutputSRTStatsReply) {}
-  rpc GetFlagInt(GetFlagIntRequest) returns (GetFlagIntReply) {}
-  rpc SetFlagInt(SetFlagIntRequest) returns (SetFlagIntReply) {}
+  rpc GetSRTFlagInt(GetSRTFlagIntRequest) returns (GetSRTFlagIntReply) {}
+  rpc SetSRTFlagInt(SetSRTFlagIntRequest) returns (SetSRTFlagIntReply) {}
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
 }
@@ -80,15 +82,31 @@ message SetRecoderConfigRequest {
   RecoderConfig config = 1;
 }
 message SetRecoderConfigReply {}
+
+message GetTolerableOutputQueueSizeBytesRequest {}
+
+message GetTolerableOutputQueueSizeBytesReply {
+  uint64 value = 1;
+}
+
+message SetTolerableOutputQueueSizeBytesRequest {
+  uint64 value = 1;
+}
+
+message SetTolerableOutputQueueSizeBytesReply {}
+
 message StartRequest {}
 message StartReply {}
 message GetStatsRequest {}
 message GetStatsReply {
   uint64 BytesCountRead = 1;
-  uint64 BytesCountWrote = 2;
-  CommonsProcessingFramesStatistics FramesRead = 3;
-  CommonsProcessingFramesStatistics FramesMissed = 4;
-  CommonsProcessingFramesStatistics FramesWrote = 5;
+  uint64 BytesCountBuffered = 2;
+  uint64 BytesCountDropped = 3;
+  uint64 BytesCountWrote = 4;
+  CommonsProcessingFramesStatistics FramesRead = 5;
+  CommonsProcessingFramesStatistics FramesMissed = 6;
+  CommonsProcessingFramesStatistics FramesDropped = 7;
+  CommonsProcessingFramesStatistics FramesWrote = 8;
 }
 
 message CommonsProcessingFramesStatistics {
@@ -184,22 +202,22 @@ message GetOutputSRTStatsReply {
   uint64 byteRecvUnique = 82;
 }
 
-enum FlagInt {
+enum SRTFlagInt {
   undefined = 0;
   Latency = 1;
 }
 
-message GetFlagIntRequest {
-  FlagInt flag = 1;
+message GetSRTFlagIntRequest {
+  SRTFlagInt flag = 1;
 }
-message GetFlagIntReply {
+message GetSRTFlagIntReply {
   int64 value = 1;
 }
-message SetFlagIntRequest {
-  FlagInt flag = 1;
+message SetSRTFlagIntRequest {
+  SRTFlagInt flag = 1;
   int64 value = 2;
 }
-message SetFlagIntReply {}
+message SetSRTFlagIntReply {}
 
 message WaitRequest {}
 message WaitReply {}

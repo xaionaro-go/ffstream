@@ -29,7 +29,7 @@ func (c *Client) GetOutputSRTStats(
 	return goconv.OutputSRTStatsFromGRPC(resp), nil
 }
 
-func (c *Client) GetFlagInt(
+func (c *Client) GetSRTFlagInt(
 	ctx context.Context,
 	flag libsrt.Sockopt,
 ) (int64, error) {
@@ -39,12 +39,12 @@ func (c *Client) GetFlagInt(
 	}
 	defer conn.Close()
 
-	flagID := goconv.SockoptIntToGRPC(flag)
-	if flagID == ffstream_grpc.FlagInt_undefined {
+	flagID := goconv.SRTSockoptIntToGRPC(flag)
+	if flagID == ffstream_grpc.SRTFlagInt_undefined {
 		return 0, fmt.Errorf("unknown flag: %v", flag)
 	}
 
-	resp, err := client.GetFlagInt(ctx, &ffstream_grpc.GetFlagIntRequest{
+	resp, err := client.GetSRTFlagInt(ctx, &ffstream_grpc.GetSRTFlagIntRequest{
 		Flag: flagID,
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *Client) GetFlagInt(
 	return resp.GetValue(), nil
 }
 
-func (c *Client) SetFlagInt(
+func (c *Client) SetSRTFlagInt(
 	ctx context.Context,
 	flag libsrt.Sockopt,
 	value int64,
@@ -65,12 +65,12 @@ func (c *Client) SetFlagInt(
 	}
 	defer conn.Close()
 
-	flagID := goconv.SockoptIntToGRPC(flag)
-	if flagID == ffstream_grpc.FlagInt_undefined {
+	flagID := goconv.SRTSockoptIntToGRPC(flag)
+	if flagID == ffstream_grpc.SRTFlagInt_undefined {
 		return fmt.Errorf("unknown flag: %v", flag)
 	}
 
-	_, err = client.SetFlagInt(ctx, &ffstream_grpc.SetFlagIntRequest{
+	_, err = client.SetSRTFlagInt(ctx, &ffstream_grpc.SetSRTFlagIntRequest{
 		Flag:  flagID,
 		Value: value,
 	})

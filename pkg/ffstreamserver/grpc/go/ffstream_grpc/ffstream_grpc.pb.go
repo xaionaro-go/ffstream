@@ -23,11 +23,13 @@ type FFStreamClient interface {
 	RemoveOutput(ctx context.Context, in *RemoveOutputRequest, opts ...grpc.CallOption) (*RemoveOutputReply, error)
 	GetRecoderConfig(ctx context.Context, in *GetRecoderConfigRequest, opts ...grpc.CallOption) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(ctx context.Context, in *SetRecoderConfigRequest, opts ...grpc.CallOption) (*SetRecoderConfigReply, error)
+	GetTolerableOutputQueueSizeBytes(ctx context.Context, in *GetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*GetTolerableOutputQueueSizeBytesReply, error)
+	SetTolerableOutputQueueSizeBytes(ctx context.Context, in *SetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*SetTolerableOutputQueueSizeBytesReply, error)
 	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsReply, error)
 	GetOutputSRTStats(ctx context.Context, in *GetOutputSRTStatsRequest, opts ...grpc.CallOption) (*GetOutputSRTStatsReply, error)
-	GetFlagInt(ctx context.Context, in *GetFlagIntRequest, opts ...grpc.CallOption) (*GetFlagIntReply, error)
-	SetFlagInt(ctx context.Context, in *SetFlagIntRequest, opts ...grpc.CallOption) (*SetFlagIntReply, error)
+	GetSRTFlagInt(ctx context.Context, in *GetSRTFlagIntRequest, opts ...grpc.CallOption) (*GetSRTFlagIntReply, error)
+	SetSRTFlagInt(ctx context.Context, in *SetSRTFlagIntRequest, opts ...grpc.CallOption) (*SetSRTFlagIntReply, error)
 	WaitChan(ctx context.Context, in *WaitRequest, opts ...grpc.CallOption) (FFStream_WaitChanClient, error)
 	End(ctx context.Context, in *EndRequest, opts ...grpc.CallOption) (*EndReply, error)
 }
@@ -94,6 +96,24 @@ func (c *fFStreamClient) SetRecoderConfig(ctx context.Context, in *SetRecoderCon
 	return out, nil
 }
 
+func (c *fFStreamClient) GetTolerableOutputQueueSizeBytes(ctx context.Context, in *GetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*GetTolerableOutputQueueSizeBytesReply, error) {
+	out := new(GetTolerableOutputQueueSizeBytesReply)
+	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/GetTolerableOutputQueueSizeBytes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) SetTolerableOutputQueueSizeBytes(ctx context.Context, in *SetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*SetTolerableOutputQueueSizeBytesReply, error) {
+	out := new(SetTolerableOutputQueueSizeBytesReply)
+	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/SetTolerableOutputQueueSizeBytes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fFStreamClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error) {
 	out := new(StartReply)
 	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/Start", in, out, opts...)
@@ -121,18 +141,18 @@ func (c *fFStreamClient) GetOutputSRTStats(ctx context.Context, in *GetOutputSRT
 	return out, nil
 }
 
-func (c *fFStreamClient) GetFlagInt(ctx context.Context, in *GetFlagIntRequest, opts ...grpc.CallOption) (*GetFlagIntReply, error) {
-	out := new(GetFlagIntReply)
-	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/GetFlagInt", in, out, opts...)
+func (c *fFStreamClient) GetSRTFlagInt(ctx context.Context, in *GetSRTFlagIntRequest, opts ...grpc.CallOption) (*GetSRTFlagIntReply, error) {
+	out := new(GetSRTFlagIntReply)
+	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/GetSRTFlagInt", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *fFStreamClient) SetFlagInt(ctx context.Context, in *SetFlagIntRequest, opts ...grpc.CallOption) (*SetFlagIntReply, error) {
-	out := new(SetFlagIntReply)
-	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/SetFlagInt", in, out, opts...)
+func (c *fFStreamClient) SetSRTFlagInt(ctx context.Context, in *SetSRTFlagIntRequest, opts ...grpc.CallOption) (*SetSRTFlagIntReply, error) {
+	out := new(SetSRTFlagIntReply)
+	err := c.cc.Invoke(ctx, "/ffstream_grpc.FFStream/SetSRTFlagInt", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +210,13 @@ type FFStreamServer interface {
 	RemoveOutput(context.Context, *RemoveOutputRequest) (*RemoveOutputReply, error)
 	GetRecoderConfig(context.Context, *GetRecoderConfigRequest) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(context.Context, *SetRecoderConfigRequest) (*SetRecoderConfigReply, error)
+	GetTolerableOutputQueueSizeBytes(context.Context, *GetTolerableOutputQueueSizeBytesRequest) (*GetTolerableOutputQueueSizeBytesReply, error)
+	SetTolerableOutputQueueSizeBytes(context.Context, *SetTolerableOutputQueueSizeBytesRequest) (*SetTolerableOutputQueueSizeBytesReply, error)
 	Start(context.Context, *StartRequest) (*StartReply, error)
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error)
 	GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error)
-	GetFlagInt(context.Context, *GetFlagIntRequest) (*GetFlagIntReply, error)
-	SetFlagInt(context.Context, *SetFlagIntRequest) (*SetFlagIntReply, error)
+	GetSRTFlagInt(context.Context, *GetSRTFlagIntRequest) (*GetSRTFlagIntReply, error)
+	SetSRTFlagInt(context.Context, *SetSRTFlagIntRequest) (*SetSRTFlagIntReply, error)
 	WaitChan(*WaitRequest, FFStream_WaitChanServer) error
 	End(context.Context, *EndRequest) (*EndReply, error)
 	mustEmbedUnimplementedFFStreamServer()
@@ -222,6 +244,12 @@ func (UnimplementedFFStreamServer) GetRecoderConfig(context.Context, *GetRecoder
 func (UnimplementedFFStreamServer) SetRecoderConfig(context.Context, *SetRecoderConfigRequest) (*SetRecoderConfigReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetRecoderConfig not implemented")
 }
+func (UnimplementedFFStreamServer) GetTolerableOutputQueueSizeBytes(context.Context, *GetTolerableOutputQueueSizeBytesRequest) (*GetTolerableOutputQueueSizeBytesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTolerableOutputQueueSizeBytes not implemented")
+}
+func (UnimplementedFFStreamServer) SetTolerableOutputQueueSizeBytes(context.Context, *SetTolerableOutputQueueSizeBytesRequest) (*SetTolerableOutputQueueSizeBytesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetTolerableOutputQueueSizeBytes not implemented")
+}
 func (UnimplementedFFStreamServer) Start(context.Context, *StartRequest) (*StartReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
 }
@@ -231,11 +259,11 @@ func (UnimplementedFFStreamServer) GetStats(context.Context, *GetStatsRequest) (
 func (UnimplementedFFStreamServer) GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOutputSRTStats not implemented")
 }
-func (UnimplementedFFStreamServer) GetFlagInt(context.Context, *GetFlagIntRequest) (*GetFlagIntReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFlagInt not implemented")
+func (UnimplementedFFStreamServer) GetSRTFlagInt(context.Context, *GetSRTFlagIntRequest) (*GetSRTFlagIntReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSRTFlagInt not implemented")
 }
-func (UnimplementedFFStreamServer) SetFlagInt(context.Context, *SetFlagIntRequest) (*SetFlagIntReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetFlagInt not implemented")
+func (UnimplementedFFStreamServer) SetSRTFlagInt(context.Context, *SetSRTFlagIntRequest) (*SetSRTFlagIntReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetSRTFlagInt not implemented")
 }
 func (UnimplementedFFStreamServer) WaitChan(*WaitRequest, FFStream_WaitChanServer) error {
 	return status.Errorf(codes.Unimplemented, "method WaitChan not implemented")
@@ -364,6 +392,42 @@ func _FFStream_SetRecoderConfig_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetTolerableOutputQueueSizeBytes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTolerableOutputQueueSizeBytesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetTolerableOutputQueueSizeBytes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ffstream_grpc.FFStream/GetTolerableOutputQueueSizeBytes",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetTolerableOutputQueueSizeBytes(ctx, req.(*GetTolerableOutputQueueSizeBytesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_SetTolerableOutputQueueSizeBytes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetTolerableOutputQueueSizeBytesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetTolerableOutputQueueSizeBytes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ffstream_grpc.FFStream/SetTolerableOutputQueueSizeBytes",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetTolerableOutputQueueSizeBytes(ctx, req.(*SetTolerableOutputQueueSizeBytesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FFStream_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StartRequest)
 	if err := dec(in); err != nil {
@@ -418,38 +482,38 @@ func _FFStream_GetOutputSRTStats_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FFStream_GetFlagInt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFlagIntRequest)
+func _FFStream_GetSRTFlagInt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSRTFlagIntRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FFStreamServer).GetFlagInt(ctx, in)
+		return srv.(FFStreamServer).GetSRTFlagInt(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ffstream_grpc.FFStream/GetFlagInt",
+		FullMethod: "/ffstream_grpc.FFStream/GetSRTFlagInt",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).GetFlagInt(ctx, req.(*GetFlagIntRequest))
+		return srv.(FFStreamServer).GetSRTFlagInt(ctx, req.(*GetSRTFlagIntRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FFStream_SetFlagInt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetFlagIntRequest)
+func _FFStream_SetSRTFlagInt_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSRTFlagIntRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FFStreamServer).SetFlagInt(ctx, in)
+		return srv.(FFStreamServer).SetSRTFlagInt(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ffstream_grpc.FFStream/SetFlagInt",
+		FullMethod: "/ffstream_grpc.FFStream/SetSRTFlagInt",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).SetFlagInt(ctx, req.(*SetFlagIntRequest))
+		return srv.(FFStreamServer).SetSRTFlagInt(ctx, req.(*SetSRTFlagIntRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -522,6 +586,14 @@ var _FFStream_serviceDesc = grpc.ServiceDesc{
 			Handler:    _FFStream_SetRecoderConfig_Handler,
 		},
 		{
+			MethodName: "GetTolerableOutputQueueSizeBytes",
+			Handler:    _FFStream_GetTolerableOutputQueueSizeBytes_Handler,
+		},
+		{
+			MethodName: "SetTolerableOutputQueueSizeBytes",
+			Handler:    _FFStream_SetTolerableOutputQueueSizeBytes_Handler,
+		},
+		{
 			MethodName: "Start",
 			Handler:    _FFStream_Start_Handler,
 		},
@@ -534,12 +606,12 @@ var _FFStream_serviceDesc = grpc.ServiceDesc{
 			Handler:    _FFStream_GetOutputSRTStats_Handler,
 		},
 		{
-			MethodName: "GetFlagInt",
-			Handler:    _FFStream_GetFlagInt_Handler,
+			MethodName: "GetSRTFlagInt",
+			Handler:    _FFStream_GetSRTFlagInt_Handler,
 		},
 		{
-			MethodName: "SetFlagInt",
-			Handler:    _FFStream_SetFlagInt_Handler,
+			MethodName: "SetSRTFlagInt",
+			Handler:    _FFStream_SetSRTFlagInt_Handler,
 		},
 		{
 			MethodName: "End",

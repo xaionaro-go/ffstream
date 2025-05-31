@@ -9,22 +9,22 @@ import (
 	"github.com/xaionaro-go/libsrt/sockopt"
 )
 
-func SockoptIntFromGRPC(
-	id ffstream_grpc.FlagInt,
+func SRTSockoptIntFromGRPC(
+	id ffstream_grpc.SRTFlagInt,
 ) (libsrt.Sockopt, bool) {
 	switch id {
-	case ffstream_grpc.FlagInt_Latency:
+	case ffstream_grpc.SRTFlagInt_Latency:
 		return sockopt.LATENCY, true
 	}
 	return sockopt.Sockopt(0), false
 }
 
-func SockoptIntToGRPC(
+func SRTSockoptIntToGRPC(
 	id libsrt.Sockopt,
-) ffstream_grpc.FlagInt {
+) ffstream_grpc.SRTFlagInt {
 	switch id {
 	case sockopt.LATENCY:
-		return ffstream_grpc.FlagInt_Latency
+		return ffstream_grpc.SRTFlagInt_Latency
 	}
-	return ffstream_grpc.FlagInt_undefined
+	return ffstream_grpc.SRTFlagInt_undefined
 }

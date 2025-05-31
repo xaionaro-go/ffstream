@@ -12,16 +12,16 @@ import (
 )
 
 var (
-	FlagIntGet = &cobra.Command{
+	SRTFlagIntGet = &cobra.Command{
 		Use:  "get",
 		Args: cobra.ExactArgs(1),
-		Run:  flagIntGet,
+		Run:  srtFlagIntGet,
 	}
 
-	FlagIntSet = &cobra.Command{
+	SRTFlagIntSet = &cobra.Command{
 		Use:  "set",
 		Args: cobra.ExactArgs(2),
-		Run:  flagIntSet,
+		Run:  srtFlagIntSet,
 	}
 
 	StatsOutputSRT = &cobra.Command{
@@ -36,10 +36,11 @@ func init() {
 
 	Stats.AddCommand(StatsOutputSRT)
 
-	Root.AddCommand(Flag)
-	Flag.AddCommand(FlagInt)
-	FlagInt.AddCommand(FlagIntGet)
-	FlagInt.AddCommand(FlagIntSet)
+	Root.AddCommand(SRT)
+	SRT.AddCommand(SRTFlag)
+	SRTFlag.AddCommand(SRTFlagInt)
+	SRTFlagInt.AddCommand(SRTFlagIntGet)
+	SRTFlagInt.AddCommand(SRTFlagIntSet)
 }
 
 func statsOutputSRT(cmd *cobra.Command, args []string) {
@@ -56,7 +57,7 @@ func statsOutputSRT(cmd *cobra.Command, args []string) {
 	jsonOutput(ctx, cmd.OutOrStdout(), stats)
 }
 
-func flagIntGet(cmd *cobra.Command, args []string) {
+func srtFlagIntGet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	flagID, err := srtFlagNameToID(args[0])
@@ -67,13 +68,13 @@ func flagIntGet(cmd *cobra.Command, args []string) {
 
 	client := client.New(remoteAddr)
 
-	value, err := client.GetFlagInt(ctx, flagID)
+	value, err := client.GetSRTFlagInt(ctx, flagID)
 	assertNoError(ctx, err)
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%d\n", value)
 }
 
-func flagIntSet(cmd *cobra.Command, args []string) {
+func srtFlagIntSet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	flagID, err := srtFlagNameToID(args[0])
@@ -87,6 +88,6 @@ func flagIntSet(cmd *cobra.Command, args []string) {
 
 	client := client.New(remoteAddr)
 
-	err = client.SetFlagInt(ctx, flagID, value)
+	err = client.SetSRTFlagInt(ctx, flagID, value)
 	assertNoError(ctx, err)
 }

@@ -183,6 +183,49 @@ func (c *Client) SetRecoderConfig(
 	return nil
 }
 
+func (c *Client) GetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+) (uint, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetTolerableOutputQueueSizeBytes(
+		ctx,
+		&ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest{},
+	)
+	if err != nil {
+		return 0, fmt.Errorf("query error: %w", err)
+	}
+
+	return uint(resp.GetValue()), nil
+}
+
+func (c *Client) SetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+	sizeBytes uint,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetTolerableOutputQueueSizeBytes(
+		ctx,
+		&ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest{
+			Value: uint64(sizeBytes),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) Start(
 	ctx context.Context,
 ) error {

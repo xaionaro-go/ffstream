@@ -8,6 +8,10 @@ replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v
 
 replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
 
+replace github.com/xaionaro-go/sockopt => /home/builder/sockopt
+
+replace github.com/xaionaro-go/avcommon => /home/builder/avcommon
+
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.36.0
@@ -50,6 +54,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
+	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/phuslu/goid v1.0.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -71,6 +76,7 @@ require (
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect

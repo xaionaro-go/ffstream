@@ -182,3 +182,20 @@ func (srv *GRPCServer) End(
 	srv.stopRecodingFunc = nil
 	return &ffstream_grpc.EndReply{}, nil
 }
+
+func (srv *GRPCServer) GetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+	req *ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest,
+) (*ffstream_grpc.GetTolerableOutputQueueSizeBytesReply, error) {
+	return &ffstream_grpc.GetTolerableOutputQueueSizeBytesReply{
+		Value: srv.FFStream.GetTolerableOutputQueueSizeBytes(ctx),
+	}, nil
+}
+
+func (srv *GRPCServer) SetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+	req *ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest,
+) (*ffstream_grpc.SetTolerableOutputQueueSizeBytesReply, error) {
+	srv.FFStream.SetTolerableOutputQueueSizeBytes(ctx, req.GetValue())
+	return &ffstream_grpc.SetTolerableOutputQueueSizeBytesReply{}, nil
+}

@@ -6,16 +6,24 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
+	"github.com/xaionaro-go/avpipeline/node/filter/packetfilter/preset/videodropnonkeyframes"
 	transcoder "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough"
 	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xsync"
+)
+
+const (
+	setSmallBuffer = false
 )
 
 type FFStream struct {
@@ -23,6 +31,9 @@ type FFStream struct {
 	NodeOutputs []*node.Node[*processor.FromKernel[*kernel.Output]]
 
 	StreamForward *transcoder.TranscoderWithPassthrough[struct{}, *processor.FromKernel[*kernel.Input]]
+
+	TolerableOutputQueueSizeBytes atomic.Uint64
+	CurrentOutputBufferSize       xsync.Map[int, uint64]
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
@@ -69,7 +80,27 @@ func (s *FFStream) AddOutput(
 	defer s.locker.Unlock()
 	ctx, cancelFn := context.WithCancel(ctx)
 	s.addCancelFnLocked(cancelFn)
-	s.NodeOutputs = append(s.NodeOutputs, node.NewFromKernel(ctx, output, processor.DefaultOptionsOutput()...))
+
+	outputChannelSize := 600
+	if setSmallBuffer {
+		logger.Debugf(ctx, "setting the small output buffer")
+		// setting the (kernel-side) send buffer size low enough to be manage the buffers manually in the user space (our-side)
+		if err := output.SetSendBufferSize(ctx, 65536); err != nil {
+			logger.Errorf(ctx, "unable to set the send buffer size: %v", err)
+		}
+		outputChannelSize = 10 // keeping it small to be able to drop incoming packets to reduce traffic (see the usages of `GetTolerableOutputQueueSizeBytes`).
+	}
+
+	s.NodeOutputs = append(
+		s.NodeOutputs,
+		node.NewFromKernel(
+			ctx,
+			output,
+			processor.OptionQueueSizeInputPacket(outputChannelSize),
+			processor.OptionQueueSizeOutputPacket(0),
+			processor.OptionQueueSizeError(100),
+		),
+	)
 	return nil
 }
 
@@ -94,10 +125,11 @@ func (s *FFStream) SetRecoderConfig(
 func (s *FFStream) GetStats(
 	ctx context.Context,
 ) *ffstream_grpc.GetStatsReply {
-	// TODO: fix me: add support of multiple outputs
-	return &ffstream_grpc.GetStatsReply{
-		BytesCountRead:  s.NodeInput.Statistics.BytesCountWrote.Load(),
-		BytesCountWrote: s.NodeOutputs[0].Statistics.BytesCountRead.Load(),
+	r := &ffstream_grpc.GetStatsReply{
+		BytesCountRead:     s.NodeInput.Statistics.BytesCountWrote.Load(),
+		BytesCountBuffered: 0,
+		BytesCountDropped:  0,
+		BytesCountWrote:    0,
 		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
 			Unknown: s.NodeInput.Statistics.FramesWrote.Unknown.Load(),
 			Other:   s.NodeInput.Statistics.FramesWrote.Other.Load(),
@@ -110,19 +142,61 @@ func (s *FFStream) GetStats(
 			Video:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Video.Load(),
 			Audio:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Audio.Load(),
 		},
+		FramesDropped: &ffstream_grpc.CommonsProcessingFramesStatistics{
+			Video: 0,
+		},
 		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.NodeOutputs[0].Statistics.FramesRead.Unknown.Load(),
-			Other:   s.NodeOutputs[0].Statistics.FramesRead.Other.Load(),
-			Video:   s.NodeOutputs[0].Statistics.FramesRead.Video.Load(),
-			Audio:   s.NodeOutputs[0].Statistics.FramesRead.Audio.Load(),
+			Unknown: 0,
+			Other:   0,
+			Video:   0,
+			Audio:   0,
 		},
 	}
+	for idx, nodeOutput := range s.NodeOutputs {
+		stats := nodeOutput.Statistics.Convert()
+		r.BytesCountWrote += stats.BytesCountRead
+		r.FramesWrote.Unknown += stats.FramesRead.Unknown
+		r.FramesWrote.Other += stats.FramesRead.Other
+		r.FramesWrote.Video += stats.FramesRead.Video
+		r.FramesWrote.Audio += stats.FramesRead.Audio
+
+		pf := nodeOutput.GetInputPacketFilter()
+		if pf == nil {
+			logger.Errorf(ctx, "packet filter is not set for output %d", idx)
+			continue
+		}
+
+		softPacketDropper, ok := pf.(*videodropnonkeyframes.PacketFilter)
+		if !ok {
+			logger.Errorf(ctx, "the packet filter on output %d is not a videodropnonkeyframes filter", idx)
+			continue
+		}
+
+		bufSize, _ := s.CurrentOutputBufferSize.Load(idx)
+		r.BytesCountBuffered += bufSize
+		r.BytesCountDropped += softPacketDropper.TotalDroppedBytes
+		r.FramesDropped.Video += softPacketDropper.TotalDroppedPackets
+	}
+	return r
 }
 
 func (s *FFStream) GetAllStats(
 	ctx context.Context,
 ) map[string]*node.ProcessingStatistics {
 	return s.StreamForward.GetAllStats(ctx)
+}
+
+func (s *FFStream) SetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+	newValue uint64,
+) {
+	s.TolerableOutputQueueSizeBytes.Store(newValue)
+}
+
+func (s *FFStream) GetTolerableOutputQueueSizeBytes(
+	ctx context.Context,
+) uint64 {
+	return s.TolerableOutputQueueSizeBytes.Load()
 }
 
 func (s *FFStream) Start(
@@ -145,7 +219,40 @@ func (s *FFStream) Start(
 	}
 
 	var nodeOutputs []node.Abstract
-	for _, nodeOutput := range s.NodeOutputs {
+	for idx, nodeOutput := range s.NodeOutputs {
+		idx := idx
+		var softPacketDropper *videodropnonkeyframes.PacketFilter
+		softPacketDropper = videodropnonkeyframes.New(
+			packetfiltercondition.Function(func(
+				ctx context.Context,
+				in packetfiltercondition.Input,
+			) bool {
+				var preOutputNode node.Abstract
+				switch idx {
+				case 0:
+					preOutputNode = s.StreamForward.NodeStreamFixerMain.Output()
+				case 1:
+					preOutputNode = s.StreamForward.NodeStreamFixerPassthrough.Output()
+				default:
+					panic(fmt.Errorf("too many outputs"))
+				}
+				preOutputStats := preOutputNode.GetStatistics()
+				outputStats := nodeOutput.Statistics
+				totalDroppedBytes := softPacketDropper.TotalDroppedBytes
+				queueSizeBytes := 0 +
+					preOutputStats.BytesCountWrote.Load() -
+					outputStats.BytesCountRead.Load() -
+					totalDroppedBytes
+				s.CurrentOutputBufferSize.Store(idx, queueSizeBytes)
+				threshold := s.GetTolerableOutputQueueSizeBytes(ctx)
+				logger.Tracef(ctx, "output %d: queue size: %d (/%d); total dropped so far: %d", idx, queueSizeBytes, threshold, totalDroppedBytes)
+				if threshold <= 0 {
+					return true
+				}
+				return queueSizeBytes <= threshold
+			}),
+		)
+		nodeOutput.SetInputPacketFilter(softPacketDropper)
 		nodeOutputs = append(nodeOutputs, nodeOutput)
 	}
 
@@ -175,7 +282,11 @@ func (s *FFStream) Start(
 		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
 	}
 
-	err = s.StreamForward.Start(ctx, passthroughMode)
+	err = s.StreamForward.Start(ctx, passthroughMode, avpipeline.ServeConfig{
+		EachNode: node.ServeConfig{
+			FrameDrop: false, // we are dropping frames in a more controlled manner above (look for `SetInputPacketFilter`).
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("unable to start the StreamForward: %w", err)
 	}
