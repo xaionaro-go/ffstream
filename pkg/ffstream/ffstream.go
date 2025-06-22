@@ -125,32 +125,29 @@ func (s *FFStream) SetRecoderConfig(
 func (s *FFStream) GetStats(
 	ctx context.Context,
 ) *ffstream_grpc.GetStatsReply {
+	if s == nil {
+		return nil
+	}
 	r := &ffstream_grpc.GetStatsReply{
-		BytesCountRead:     s.NodeInput.Statistics.BytesCountWrote.Load(),
-		BytesCountBuffered: 0,
-		BytesCountDropped:  0,
-		BytesCountWrote:    0,
-		FramesRead: &ffstream_grpc.CommonsProcessingFramesStatistics{
+		FramesDropped: &ffstream_grpc.CommonsProcessingFramesStatistics{},
+		FramesWrote:   &ffstream_grpc.CommonsProcessingFramesStatistics{},
+	}
+	if s.NodeInput != nil {
+		r.BytesCountRead = s.NodeInput.Statistics.BytesCountWrote.Load()
+		r.FramesRead = &ffstream_grpc.CommonsProcessingFramesStatistics{
 			Unknown: s.NodeInput.Statistics.FramesWrote.Unknown.Load(),
 			Other:   s.NodeInput.Statistics.FramesWrote.Other.Load(),
 			Video:   s.NodeInput.Statistics.FramesWrote.Video.Load(),
 			Audio:   s.NodeInput.Statistics.FramesWrote.Audio.Load(),
-		},
-		FramesMissed: &ffstream_grpc.CommonsProcessingFramesStatistics{
+		}
+	}
+	if s.StreamForward != nil {
+		r.FramesMissed = &ffstream_grpc.CommonsProcessingFramesStatistics{
 			Unknown: s.StreamForward.NodeRecoder.Statistics.FramesMissed.Unknown.Load(),
 			Other:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Other.Load(),
 			Video:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Video.Load(),
 			Audio:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Audio.Load(),
-		},
-		FramesDropped: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Video: 0,
-		},
-		FramesWrote: &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: 0,
-			Other:   0,
-			Video:   0,
-			Audio:   0,
-		},
+		}
 	}
 	for idx, nodeOutput := range s.NodeOutputs {
 		stats := nodeOutput.Statistics.Convert()
