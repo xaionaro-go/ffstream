@@ -102,6 +102,10 @@ func main() {
 		}
 	}
 
+	hardwareDeviceType := transcodertypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
+	if hardwareDeviceType == -1 {
+		hardwareDeviceType = transcodertypes.HardwareDeviceTypeNone
+	}
 	recoderConfig := transcodertypes.RecoderConfig{
 		VideoTrackConfigs: []transcodertypes.TrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
@@ -109,7 +113,7 @@ func main() {
 			CodecName:          flags.VideoEncoder.Codec,
 			AverageBitRate:     flags.VideoEncoder.BitRate,
 			CustomOptions:      encoderVideoOptions,
-			HardwareDeviceName: transcodertypes.HardwareDeviceName(flags.HWAccelGlobal),
+			HardwareDeviceType: hardwareDeviceType,
 		}},
 		AudioTrackConfigs: []transcodertypes.TrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
