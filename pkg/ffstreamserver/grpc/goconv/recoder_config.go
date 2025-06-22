@@ -37,24 +37,28 @@ func RecoderConfigFromGRPC(
 func RecoderConfigToGRPC(
 	cfg types.RecoderConfig,
 ) *ffstream_grpc.RecoderConfig {
-	audio := cfg.AudioTrackConfigs[0]
-	video := cfg.VideoTrackConfigs[0]
-	return &ffstream_grpc.RecoderConfig{
-		Audio: &ffstream_grpc.CodecConfig{
+	result := &ffstream_grpc.RecoderConfig{}
+	if len(cfg.AudioTrackConfigs) > 0 {
+		audio := cfg.AudioTrackConfigs[0]
+		result.Audio = &ffstream_grpc.CodecConfig{
 			CodecName:          audio.CodecName,
 			AveragingPeriod:    uint64(DurationToGRPC(audio.AveragingPeriod)),
 			AverageBitRate:     audio.AverageBitRate,
 			CustomOptions:      CustomOptionsToGRPC(audio.CustomOptions),
 			HardwareDeviceType: string(audio.HardwareDeviceType.String()),
 			HardwareDeviceName: string(audio.HardwareDeviceName),
-		},
-		Video: &ffstream_grpc.CodecConfig{
+		}
+	}
+	if len(cfg.VideoTrackConfigs) > 0 {
+		video := cfg.VideoTrackConfigs[0]
+		result.Video = &ffstream_grpc.CodecConfig{
 			CodecName:          video.CodecName,
 			AveragingPeriod:    uint64(DurationToGRPC(video.AveragingPeriod)),
 			AverageBitRate:     video.AverageBitRate,
 			CustomOptions:      CustomOptionsToGRPC(video.CustomOptions),
 			HardwareDeviceType: string(video.HardwareDeviceType.String()),
 			HardwareDeviceName: string(video.HardwareDeviceName),
-		},
+		}
 	}
+	return result
 }
