@@ -107,7 +107,7 @@ func main() {
 		hardwareDeviceType = transcodertypes.HardwareDeviceTypeNone
 	}
 	recoderConfig := transcodertypes.RecoderConfig{
-		VideoTrackConfigs: []transcodertypes.TrackConfig{{
+		VideoTrackConfigs: []transcodertypes.VideoTrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
 			CodecName:          flags.VideoEncoder.Codec,
@@ -115,7 +115,7 @@ func main() {
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceType: hardwareDeviceType,
 		}},
-		AudioTrackConfigs: []transcodertypes.TrackConfig{{
+		AudioTrackConfigs: []transcodertypes.AudioTrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs: []int{1},
 			CodecName:      flags.AudioEncoder.Codec,

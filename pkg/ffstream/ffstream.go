@@ -10,6 +10,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
+	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
@@ -115,7 +116,9 @@ func (s *FFStream) SetRecoderConfig(
 	cfg transcodertypes.RecoderConfig,
 ) (_err error) {
 	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
-	defer func() { logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
+	defer func() {
+		logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err)
+	}()
 	if s.StreamForward == nil {
 		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
 	}
@@ -142,11 +145,14 @@ func (s *FFStream) GetStats(
 		}
 	}
 	if s.StreamForward != nil {
-		r.FramesMissed = &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.StreamForward.NodeRecoder.Statistics.FramesMissed.Unknown.Load(),
-			Other:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Other.Load(),
-			Video:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Video.Load(),
-			Audio:   s.StreamForward.NodeRecoder.Statistics.FramesMissed.Audio.Load(),
+		r.FramesMissed = &ffstream_grpc.CommonsProcessingFramesStatistics{}
+		for _, recoder := range []*node.Node[*processor.FromKernel[*kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]]]{
+			s.StreamForward.NodeRecoder,
+		} {
+			r.FramesMissed.Unknown += recoder.Statistics.FramesMissed.Unknown.Load()
+			r.FramesMissed.Other += recoder.Statistics.FramesMissed.Other.Load()
+			r.FramesMissed.Video += recoder.Statistics.FramesMissed.Video.Load()
+			r.FramesMissed.Audio += recoder.Statistics.FramesMissed.Audio.Load()
 		}
 	}
 	for idx, nodeOutput := range s.NodeOutputs {
@@ -227,9 +233,9 @@ func (s *FFStream) Start(
 				var preOutputNode node.Abstract
 				switch idx {
 				case 0:
-					preOutputNode = s.StreamForward.NodeStreamFixerMain.Output()
-				case 1:
 					preOutputNode = s.StreamForward.NodeStreamFixerPassthrough.Output()
+				case 1:
+					preOutputNode = s.StreamForward.NodeStreamFixerMain.Output()
 				default:
 					panic(fmt.Errorf("too many outputs"))
 				}
@@ -268,15 +274,15 @@ func (s *FFStream) Start(
 	s.NodeInput.AddPushPacketsTo(s.StreamForward.Input())
 
 	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
-		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
+		return fmt.Errorf("SetRecoderConfig(%#+v, %t): %w", recoderConfig, err)
 	}
 
 	if passthroughEncoderByDefault {
 		logger.Infof(ctx, "passing through the encoder due to the flag provided")
-		s.StreamForward.PassthroughSwitch.CurrentValue.Store(1)
-		s.StreamForward.PostSwitchFilter.CurrentValue.Store(1)
-		s.StreamForward.PassthroughSwitch.NextValue.Store(1)
-		s.StreamForward.PostSwitchFilter.NextValue.Store(1)
+		s.StreamForward.SwitchPreFilter.CurrentValue.Store(1)
+		s.StreamForward.SwitchPostFilter.CurrentValue.Store(1)
+		s.StreamForward.SwitchPreFilter.NextValue.Store(1)
+		s.StreamForward.SwitchPostFilter.NextValue.Store(1)
 	}
 
 	err = s.StreamForward.Start(ctx, passthroughMode, avpipeline.ServeConfig{

@@ -8,10 +8,6 @@ replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v
 
 replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
 
-replace github.com/xaionaro-go/sockopt => /home/builder/sockopt
-
-replace github.com/xaionaro-go/avcommon => /home/builder/avcommon
-
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.36.0
@@ -27,7 +23,7 @@ require (
 	github.com/xaionaro-go/avpipeline v0.0.0-20250525171421-a7d3e17541e2
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
-	github.com/xaionaro-go/observability v0.0.0-20250525153415-e6c2d935ab34
+	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
@@ -35,6 +31,8 @@ require (
 	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )
+
+require github.com/xaionaro-go/sockopt v0.0.0-20250526214909-e15e1e4bc738 // indirect
 
 require (
 	github.com/DataDog/gostackparse v0.7.0 // indirect
@@ -54,14 +52,13 @@ require (
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
-	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/phuslu/goid v1.0.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/xaionaro-go/avcommon v0.0.0-20250510235605-840f8210b727 // indirect
+	github.com/xaionaro-go/avcommon v0.0.0-20250629220425-ad846e62efb6 // indirect
 	github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
@@ -76,7 +73,6 @@ require (
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect

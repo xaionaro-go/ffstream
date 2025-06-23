@@ -62,17 +62,25 @@ message RemoveOutputRequest {
 }
 message RemoveOutputReply {}
 
-message CodecConfig {
+message AudioCodecConfig {
   string codecName = 1;
   uint64 averagingPeriod = 2;
   uint64 AverageBitRate = 3;
-  string hardwareDeviceType = 4;
-  string hardwareDeviceName = 5;
-  repeated customOption customOptions = 6;
+  repeated customOption customOptions = 4;
+}
+message VideoCodecConfig {
+  string codecName = 1;
+  uint64 averagingPeriod = 2;
+  uint64 AverageBitRate = 3;
+  repeated customOption customOptions = 4;
+  string hardwareDeviceType = 5;
+  string hardwareDeviceName = 6;
+  uint32 width = 7;
+  uint32 height = 8;
 }
 message RecoderConfig {
-  CodecConfig audio = 1;
-  CodecConfig video = 2;
+  AudioCodecConfig audio = 1;
+  VideoCodecConfig video = 2;
 }
 message GetRecoderConfigRequest {}
 message GetRecoderConfigReply {
