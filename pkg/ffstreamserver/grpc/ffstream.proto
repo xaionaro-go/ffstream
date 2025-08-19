@@ -111,13 +111,18 @@ message GetStatsReply {
   uint64 BytesCountBuffered = 2;
   uint64 BytesCountDropped = 3;
   uint64 BytesCountWrote = 4;
-  CommonsProcessingFramesStatistics FramesRead = 5;
-  CommonsProcessingFramesStatistics FramesMissed = 6;
-  CommonsProcessingFramesStatistics FramesDropped = 7;
-  CommonsProcessingFramesStatistics FramesWrote = 8;
+  CommonsProcessingPacketsOrFramesStatistics Packets = 5;
+  CommonsProcessingPacketsOrFramesStatistics Frames = 6;
 }
 
-message CommonsProcessingFramesStatistics {
+message CommonsProcessingPacketsOrFramesStatistics {
+  CommonsProcessingPacketsOrFramesStatisticsSection read = 5;
+  CommonsProcessingPacketsOrFramesStatisticsSection missed = 6;
+  CommonsProcessingPacketsOrFramesStatisticsSection dropped = 7;
+  CommonsProcessingPacketsOrFramesStatisticsSection wrote = 8;
+}
+
+message CommonsProcessingPacketsOrFramesStatisticsSection {
   uint64 Unknown = 1;
   uint64 Other = 2;
   uint64 Video = 3;

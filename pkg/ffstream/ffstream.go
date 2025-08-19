@@ -19,6 +19,7 @@ import (
 	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
+	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/xsync"
 )
@@ -132,36 +133,32 @@ func (s *FFStream) GetStats(
 		return nil
 	}
 	r := &ffstream_grpc.GetStatsReply{
-		FramesDropped: &ffstream_grpc.CommonsProcessingFramesStatistics{},
-		FramesWrote:   &ffstream_grpc.CommonsProcessingFramesStatistics{},
+		Packets: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{},
+		Frames:  &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{},
 	}
 	if s.NodeInput != nil {
 		r.BytesCountRead = s.NodeInput.Statistics.BytesCountWrote.Load()
-		r.FramesRead = &ffstream_grpc.CommonsProcessingFramesStatistics{
-			Unknown: s.NodeInput.Statistics.FramesWrote.Unknown.Load(),
-			Other:   s.NodeInput.Statistics.FramesWrote.Other.Load(),
-			Video:   s.NodeInput.Statistics.FramesWrote.Video.Load(),
-			Audio:   s.NodeInput.Statistics.FramesWrote.Audio.Load(),
-		}
+		r.Packets.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Packets.Wrote)
+		r.Frames.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Frames.Wrote)
 	}
 	if s.StreamForward != nil {
-		r.FramesMissed = &ffstream_grpc.CommonsProcessingFramesStatistics{}
+		r.Packets.Missed = &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{}
 		for _, recoder := range []*node.Node[*processor.FromKernel[*kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]]]{
 			s.StreamForward.NodeRecoder,
 		} {
-			r.FramesMissed.Unknown += recoder.Statistics.FramesMissed.Unknown.Load()
-			r.FramesMissed.Other += recoder.Statistics.FramesMissed.Other.Load()
-			r.FramesMissed.Video += recoder.Statistics.FramesMissed.Video.Load()
-			r.FramesMissed.Audio += recoder.Statistics.FramesMissed.Audio.Load()
+			r.Packets.Missed.Unknown += recoder.Statistics.Packets.Missed.Unknown.Load()
+			r.Packets.Missed.Other += recoder.Statistics.Packets.Missed.Other.Load()
+			r.Packets.Missed.Video += recoder.Statistics.Packets.Missed.Video.Load()
+			r.Packets.Missed.Audio += recoder.Statistics.Packets.Missed.Audio.Load()
 		}
 	}
 	for idx, nodeOutput := range s.NodeOutputs {
 		stats := nodeOutput.Statistics.Convert()
 		r.BytesCountWrote += stats.BytesCountRead
-		r.FramesWrote.Unknown += stats.FramesRead.Unknown
-		r.FramesWrote.Other += stats.FramesRead.Other
-		r.FramesWrote.Video += stats.FramesRead.Video
-		r.FramesWrote.Audio += stats.FramesRead.Audio
+		r.Packets.Wrote.Unknown += stats.Packets.Read.Unknown
+		r.Packets.Wrote.Other += stats.Packets.Read.Other
+		r.Packets.Wrote.Video += stats.Packets.Read.Video
+		r.Packets.Wrote.Audio += stats.Packets.Read.Audio
 
 		pf := nodeOutput.GetInputPacketFilter()
 		if pf == nil {
@@ -178,7 +175,7 @@ func (s *FFStream) GetStats(
 		bufSize, _ := s.CurrentOutputBufferSize.Load(idx)
 		r.BytesCountBuffered += bufSize
 		r.BytesCountDropped += softPacketDropper.TotalDroppedBytes
-		r.FramesDropped.Video += softPacketDropper.TotalDroppedPackets
+		r.Packets.Dropped.Video += softPacketDropper.TotalDroppedPackets
 	}
 	return r
 }
