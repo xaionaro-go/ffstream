@@ -20,6 +20,8 @@ func RecoderConfigFromGRPC(
 			CustomOptions:      CustomOptionsFromGRPC(req.GetVideo().GetCustomOptions()),
 			HardwareDeviceType: types.HardwareDeviceType(videoDeviceTypeName),
 			HardwareDeviceName: types.HardwareDeviceName(req.GetVideo().GetHardwareDeviceName()),
+			Width:              req.GetVideo().GetWidth(),
+			Height:             req.GetVideo().GetHeight(),
 		}},
 		AudioTrackConfigs: []types.AudioTrackConfig{{
 			InputTrackIDs:   []int{0, 1, 2, 3, 4, 5, 6, 7},

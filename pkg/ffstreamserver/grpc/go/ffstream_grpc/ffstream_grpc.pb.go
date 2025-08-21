@@ -31,6 +31,7 @@ const (
 	FFStream_SetSRTFlagInt_FullMethodName                    = "/ffstream_grpc.FFStream/SetSRTFlagInt"
 	FFStream_WaitChan_FullMethodName                         = "/ffstream_grpc.FFStream/WaitChan"
 	FFStream_End_FullMethodName                              = "/ffstream_grpc.FFStream/End"
+	FFStream_GetPipelines_FullMethodName                     = "/ffstream_grpc.FFStream/GetPipelines"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -49,6 +50,7 @@ type FFStreamClient interface {
 	SetSRTFlagInt(ctx context.Context, in *SetSRTFlagIntRequest, opts ...grpc.CallOption) (*SetSRTFlagIntReply, error)
 	WaitChan(ctx context.Context, in *WaitRequest, opts ...grpc.CallOption) (FFStream_WaitChanClient, error)
 	End(ctx context.Context, in *EndRequest, opts ...grpc.CallOption) (*EndReply, error)
+	GetPipelines(ctx context.Context, in *GetPipelinesRequest, opts ...grpc.CallOption) (*GetPipelinesResponse, error)
 }
 
 type fFStreamClient struct {
@@ -202,6 +204,16 @@ func (c *fFStreamClient) End(ctx context.Context, in *EndRequest, opts ...grpc.C
 	return out, nil
 }
 
+func (c *fFStreamClient) GetPipelines(ctx context.Context, in *GetPipelinesRequest, opts ...grpc.CallOption) (*GetPipelinesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPipelinesResponse)
+	err := c.cc.Invoke(ctx, FFStream_GetPipelines_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -218,6 +230,7 @@ type FFStreamServer interface {
 	SetSRTFlagInt(context.Context, *SetSRTFlagIntRequest) (*SetSRTFlagIntReply, error)
 	WaitChan(*WaitRequest, FFStream_WaitChanServer) error
 	End(context.Context, *EndRequest) (*EndReply, error)
+	GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -260,6 +273,9 @@ func (UnimplementedFFStreamServer) WaitChan(*WaitRequest, FFStream_WaitChanServe
 }
 func (UnimplementedFFStreamServer) End(context.Context, *EndRequest) (*EndReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method End not implemented")
+}
+func (UnimplementedFFStreamServer) GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPipelines not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -493,6 +509,24 @@ func _FFStream_End_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetPipelines_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPipelinesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetPipelines(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetPipelines_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetPipelines(ctx, req.(*GetPipelinesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -543,6 +577,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "End",
 			Handler:    _FFStream_End_Handler,
+		},
+		{
+			MethodName: "GetPipelines",
+			Handler:    _FFStream_GetPipelines_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

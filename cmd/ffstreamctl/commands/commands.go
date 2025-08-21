@@ -110,6 +110,16 @@ var (
 	}
 
 	LoggerLevel = logger.LevelWarning
+
+	Pipelines = &cobra.Command{
+		Use: "pipelines",
+	}
+
+	PipelinesGet = &cobra.Command{
+		Use:  "get",
+		Args: cobra.ExactArgs(0),
+		Run:  pipelinesGet,
+	}
 )
 
 func init() {
@@ -133,6 +143,9 @@ func init() {
 	BufferOutput.AddCommand(BufferOutputTolerable)
 	BufferOutputTolerable.AddCommand(BufferOutputTolerableGet)
 	BufferOutputTolerable.AddCommand(BufferOutputTolerableSet)
+
+	Root.AddCommand(Pipelines)
+	Pipelines.AddCommand(PipelinesGet)
 }
 func assertNoError(ctx context.Context, err error) {
 	if err != nil {
@@ -208,4 +221,18 @@ func bufferOutputTolerableSet(cmd *cobra.Command, args []string) {
 
 	err = client.SetTolerableOutputQueueSizeBytes(ctx, uint(value))
 	assertNoError(ctx, err)
+}
+
+func pipelinesGet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	pipelines, err := client.GetPipelines(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), pipelines)
 }

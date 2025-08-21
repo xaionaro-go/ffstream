@@ -5,7 +5,8 @@ import (
 	"sync"
 
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
-	avptypes "github.com/xaionaro-go/avpipeline/types"
+	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
+	avpgoconv "github.com/xaionaro-go/avpipeline/protobuf/goconv"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
@@ -32,17 +33,6 @@ func (srv *GRPCServer) SetLoggingLevel(
 	req *ffstream_grpc.SetLoggingLevelRequest,
 ) (*ffstream_grpc.SetLoggingLevelReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented, yet")
-}
-
-func convertCustomOptionsToAVPipeline(customOptions streammuxtypes.DictionaryItems) avptypes.DictionaryItems {
-	result := make(avptypes.DictionaryItems, 0, len(customOptions))
-	for _, opt := range customOptions {
-		result = append(result, avptypes.DictionaryItem{
-			Key:   opt.Key,
-			Value: opt.Value,
-		})
-	}
-	return result
 }
 
 func (srv *GRPCServer) GetRecoderConfig(
@@ -126,4 +116,14 @@ func (srv *GRPCServer) SetTolerableOutputQueueSizeBytes(
 ) (*ffstream_grpc.SetTolerableOutputQueueSizeBytesReply, error) {
 	srv.FFStream.SetTolerableOutputQueueSizeBytes(ctx, req.GetValue())
 	return &ffstream_grpc.SetTolerableOutputQueueSizeBytesReply{}, nil
+}
+
+func (srv *GRPCServer) GetPipelines(
+	ctx context.Context,
+	req *ffstream_grpc.GetPipelinesRequest,
+) (*ffstream_grpc.GetPipelinesResponse, error) {
+	nodeInput := avpgoconv.NodeToGRPC(srv.FFStream.NodeInput)
+	return &ffstream_grpc.GetPipelinesResponse{
+		Nodes: []*avpipeline_grpc.Node{nodeInput},
+	}, nil
 }

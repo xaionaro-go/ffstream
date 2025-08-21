@@ -2,6 +2,8 @@ syntax = "proto3";
 package ffstream_grpc;
 option go_package = "go/ffstream_grpc";
 
+import "imports/avpipeline/protobuf/avpipeline.proto";
+
 service FFStream {
   rpc SetLoggingLevel(SetLoggingLevelRequest) returns (SetLoggingLevelReply) {}
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
@@ -15,6 +17,7 @@ service FFStream {
   rpc SetSRTFlagInt(SetSRTFlagIntRequest) returns (SetSRTFlagIntReply) {}
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
+  rpc GetPipelines (GetPipelinesRequest) returns (GetPipelinesResponse);
 }
 
 enum LoggingLevel {
@@ -220,3 +223,8 @@ message WaitRequest {}
 message WaitReply {}
 message EndRequest {}
 message EndReply {}
+
+message GetPipelinesRequest {}
+message GetPipelinesResponse {
+    repeated avpipeline.Node nodes = 1;
+}

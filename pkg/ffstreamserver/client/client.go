@@ -247,3 +247,20 @@ func (c *Client) WaitChan(
 
 	return result, nil
 }
+
+func (c *Client) GetPipelines(
+	ctx context.Context,
+) (*ffstream_grpc.GetPipelinesResponse, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetPipelines(ctx, &ffstream_grpc.GetPipelinesRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	return resp, nil
+}

@@ -106,8 +106,12 @@ func (s *FFStream) GetStats(
 		return nil
 	}
 	r := &ffstream_grpc.GetStatsReply{
-		Packets: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{},
-		Frames:  &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{},
+		Packets: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{
+			Wrote: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{},
+		},
+		Frames: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{
+			Wrote: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{},
+		},
 	}
 	if s.NodeInput != nil {
 		r.BytesCountRead = s.NodeInput.Statistics.BytesCountWrote.Load()

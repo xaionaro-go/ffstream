@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -56,6 +58,7 @@ func main() {
 		s.AddInput(ctx, input)
 	}
 
+	var resolution codec.Resolution
 	encoderVideoOptions := convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)
 
 	for _, outputParams := range flags.Outputs {
@@ -93,8 +96,12 @@ func main() {
 		assertNoError(ctx, err)
 
 		for _, v := range outputOptions {
+			logger.Tracef(ctx, "outputOptions[%d] == %#+v", v.Key, v)
 			switch v.Key {
-			case "g", "r", "bufsize":
+			case "-s":
+				_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
+				assertNoError(ctx, err)
+			case "-g", "-r", "-bufsize":
 				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
 					Key:   v.Key,
 					Value: v.Value,
@@ -115,6 +122,8 @@ func main() {
 			AverageBitRate:     flags.VideoEncoder.BitRate,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceType: hardwareDeviceType,
+			Width:              resolution.Width,
+			Height:             resolution.Height,
 		}},
 		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
