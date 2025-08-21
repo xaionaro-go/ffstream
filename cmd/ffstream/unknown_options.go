@@ -1,14 +1,14 @@
 package main
 
 import (
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
 func convertUnknownOptionsToCustomOptions(
 	unknownOpts []string,
-) transcodertypes.DictionaryItems {
-	var result transcodertypes.DictionaryItems
+) streammuxtypes.DictionaryItems {
+	var result streammuxtypes.DictionaryItems
 
 	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
@@ -16,7 +16,7 @@ func convertUnknownOptionsToCustomOptions(
 		opt := arg
 		value := unknownOpts[idx+1]
 
-		result = append(result, transcodertypes.DictionaryItem{
+		result = append(result, streammuxtypes.DictionaryItem{
 			Key:   opt,
 			Value: value,
 		})

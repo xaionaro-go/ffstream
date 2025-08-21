@@ -19,7 +19,7 @@ func (srv *GRPCServer) GetOutputSRTStats(
 	req *ffstream_grpc.GetOutputSRTStatsRequest,
 ) (*ffstream_grpc.GetOutputSRTStatsReply, error) {
 	var stats *libsrt.Tracebstats
-	err := srv.FFStream.WithSRTOutput(ctx, func(sock *threadsafe.Socket) error {
+	err := srv.FFStream.WithSRTOutput(ctx, int(req.GetOutputID()), func(sock *threadsafe.Socket) error {
 		result, err := sock.Bistats(false, true)
 		if err == nil {
 			stats = ptr(result.Convert())
@@ -42,7 +42,7 @@ func (srv *GRPCServer) SetFlagInt(
 		return nil, status.Errorf(codes.Unknown, "unknown SRT socket option: %d", req.GetFlag())
 	}
 
-	err := srv.FFStream.WithSRTOutput(ctx, func(sock *threadsafe.Socket) error {
+	err := srv.FFStream.WithSRTOutput(ctx, int(req.GetOutputID()), func(sock *threadsafe.Socket) error {
 		v := libsrt.BlobInt(req.GetValue())
 		return sock.Setsockflag(sockOpt, &v)
 	})
@@ -63,7 +63,7 @@ func (srv *GRPCServer) GetFlagInt(
 	}
 
 	var v libsrt.BlobInt
-	err := srv.FFStream.WithSRTOutput(ctx, func(sock *threadsafe.Socket) error {
+	err := srv.FFStream.WithSRTOutput(ctx, int(req.GetOutputID()), func(sock *threadsafe.Socket) error {
 		return sock.Getsockflag(sockOpt, &v)
 	})
 	if err != nil {

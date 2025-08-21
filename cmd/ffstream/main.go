@@ -9,7 +9,7 @@ import (
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
@@ -57,6 +57,7 @@ func main() {
 	}
 
 	encoderVideoOptions := convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)
+
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
 		outputOptions := convertUnknownOptionsToAVPCustomOptions(outputParams.Options)
@@ -85,16 +86,16 @@ func main() {
 			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
 		}
 
-		output, err := kernel.NewOutputFromURL(ctx, outputParams.URL, secret.New(""), kernel.OutputConfig{
-			CustomOptions: outputOptions,
+		err := s.AddOutputTemplate(ctx, ffstream.OutputTemplate{
+			URLTemplate: outputParams.URL,
+			Options:     outputOptions,
 		})
 		assertNoError(ctx, err)
-		s.AddOutput(ctx, output)
 
 		for _, v := range outputOptions {
 			switch v.Key {
 			case "g", "r", "bufsize":
-				encoderVideoOptions = append(encoderVideoOptions, transcodertypes.DictionaryItem{
+				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
 					Key:   v.Key,
 					Value: v.Value,
 				})
@@ -102,12 +103,12 @@ func main() {
 		}
 	}
 
-	hardwareDeviceType := transcodertypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
+	hardwareDeviceType := streammuxtypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
 	if hardwareDeviceType == -1 {
-		hardwareDeviceType = transcodertypes.HardwareDeviceTypeNone
+		hardwareDeviceType = streammuxtypes.HardwareDeviceTypeNone
 	}
-	recoderConfig := transcodertypes.RecoderConfig{
-		VideoTrackConfigs: []transcodertypes.VideoTrackConfig{{
+	recoderConfig := streammuxtypes.RecoderConfig{
+		VideoTrackConfigs: []streammuxtypes.VideoTrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
 			CodecName:          flags.VideoEncoder.Codec,
@@ -115,7 +116,7 @@ func main() {
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceType: hardwareDeviceType,
 		}},
-		AudioTrackConfigs: []transcodertypes.AudioTrackConfig{{
+		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs: []int{1},
 			CodecName:      flags.AudioEncoder.Codec,
@@ -124,7 +125,7 @@ func main() {
 		}},
 	}
 
-	err = s.Start(ctx, recoderConfig, flags.PassthroughMode, flags.PassthroughEncoder)
+	err = s.Start(ctx, recoderConfig, flags.MuxMode)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {

@@ -4,14 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/xaionaro-go/avpipeline/kernel"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
-	"github.com/xaionaro-go/secret"
-	"github.com/xaionaro-go/xcontext"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -21,7 +18,7 @@ type GRPCServer struct {
 	FFStream             *ffstream.FFStream
 	locker               sync.Mutex
 	stopRecodingFunc     context.CancelFunc
-	initialRecoderConfig transcodertypes.RecoderConfig
+	initialRecoderConfig streammuxtypes.RecoderConfig
 }
 
 func NewGRPCServer(ffStream *ffstream.FFStream) *GRPCServer {
@@ -37,7 +34,7 @@ func (srv *GRPCServer) SetLoggingLevel(
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented, yet")
 }
 
-func convertCustomOptionsToAVPipeline(customOptions transcodertypes.DictionaryItems) avptypes.DictionaryItems {
+func convertCustomOptionsToAVPipeline(customOptions streammuxtypes.DictionaryItems) avptypes.DictionaryItems {
 	result := make(avptypes.DictionaryItems, 0, len(customOptions))
 	for _, opt := range customOptions {
 		result = append(result, avptypes.DictionaryItem{
@@ -46,56 +43,6 @@ func convertCustomOptionsToAVPipeline(customOptions transcodertypes.DictionaryIt
 		})
 	}
 	return result
-}
-
-func (srv *GRPCServer) AddInput(
-	ctx context.Context,
-	req *ffstream_grpc.AddInputRequest,
-) (*ffstream_grpc.AddInputReply, error) {
-	input, err := kernel.NewInputFromURL(
-		ctx,
-		req.GetUrl(), secret.New(""),
-		kernel.InputConfig{
-			CustomOptions: convertCustomOptionsToAVPipeline(goconv.CustomOptionsFromGRPC(req.GetCustomOptions())),
-		},
-	)
-	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "unable to open the input: %v", err)
-	}
-
-	err = srv.FFStream.AddInput(ctx, input)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to add the input: %v", err)
-	}
-
-	return &ffstream_grpc.AddInputReply{
-		Id: int64(input.ID),
-	}, nil
-}
-
-func (srv *GRPCServer) AddOutput(
-	ctx context.Context,
-	req *ffstream_grpc.AddOutputRequest,
-) (*ffstream_grpc.AddOutputReply, error) {
-	output, err := kernel.NewOutputFromURL(
-		ctx,
-		req.GetUrl(), secret.New(""),
-		kernel.OutputConfig{
-			CustomOptions: convertCustomOptionsToAVPipeline(goconv.CustomOptionsFromGRPC(req.GetCustomOptions())),
-		},
-	)
-	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "unable to open the output: %v", err)
-	}
-
-	err = srv.FFStream.AddOutput(ctx, output)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to add the output: %v", err)
-	}
-
-	return &ffstream_grpc.AddOutputReply{
-		Id: uint64(output.ID),
-	}, nil
 }
 
 func (srv *GRPCServer) GetRecoderConfig(
@@ -113,7 +60,7 @@ func (srv *GRPCServer) SetRecoderConfig(
 	req *ffstream_grpc.SetRecoderConfigRequest,
 ) (*ffstream_grpc.SetRecoderConfigReply, error) {
 	cfg := goconv.RecoderConfigFromGRPC(req.GetConfig())
-	if srv.FFStream.StreamForward == nil {
+	if srv.FFStream.StreamMux == nil {
 		srv.initialRecoderConfig = cfg
 		return &ffstream_grpc.SetRecoderConfigReply{}, nil
 	}
@@ -122,25 +69,6 @@ func (srv *GRPCServer) SetRecoderConfig(
 		return nil, status.Errorf(codes.Unknown, "unable to configure the encoder: %v", err)
 	}
 	return &ffstream_grpc.SetRecoderConfigReply{}, nil
-}
-
-func (srv *GRPCServer) Start(
-	ctx context.Context,
-	req *ffstream_grpc.StartRequest,
-) (*ffstream_grpc.StartReply, error) {
-	srv.locker.Lock()
-	defer srv.locker.Unlock()
-	if srv.stopRecodingFunc != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "recoding is already started")
-	}
-	ctx, cancelFn := context.WithCancel(xcontext.DetachDone(ctx))
-	err := srv.FFStream.Start(ctx, srv.initialRecoderConfig, transcodertypes.PassthroughModeSameTracks, false)
-	if err != nil {
-		cancelFn()
-		return nil, status.Errorf(codes.Unknown, "unable to start the recoding: %v", err)
-	}
-	srv.stopRecodingFunc = cancelFn
-	return &ffstream_grpc.StartReply{}, nil
 }
 
 func (srv *GRPCServer) GetStats(

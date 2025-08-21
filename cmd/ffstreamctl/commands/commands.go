@@ -10,7 +10,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
 )
@@ -171,7 +171,7 @@ func encoderConfigGet(cmd *cobra.Command, args []string) {
 func encoderConfigSet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
-	cfg := jsonInput[transcodertypes.RecoderConfig](ctx, cmd.InOrStdin())
+	cfg := jsonInput[streammuxtypes.RecoderConfig](ctx, cmd.InOrStdin())
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
 	assertNoError(ctx, err)

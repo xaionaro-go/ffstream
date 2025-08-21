@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
@@ -79,53 +79,6 @@ func (c *Client) SetLoggingLevel(
 	return nil
 }
 
-func (c *Client) AddInput(
-	ctx context.Context,
-	url string,
-	customOptions []transcodertypes.DictionaryItem,
-) (_ InputID, _err error) {
-	client, conn, err := c.grpcClient()
-	if err != nil {
-		return 0, err
-	}
-	defer conn.Close()
-
-	logger.Debugf(ctx, "AddInput(ctx, '%s', %#+v)", url, customOptions)
-	defer func() { logger.Debugf(ctx, "/AddInput(ctx, '%s', %#+v): %v", url, customOptions, _err) }()
-
-	resp, err := client.AddInput(ctx, &ffstream_grpc.AddInputRequest{
-		Url:           url,
-		CustomOptions: goconv.CustomOptionsToGRPC(customOptions),
-	})
-	if err != nil {
-		return 0, fmt.Errorf("query error: %w", err)
-	}
-
-	return InputID(resp.GetId()), nil
-}
-
-func (c *Client) AddOutput(
-	ctx context.Context,
-	url string,
-	customOptions []transcodertypes.DictionaryItem,
-) (OutputID, error) {
-	client, conn, err := c.grpcClient()
-	if err != nil {
-		return 0, err
-	}
-	defer conn.Close()
-
-	resp, err := client.AddOutput(ctx, &ffstream_grpc.AddOutputRequest{
-		Url:           url,
-		CustomOptions: goconv.CustomOptionsToGRPC(customOptions),
-	})
-	if err != nil {
-		return 0, fmt.Errorf("query error: %w", err)
-	}
-
-	return OutputID(resp.GetId()), nil
-}
-
 func (c *Client) RemoveOutput(
 	ctx context.Context,
 	outputID OutputID,
@@ -148,7 +101,7 @@ func (c *Client) RemoveOutput(
 
 func (c *Client) GetRecoderConfig(
 	ctx context.Context,
-) (*transcodertypes.RecoderConfig, error) {
+) (*streammuxtypes.RecoderConfig, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return nil, err
@@ -165,7 +118,7 @@ func (c *Client) GetRecoderConfig(
 
 func (c *Client) SetRecoderConfig(
 	ctx context.Context,
-	cfg transcodertypes.RecoderConfig,
+	cfg streammuxtypes.RecoderConfig,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -219,23 +172,6 @@ func (c *Client) SetTolerableOutputQueueSizeBytes(
 			Value: uint64(sizeBytes),
 		},
 	)
-	if err != nil {
-		return fmt.Errorf("query error: %w", err)
-	}
-
-	return nil
-}
-
-func (c *Client) Start(
-	ctx context.Context,
-) error {
-	client, conn, err := c.grpcClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	_, err = client.Start(ctx, &ffstream_grpc.StartRequest{})
 	if err != nil {
 		return fmt.Errorf("query error: %w", err)
 	}

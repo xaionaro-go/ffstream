@@ -4,14 +4,11 @@ option go_package = "go/ffstream_grpc";
 
 service FFStream {
   rpc SetLoggingLevel(SetLoggingLevelRequest) returns (SetLoggingLevelReply) {}
-  rpc AddInput(AddInputRequest) returns (AddInputReply) {}
-  rpc AddOutput(AddOutputRequest) returns (AddOutputReply) {}
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
   rpc GetRecoderConfig(GetRecoderConfigRequest) returns (GetRecoderConfigReply) {}
   rpc SetRecoderConfig(SetRecoderConfigRequest) returns (SetRecoderConfigReply) {}
   rpc GetTolerableOutputQueueSizeBytes(GetTolerableOutputQueueSizeBytesRequest) returns (GetTolerableOutputQueueSizeBytesReply) {}
   rpc SetTolerableOutputQueueSizeBytes(SetTolerableOutputQueueSizeBytesRequest) returns (SetTolerableOutputQueueSizeBytesReply) {}
-  rpc Start(StartRequest) returns (StartReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest) returns (GetOutputSRTStatsReply) {}
   rpc GetSRTFlagInt(GetSRTFlagIntRequest) returns (GetSRTFlagIntReply) {}
@@ -40,21 +37,6 @@ message SetLoggingLevelReply {}
 message customOption {
   string key = 1;
   string value = 2;
-}
-
-message AddInputRequest {
-  string url = 1;
-  repeated customOption customOptions = 2;
-}
-message AddInputReply {
-  int64 id = 1;
-}
-message AddOutputRequest {
-  string url = 1;
-  repeated customOption customOptions = 2;
-}
-message AddOutputReply {
-  uint64 id = 1;
 }
 
 message RemoveOutputRequest {
@@ -103,8 +85,6 @@ message SetTolerableOutputQueueSizeBytesRequest {
 
 message SetTolerableOutputQueueSizeBytesReply {}
 
-message StartRequest {}
-message StartReply {}
 message GetStatsRequest {}
 message GetStatsReply {
   uint64 BytesCountRead = 1;
@@ -129,7 +109,9 @@ message CommonsProcessingPacketsOrFramesStatisticsSection {
   uint64 Audio = 4;
 }
 
-message GetOutputSRTStatsRequest {}
+message GetOutputSRTStatsRequest {
+  int32 outputID = 1;
+}
 message GetOutputSRTStatsReply {
   int64 msTimeStamp = 1;
   int64 pktSentTotal = 2;
@@ -221,14 +203,16 @@ enum SRTFlagInt {
 }
 
 message GetSRTFlagIntRequest {
-  SRTFlagInt flag = 1;
+  int32 outputID = 1;
+  SRTFlagInt flag = 2;
 }
 message GetSRTFlagIntReply {
   int64 value = 1;
 }
 message SetSRTFlagIntRequest {
-  SRTFlagInt flag = 1;
-  int64 value = 2;
+  int32 outputID = 1;
+  SRTFlagInt flag = 2;
+  int64 value = 3;
 }
 message SetSRTFlagIntReply {}
 

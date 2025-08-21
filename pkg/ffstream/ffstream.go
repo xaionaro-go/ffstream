@@ -10,13 +10,10 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
-	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
-	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
-	"github.com/xaionaro-go/avpipeline/node/filter/packetfilter/preset/videodropnonkeyframes"
-	transcoder "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
@@ -24,15 +21,11 @@ import (
 	"github.com/xaionaro-go/xsync"
 )
 
-const (
-	setSmallBuffer = false
-)
-
 type FFStream struct {
-	NodeInput   *node.Node[*processor.FromKernel[*kernel.Input]]
-	NodeOutputs []*node.Node[*processor.FromKernel[*kernel.Output]]
+	NodeInput       *node.Node[*processor.FromKernel[*kernel.Input]]
+	OutputTemplates []OutputTemplate
 
-	StreamForward *transcoder.TranscoderWithPassthrough[struct{}, *processor.FromKernel[*kernel.Input]]
+	StreamMux *streammux.StreamMux[struct{}]
 
 	TolerableOutputQueueSizeBytes atomic.Uint64
 	CurrentOutputBufferSize       xsync.Map[int, uint64]
@@ -74,56 +67,36 @@ func (s *FFStream) AddInput(
 	return nil
 }
 
-func (s *FFStream) AddOutput(
+func (s *FFStream) AddOutputTemplate(
 	ctx context.Context,
-	output *kernel.Output,
-) error {
+	outputTemplate OutputTemplate,
+) (_err error) {
+	logger.Debugf(ctx, "AddOutputTemplate(ctx, %#+v)", outputTemplate)
+	defer func() { logger.Debugf(ctx, "/AddOutputTemplate(ctx, %#+v): %v", outputTemplate, _err) }()
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	ctx, cancelFn := context.WithCancel(ctx)
-	s.addCancelFnLocked(cancelFn)
-
-	outputChannelSize := 600
-	if setSmallBuffer {
-		logger.Debugf(ctx, "setting the small output buffer")
-		// setting the (kernel-side) send buffer size low enough to be manage the buffers manually in the user space (our-side)
-		if err := output.SetSendBufferSize(ctx, 65536); err != nil {
-			logger.Errorf(ctx, "unable to set the send buffer size: %v", err)
-		}
-		outputChannelSize = 10 // keeping it small to be able to drop incoming packets to reduce traffic (see the usages of `GetTolerableOutputQueueSizeBytes`).
-	}
-
-	s.NodeOutputs = append(
-		s.NodeOutputs,
-		node.NewFromKernel(
-			ctx,
-			output,
-			processor.OptionQueueSizeInputPacket(outputChannelSize),
-			processor.OptionQueueSizeOutputPacket(0),
-			processor.OptionQueueSizeError(100),
-		),
-	)
+	s.OutputTemplates = append(s.OutputTemplates, outputTemplate)
 	return nil
 }
 
 func (s *FFStream) GetRecoderConfig(
 	ctx context.Context,
-) (_ret transcodertypes.RecoderConfig) {
-	return s.StreamForward.GetRecoderConfig(ctx)
+) (_ret streammuxtypes.RecoderConfig) {
+	return s.StreamMux.GetRecoderConfig(ctx)
 }
 
 func (s *FFStream) SetRecoderConfig(
 	ctx context.Context,
-	cfg transcodertypes.RecoderConfig,
+	cfg streammuxtypes.RecoderConfig,
 ) (_err error) {
 	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
 	defer func() {
 		logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err)
 	}()
-	if s.StreamForward == nil {
+	if s.StreamMux == nil {
 		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
 	}
-	return s.StreamForward.SetRecoderConfig(ctx, cfg)
+	return s.StreamMux.SetRecoderConfig(ctx, cfg)
 }
 
 func (s *FFStream) GetStats(
@@ -141,41 +114,15 @@ func (s *FFStream) GetStats(
 		r.Packets.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Packets.Wrote)
 		r.Frames.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Frames.Wrote)
 	}
-	if s.StreamForward != nil {
-		r.Packets.Missed = &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{}
-		for _, recoder := range []*node.Node[*processor.FromKernel[*kernel.Recoder[*codec.NaiveDecoderFactory, *codec.NaiveEncoderFactory]]]{
-			s.StreamForward.NodeRecoder,
-		} {
-			r.Packets.Missed.Unknown += recoder.Statistics.Packets.Missed.Unknown.Load()
-			r.Packets.Missed.Other += recoder.Statistics.Packets.Missed.Other.Load()
-			r.Packets.Missed.Video += recoder.Statistics.Packets.Missed.Video.Load()
-			r.Packets.Missed.Audio += recoder.Statistics.Packets.Missed.Audio.Load()
+	if s.StreamMux != nil {
+		for _, output := range s.StreamMux.Outputs {
+			stats := output.OutputNode.GetStatistics().Convert()
+			r.BytesCountWrote += stats.BytesCountRead
+			r.Packets.Wrote.Unknown += stats.Packets.Read.Unknown
+			r.Packets.Wrote.Other += stats.Packets.Read.Other
+			r.Packets.Wrote.Video += stats.Packets.Read.Video
+			r.Packets.Wrote.Audio += stats.Packets.Read.Audio
 		}
-	}
-	for idx, nodeOutput := range s.NodeOutputs {
-		stats := nodeOutput.Statistics.Convert()
-		r.BytesCountWrote += stats.BytesCountRead
-		r.Packets.Wrote.Unknown += stats.Packets.Read.Unknown
-		r.Packets.Wrote.Other += stats.Packets.Read.Other
-		r.Packets.Wrote.Video += stats.Packets.Read.Video
-		r.Packets.Wrote.Audio += stats.Packets.Read.Audio
-
-		pf := nodeOutput.GetInputPacketFilter()
-		if pf == nil {
-			logger.Errorf(ctx, "packet filter is not set for output %d", idx)
-			continue
-		}
-
-		softPacketDropper, ok := pf.(*videodropnonkeyframes.PacketFilter)
-		if !ok {
-			logger.Errorf(ctx, "the packet filter on output %d is not a videodropnonkeyframes filter", idx)
-			continue
-		}
-
-		bufSize, _ := s.CurrentOutputBufferSize.Load(idx)
-		r.BytesCountBuffered += bufSize
-		r.BytesCountDropped += softPacketDropper.TotalDroppedBytes
-		r.Packets.Dropped.Video += softPacketDropper.TotalDroppedPackets
 	}
 	return r
 }
@@ -183,7 +130,7 @@ func (s *FFStream) GetStats(
 func (s *FFStream) GetAllStats(
 	ctx context.Context,
 ) map[string]*node.ProcessingStatistics {
-	return s.StreamForward.GetAllStats(ctx)
+	return s.StreamMux.GetAllStats(ctx)
 }
 
 func (s *FFStream) SetTolerableOutputQueueSizeBytes(
@@ -201,111 +148,49 @@ func (s *FFStream) GetTolerableOutputQueueSizeBytes(
 
 func (s *FFStream) Start(
 	ctx context.Context,
-	recoderConfig transcodertypes.RecoderConfig,
-	passthroughMode transcodertypes.PassthroughMode,
-	passthroughEncoderByDefault bool,
+	recoderConfig streammuxtypes.RecoderConfig,
+	muxMode streammuxtypes.MuxMode,
 ) (_err error) {
 	logger.Debugf(ctx, "Start")
 	defer func() { logger.Debugf(ctx, "/Start: %v", _err) }()
 
-	if s.StreamForward != nil {
+	if s.StreamMux != nil {
 		return fmt.Errorf("this ffstream was already used")
 	}
 	if s.NodeInput == nil {
 		return fmt.Errorf("no inputs added")
 	}
-	if len(s.NodeOutputs) == 0 {
-		return fmt.Errorf("no outputs added")
-	}
-
-	var nodeOutputs []node.Abstract
-	for idx, nodeOutput := range s.NodeOutputs {
-		idx := idx
-		var softPacketDropper *videodropnonkeyframes.PacketFilter
-		softPacketDropper = videodropnonkeyframes.New(
-			packetfiltercondition.Function(func(
-				ctx context.Context,
-				in packetfiltercondition.Input,
-			) bool {
-				var preOutputNode node.Abstract
-				switch idx {
-				case 0:
-					preOutputNode = s.StreamForward.NodeStreamFixerPassthrough.Output()
-				case 1:
-					preOutputNode = s.StreamForward.NodeStreamFixerMain.Output()
-				default:
-					panic(fmt.Errorf("too many outputs"))
-				}
-				preOutputStats := preOutputNode.GetStatistics()
-				outputStats := nodeOutput.Statistics
-				totalDroppedBytes := softPacketDropper.TotalDroppedBytes
-				queueSizeBytes := 0 +
-					preOutputStats.BytesCountWrote.Load() -
-					outputStats.BytesCountRead.Load() -
-					totalDroppedBytes
-				s.CurrentOutputBufferSize.Store(idx, queueSizeBytes)
-				threshold := s.GetTolerableOutputQueueSizeBytes(ctx)
-				logger.Tracef(ctx, "output %d: queue size: %d (/%d); total dropped so far: %d", idx, queueSizeBytes, threshold, totalDroppedBytes)
-				if threshold <= 0 {
-					return true
-				}
-				return queueSizeBytes <= threshold
-			}),
-		)
-		nodeOutput.SetInputPacketFilter(softPacketDropper)
-		nodeOutputs = append(nodeOutputs, nodeOutput)
+	if len(s.OutputTemplates) != 1 {
+		return fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
 	}
 
 	ctx, cancelFn := context.WithCancel(ctx)
+	defer func() {
+		if _err != nil {
+			cancelFn()
+		}
+	}()
 	s.addCancelFnLocked(cancelFn)
 
 	var err error
-	s.StreamForward, err = transcoder.New[struct{}, *processor.FromKernel[*kernel.Input]](
+	s.StreamMux, err = streammux.New(
 		ctx,
-		s.NodeInput.Processor.Kernel,
-		nodeOutputs...,
+		muxMode,
+		s.asOutputFactory(),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to initialize a StreamForward: %w", err)
+		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
-	s.NodeInput.AddPushPacketsTo(s.StreamForward.Input())
+	s.NodeInput.AddPushPacketsTo(s.StreamMux.Input())
 
 	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
-		return fmt.Errorf("SetRecoderConfig(%#+v, %t): %w", recoderConfig, err)
-	}
-
-	if passthroughEncoderByDefault {
-		logger.Infof(ctx, "passing through the encoder due to the flag provided")
-		s.StreamForward.SwitchPreFilter.CurrentValue.Store(1)
-		s.StreamForward.SwitchPostFilter.CurrentValue.Store(1)
-		s.StreamForward.SwitchPreFilter.NextValue.Store(1)
-		s.StreamForward.SwitchPostFilter.NextValue.Store(1)
-	}
-
-	err = s.StreamForward.Start(ctx, passthroughMode, avpipeline.ServeConfig{
-		EachNode: node.ServeConfig{
-			FrameDrop: false, // we are dropping frames in a more controlled manner above (look for `SetInputPacketFilter`).
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("unable to start the StreamForward: %w", err)
+		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
 	}
 
 	errCh := make(chan node.Error, 100)
 	observability.Go(ctx, func(ctx context.Context) {
 		defer close(errCh)
-		var wg sync.WaitGroup
-		defer wg.Wait()
-		wg.Add(1)
-		observability.Go(ctx, func(ctx context.Context) {
-			defer wg.Done()
-			s.NodeInput.Serve(ctx, node.ServeConfig{}, errCh)
-		})
-		wg.Add(1)
-		observability.Go(ctx, func(ctx context.Context) {
-			wg.Done()
-			avpipeline.Serve(ctx, avpipeline.ServeConfig{}, errCh, s.NodeOutputs...)
-		})
+		avpipeline.Serve(ctx, avpipeline.ServeConfig{}, errCh, s.NodeInput)
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
@@ -331,11 +216,18 @@ func (s *FFStream) Start(
 		}
 	})
 
+	err = s.StreamMux.WaitForStart(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to wait for streammux's start: %w", err)
+	}
+
 	return nil
 }
 
 func (s *FFStream) Wait(
 	ctx context.Context,
-) error {
-	return s.StreamForward.Wait(ctx)
+) (_err error) {
+	logger.Debugf(ctx, "Wait")
+	defer func() { logger.Debugf(ctx, "/Wait: %v", _err) }()
+	return s.StreamMux.WaitForStop(ctx)
 }

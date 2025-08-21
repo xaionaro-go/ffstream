@@ -1,7 +1,7 @@
 package goconv
 
 import (
-	"github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	"github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 

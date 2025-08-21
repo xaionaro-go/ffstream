@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	transcodertypes "github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	"github.com/xaionaro-go/avpipeline/codec"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
 )
 
@@ -25,13 +26,12 @@ type Flags struct {
 	RemoveSecretsFromLogs bool
 	VideoEncoder          Encoder
 	AudioEncoder          Encoder
-	PassthroughEncoder    bool
-	PassthroughMode       transcodertypes.PassthroughMode
+	MuxMode               streammuxtypes.MuxMode
 	Outputs               []Resource
 }
 
 type Encoder struct {
-	Codec   string
+	Codec   codec.Name
 	BitRate uint64
 	Options []string
 }
@@ -61,8 +61,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	filterFlag := flag.AddParameter(p, "filter", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
-	passthroughModeString := flag.AddParameter(p, "passthrough_mode", false, ptr(flag.String("same_tracks")))
-	passthroughEncoder := flag.AddFlag(p, "passthrough_encoder", false)
+	muxModeString := flag.AddParameter(p, "mux_mode", false, ptr(flag.String("forbid")))
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
@@ -145,9 +144,9 @@ func parseFlags(args []string) (context.Context, Flags) {
 		fatal(ctx, "filters are not supported yet")
 	}
 
-	passthroughMode := transcodertypes.PassthroughModeFromString(passthroughModeString.Value())
-	if passthroughMode == transcodertypes.UndefinedPassthroughMode {
-		fatal(ctx, "unable to parse passthrough mode", passthroughModeString)
+	muxMode := streammuxtypes.MuxModeFromString(muxModeString.Value())
+	if muxMode == streammuxtypes.UndefinedMuxMode {
+		fatal(ctx, "unable to parse the mux mode", muxModeString)
 	}
 
 	flags := Flags{
@@ -161,8 +160,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 		InsecureDebug:         insecureDebug.Value(),
 		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
-		PassthroughEncoder:    passthroughEncoder.Value(),
-		PassthroughMode:       passthroughMode,
+		MuxMode:               muxMode,
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,
@@ -172,18 +170,18 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 	if v := encoderBothFlag.Value(); v != "" {
 		flags.AudioEncoder = Encoder{
-			Codec:   v,
+			Codec:   codec.Name(v),
 			Options: indexSafe(encoderBothFlag.CollectedUnknownOptions, 0),
 		}
 		flags.VideoEncoder = Encoder{
-			Codec:   v,
+			Codec:   codec.Name(v),
 			Options: indexSafe(encoderBothFlag.CollectedUnknownOptions, 0),
 		}
 	}
 
 	if v := encoderVideoFlag.Value(); v != "" {
 		flags.VideoEncoder = Encoder{
-			Codec:   v,
+			Codec:   codec.Name(v),
 			BitRate: bitrateVideoFlag.Value(),
 			Options: encoderVideoFlag.CollectedUnknownOptions[0],
 		}
@@ -191,7 +189,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 	if v := encoderAudioFlag.Value(); v != "" {
 		flags.AudioEncoder = Encoder{
-			Codec:   v,
+			Codec:   codec.Name(v),
 			Options: encoderAudioFlag.CollectedUnknownOptions[0],
 		}
 	}

@@ -20,14 +20,11 @@ const _ = grpc.SupportPackageIsVersion8
 
 const (
 	FFStream_SetLoggingLevel_FullMethodName                  = "/ffstream_grpc.FFStream/SetLoggingLevel"
-	FFStream_AddInput_FullMethodName                         = "/ffstream_grpc.FFStream/AddInput"
-	FFStream_AddOutput_FullMethodName                        = "/ffstream_grpc.FFStream/AddOutput"
 	FFStream_RemoveOutput_FullMethodName                     = "/ffstream_grpc.FFStream/RemoveOutput"
 	FFStream_GetRecoderConfig_FullMethodName                 = "/ffstream_grpc.FFStream/GetRecoderConfig"
 	FFStream_SetRecoderConfig_FullMethodName                 = "/ffstream_grpc.FFStream/SetRecoderConfig"
 	FFStream_GetTolerableOutputQueueSizeBytes_FullMethodName = "/ffstream_grpc.FFStream/GetTolerableOutputQueueSizeBytes"
 	FFStream_SetTolerableOutputQueueSizeBytes_FullMethodName = "/ffstream_grpc.FFStream/SetTolerableOutputQueueSizeBytes"
-	FFStream_Start_FullMethodName                            = "/ffstream_grpc.FFStream/Start"
 	FFStream_GetStats_FullMethodName                         = "/ffstream_grpc.FFStream/GetStats"
 	FFStream_GetOutputSRTStats_FullMethodName                = "/ffstream_grpc.FFStream/GetOutputSRTStats"
 	FFStream_GetSRTFlagInt_FullMethodName                    = "/ffstream_grpc.FFStream/GetSRTFlagInt"
@@ -41,14 +38,11 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FFStreamClient interface {
 	SetLoggingLevel(ctx context.Context, in *SetLoggingLevelRequest, opts ...grpc.CallOption) (*SetLoggingLevelReply, error)
-	AddInput(ctx context.Context, in *AddInputRequest, opts ...grpc.CallOption) (*AddInputReply, error)
-	AddOutput(ctx context.Context, in *AddOutputRequest, opts ...grpc.CallOption) (*AddOutputReply, error)
 	RemoveOutput(ctx context.Context, in *RemoveOutputRequest, opts ...grpc.CallOption) (*RemoveOutputReply, error)
 	GetRecoderConfig(ctx context.Context, in *GetRecoderConfigRequest, opts ...grpc.CallOption) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(ctx context.Context, in *SetRecoderConfigRequest, opts ...grpc.CallOption) (*SetRecoderConfigReply, error)
 	GetTolerableOutputQueueSizeBytes(ctx context.Context, in *GetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*GetTolerableOutputQueueSizeBytesReply, error)
 	SetTolerableOutputQueueSizeBytes(ctx context.Context, in *SetTolerableOutputQueueSizeBytesRequest, opts ...grpc.CallOption) (*SetTolerableOutputQueueSizeBytesReply, error)
-	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsReply, error)
 	GetOutputSRTStats(ctx context.Context, in *GetOutputSRTStatsRequest, opts ...grpc.CallOption) (*GetOutputSRTStatsReply, error)
 	GetSRTFlagInt(ctx context.Context, in *GetSRTFlagIntRequest, opts ...grpc.CallOption) (*GetSRTFlagIntReply, error)
@@ -69,26 +63,6 @@ func (c *fFStreamClient) SetLoggingLevel(ctx context.Context, in *SetLoggingLeve
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetLoggingLevelReply)
 	err := c.cc.Invoke(ctx, FFStream_SetLoggingLevel_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *fFStreamClient) AddInput(ctx context.Context, in *AddInputRequest, opts ...grpc.CallOption) (*AddInputReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddInputReply)
-	err := c.cc.Invoke(ctx, FFStream_AddInput_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *fFStreamClient) AddOutput(ctx context.Context, in *AddOutputRequest, opts ...grpc.CallOption) (*AddOutputReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddOutputReply)
-	err := c.cc.Invoke(ctx, FFStream_AddOutput_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +113,6 @@ func (c *fFStreamClient) SetTolerableOutputQueueSizeBytes(ctx context.Context, i
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetTolerableOutputQueueSizeBytesReply)
 	err := c.cc.Invoke(ctx, FFStream_SetTolerableOutputQueueSizeBytes_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *fFStreamClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StartReply)
-	err := c.cc.Invoke(ctx, FFStream_Start_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -243,14 +207,11 @@ func (c *fFStreamClient) End(ctx context.Context, in *EndRequest, opts ...grpc.C
 // for forward compatibility
 type FFStreamServer interface {
 	SetLoggingLevel(context.Context, *SetLoggingLevelRequest) (*SetLoggingLevelReply, error)
-	AddInput(context.Context, *AddInputRequest) (*AddInputReply, error)
-	AddOutput(context.Context, *AddOutputRequest) (*AddOutputReply, error)
 	RemoveOutput(context.Context, *RemoveOutputRequest) (*RemoveOutputReply, error)
 	GetRecoderConfig(context.Context, *GetRecoderConfigRequest) (*GetRecoderConfigReply, error)
 	SetRecoderConfig(context.Context, *SetRecoderConfigRequest) (*SetRecoderConfigReply, error)
 	GetTolerableOutputQueueSizeBytes(context.Context, *GetTolerableOutputQueueSizeBytesRequest) (*GetTolerableOutputQueueSizeBytesReply, error)
 	SetTolerableOutputQueueSizeBytes(context.Context, *SetTolerableOutputQueueSizeBytesRequest) (*SetTolerableOutputQueueSizeBytesReply, error)
-	Start(context.Context, *StartRequest) (*StartReply, error)
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error)
 	GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error)
 	GetSRTFlagInt(context.Context, *GetSRTFlagIntRequest) (*GetSRTFlagIntReply, error)
@@ -267,12 +228,6 @@ type UnimplementedFFStreamServer struct {
 func (UnimplementedFFStreamServer) SetLoggingLevel(context.Context, *SetLoggingLevelRequest) (*SetLoggingLevelReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented")
 }
-func (UnimplementedFFStreamServer) AddInput(context.Context, *AddInputRequest) (*AddInputReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddInput not implemented")
-}
-func (UnimplementedFFStreamServer) AddOutput(context.Context, *AddOutputRequest) (*AddOutputReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddOutput not implemented")
-}
 func (UnimplementedFFStreamServer) RemoveOutput(context.Context, *RemoveOutputRequest) (*RemoveOutputReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveOutput not implemented")
 }
@@ -287,9 +242,6 @@ func (UnimplementedFFStreamServer) GetTolerableOutputQueueSizeBytes(context.Cont
 }
 func (UnimplementedFFStreamServer) SetTolerableOutputQueueSizeBytes(context.Context, *SetTolerableOutputQueueSizeBytesRequest) (*SetTolerableOutputQueueSizeBytesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetTolerableOutputQueueSizeBytes not implemented")
-}
-func (UnimplementedFFStreamServer) Start(context.Context, *StartRequest) (*StartReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
 }
 func (UnimplementedFFStreamServer) GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
@@ -336,42 +288,6 @@ func _FFStream_SetLoggingLevel_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FFStreamServer).SetLoggingLevel(ctx, req.(*SetLoggingLevelRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _FFStream_AddInput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddInputRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FFStreamServer).AddInput(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FFStream_AddInput_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).AddInput(ctx, req.(*AddInputRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _FFStream_AddOutput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddOutputRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FFStreamServer).AddOutput(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FFStream_AddOutput_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).AddOutput(ctx, req.(*AddOutputRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -462,24 +378,6 @@ func _FFStream_SetTolerableOutputQueueSizeBytes_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FFStreamServer).SetTolerableOutputQueueSizeBytes(ctx, req.(*SetTolerableOutputQueueSizeBytesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _FFStream_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FFStreamServer).Start(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FFStream_Start_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).Start(ctx, req.(*StartRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -607,14 +505,6 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FFStream_SetLoggingLevel_Handler,
 		},
 		{
-			MethodName: "AddInput",
-			Handler:    _FFStream_AddInput_Handler,
-		},
-		{
-			MethodName: "AddOutput",
-			Handler:    _FFStream_AddOutput_Handler,
-		},
-		{
 			MethodName: "RemoveOutput",
 			Handler:    _FFStream_RemoveOutput_Handler,
 		},
@@ -633,10 +523,6 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTolerableOutputQueueSizeBytes",
 			Handler:    _FFStream_SetTolerableOutputQueueSizeBytes_Handler,
-		},
-		{
-			MethodName: "Start",
-			Handler:    _FFStream_Start_Handler,
 		},
 		{
 			MethodName: "GetStats",

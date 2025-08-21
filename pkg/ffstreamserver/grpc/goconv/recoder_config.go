@@ -1,7 +1,8 @@
 package goconv
 
 import (
-	"github.com/xaionaro-go/avpipeline/preset/transcoderwithpassthrough/types"
+	"github.com/xaionaro-go/avpipeline/codec"
+	"github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
@@ -13,7 +14,7 @@ func RecoderConfigFromGRPC(
 		VideoTrackConfigs: []types.VideoTrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
-			CodecName:          req.GetVideo().GetCodecName(),
+			CodecName:          codec.Name(req.GetVideo().GetCodecName()),
 			AveragingPeriod:    DurationFromGRPC(int64(req.GetVideo().GetAveragingPeriod())),
 			AverageBitRate:     req.GetVideo().GetAverageBitRate(),
 			CustomOptions:      CustomOptionsFromGRPC(req.GetVideo().GetCustomOptions()),
@@ -23,7 +24,7 @@ func RecoderConfigFromGRPC(
 		AudioTrackConfigs: []types.AudioTrackConfig{{
 			InputTrackIDs:   []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:  []int{1},
-			CodecName:       req.GetAudio().GetCodecName(),
+			CodecName:       codec.Name(req.GetAudio().GetCodecName()),
 			AveragingPeriod: DurationFromGRPC(int64(req.GetAudio().GetAveragingPeriod())),
 			AverageBitRate:  req.GetAudio().GetAverageBitRate(),
 			CustomOptions:   CustomOptionsFromGRPC(req.GetAudio().GetCustomOptions()),
@@ -38,7 +39,7 @@ func RecoderConfigToGRPC(
 	if len(cfg.AudioTrackConfigs) > 0 {
 		audio := cfg.AudioTrackConfigs[0]
 		result.Audio = &ffstream_grpc.AudioCodecConfig{
-			CodecName:       audio.CodecName,
+			CodecName:       string(audio.CodecName),
 			AveragingPeriod: uint64(DurationToGRPC(audio.AveragingPeriod)),
 			AverageBitRate:  audio.AverageBitRate,
 			CustomOptions:   CustomOptionsToGRPC(audio.CustomOptions),
@@ -47,7 +48,7 @@ func RecoderConfigToGRPC(
 	if len(cfg.VideoTrackConfigs) > 0 {
 		video := cfg.VideoTrackConfigs[0]
 		result.Video = &ffstream_grpc.VideoCodecConfig{
-			CodecName:          video.CodecName,
+			CodecName:          string(video.CodecName),
 			AveragingPeriod:    uint64(DurationToGRPC(video.AveragingPeriod)),
 			AverageBitRate:     video.AverageBitRate,
 			CustomOptions:      CustomOptionsToGRPC(video.CustomOptions),
