@@ -119,7 +119,9 @@ func (c *Client) GetRecoderConfig(
 func (c *Client) SetRecoderConfig(
 	ctx context.Context,
 	cfg streammuxtypes.RecoderConfig,
-) error {
+) (_err error) {
+	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
+	defer func() { logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err) }()
 	client, conn, err := c.grpcClient()
 	if err != nil {
 		return err
