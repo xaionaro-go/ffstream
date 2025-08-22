@@ -20,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250822013502-028d5007afa4
+	github.com/xaionaro-go/avpipeline v0.0.0-20250822214154-36d699115e57
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
@@ -35,7 +35,7 @@ require github.com/xaionaro-go/sockopt v0.0.0-20250526214909-e15e1e4bc738 // ind
 
 require (
 	github.com/DataDog/gostackparse v0.7.0 // indirect
-	github.com/asticode/go-astikit v0.54.0 // indirect
+	github.com/asticode/go-astikit v0.55.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
