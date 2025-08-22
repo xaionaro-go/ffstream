@@ -67,7 +67,7 @@ func main() {
 		var outputFormat string
 		for _, v := range outputOptions {
 			switch v.Key {
-			case "f":
+			case "-f":
 				outputFormat = v.Value
 			}
 		}
@@ -95,15 +95,21 @@ func main() {
 		})
 		assertNoError(ctx, err)
 
-		for _, v := range outputOptions {
-			logger.Tracef(ctx, "outputOptions[%d] == %#+v", v.Key, v)
-			switch v.Key {
+		for idx, v := range outputOptions {
+			logger.Tracef(ctx, "outputOptions[%d]: %s=%s", idx, v.Key, v)
+			key := v.Key
+			switch key {
+			case "-gpu":
+				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
+					Key:   key,
+					Value: v.Value,
+				})
 			case "-s":
 				_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
 				assertNoError(ctx, err)
 			case "-g", "-r", "-bufsize":
 				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
-					Key:   v.Key,
+					Key:   key,
 					Value: v.Value,
 				})
 			}
@@ -159,4 +165,6 @@ func main() {
 
 	err = s.Wait(ctx)
 	assertNoError(ctx, err)
+
+	logger.Infof(ctx, "finished")
 }
