@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
@@ -15,9 +17,9 @@ import (
 )
 
 type OutputTemplate struct {
-	URLTemplate       string
-	Options           []avptypes.DictionaryItem
-	AutoBitRateConfig *streammux.AutoBitRateConfig
+	URLTemplate          string
+	Options              []avptypes.DictionaryItem
+	RetryOutputOnFailure bool
 }
 
 func (t *OutputTemplate) GetURL(
@@ -49,6 +51,17 @@ func (s *outputFactory) NewOutput(
 	}
 	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
+	if outputTemplate.RetryOutputOnFailure {
+		return s.newOutputWithRetry(ctx, outputTemplate, outputURL)
+	}
+	return s.newOutput(ctx, outputTemplate, outputURL)
+}
+
+func (s *outputFactory) newOutput(
+	ctx context.Context,
+	outputTemplate OutputTemplate,
+	outputURL string,
+) (node.Abstract, streammux.OutputConfig, error) {
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
 		CustomOptions: outputTemplate.Options,
 	})
@@ -57,7 +70,35 @@ func (s *outputFactory) NewOutput(
 	}
 
 	outputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return outputNode, streammux.OutputConfig{
-		AutoBitrate: outputTemplate.AutoBitRateConfig,
-	}, nil
+	return outputNode, streammux.OutputConfig{}, nil
+}
+
+func (s *outputFactory) newOutputWithRetry(
+	ctx context.Context,
+	outputTemplate OutputTemplate,
+	outputURL string,
+) (node.Abstract, streammux.OutputConfig, error) {
+	outputKernel := kernel.NewRetry(
+		ctx,
+		func(ctx context.Context) (*kernel.Output, error) {
+			outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
+				CustomOptions: outputTemplate.Options,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
+			}
+			return outputKernel, nil
+		},
+		func(ctx context.Context, k *kernel.Output) error {
+			return nil
+		},
+		func(ctx context.Context, k *kernel.Output, err error) error {
+			logger.Debugf(ctx, "connection ended: %v", err)
+			time.Sleep(100 * time.Millisecond)
+			return kernel.ErrRetry{Err: err}
+		},
+	)
+
+	retryOutputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
+	return retryOutputNode, streammux.OutputConfig{}, nil
 }

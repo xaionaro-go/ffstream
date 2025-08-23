@@ -29,6 +29,7 @@ type Flags struct {
 	AudioEncoder          Encoder
 	MuxMode               streammuxtypes.MuxMode
 	AutoBitRate           *streammuxtypes.AutoBitRateConfig
+	RetryOutputOnFailure  bool
 	Outputs               []Resource
 }
 
@@ -66,6 +67,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	muxModeString := flag.AddParameter(p, "mux_mode", false, ptr(flag.String("forbid")))
 	autoBitrate := flag.AddParameter(p, "auto_bitrate", false, ptr(flag.Bool(false)))
 	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
+	retryOutputOnFailure := flag.AddParameter(p, "retry_output_on_failure", false, ptr(flag.Bool(false)))
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
@@ -165,6 +167,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		InsecureDebug:         insecureDebug.Value(),
 		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
 		MuxMode:               muxMode,
+		RetryOutputOnFailure:  retryOutputOnFailure.Value(),
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,

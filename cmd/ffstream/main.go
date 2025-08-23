@@ -91,9 +91,9 @@ func main() {
 		}
 
 		err := s.AddOutputTemplate(ctx, ffstream.OutputTemplate{
-			URLTemplate:       outputParams.URL,
-			Options:           outputOptions,
-			AutoBitRateConfig: flags.AutoBitRate,
+			URLTemplate:          outputParams.URL,
+			Options:              outputOptions,
+			RetryOutputOnFailure: flags.RetryOutputOnFailure,
 		})
 		assertNoError(ctx, err)
 
@@ -144,7 +144,7 @@ func main() {
 		}},
 	}
 
-	err = s.Start(ctx, recoderConfig, flags.MuxMode)
+	err = s.Start(ctx, recoderConfig, flags.MuxMode, flags.AutoBitRate)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {

@@ -154,6 +154,7 @@ func (s *FFStream) Start(
 	ctx context.Context,
 	recoderConfig streammuxtypes.RecoderConfig,
 	muxMode streammuxtypes.MuxMode,
+	autoBitRate *streammuxtypes.AutoBitRateConfig,
 ) (_err error) {
 	logger.Debugf(ctx, "Start")
 	defer func() { logger.Debugf(ctx, "/Start: %v", _err) }()
@@ -180,6 +181,7 @@ func (s *FFStream) Start(
 	s.StreamMux, err = streammux.New(
 		ctx,
 		muxMode,
+		autoBitRate,
 		s.asOutputFactory(),
 	)
 	if err != nil {
@@ -189,6 +191,16 @@ func (s *FFStream) Start(
 
 	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
 		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
+	}
+
+	if autoBitRate != nil {
+		outputKey := streammux.OutputKeyFromRecoderConfig(ctx, &recoderConfig)
+		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
+			outputKey.Resolution = output.Resolution
+			if _, err := s.StreamMux.InitOutput(ctx, outputKey); err != nil {
+				return fmt.Errorf("unable to init output for resolution %#+v: %w", output.Resolution, err)
+			}
+		}
 	}
 
 	errCh := make(chan node.Error, 100)

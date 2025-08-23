@@ -135,8 +135,8 @@ github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d h1:++uR850Cqo
 github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 h1:FZn9+TN3uHhohfpanWkR9lFNHApizznZbML6XjvEgTU=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8/go.mod h1:2W2Kp/HJFXcFBppQ4YytgDy/ydFL3hGc23xSB1U/Luc=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823210941-a5d5445bcd95 h1:7lb0YVCUGr6roMF+TMR9NIakYnfRzYiPArSWclrlahc=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823210941-a5d5445bcd95/go.mod h1:dS8TAMoe5lKgEdKmoJ5wqGnCTe78JNlF1MSgqC6qySs=
+github.com/xaionaro-go/avpipeline v0.0.0-20250823232339-a6656835101e h1:sxR8M/1ir3vaI6gcoe7ToN0uF1ZKn5VZqCZZZHE8EaA=
+github.com/xaionaro-go/avpipeline v0.0.0-20250823232339-a6656835101e/go.mod h1:JBHORHdHAoH/6SkYWSrNiJifoDVDy7t6RzjrzhtVhAY=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7TlNavGKzAgCf598zWRfZCSpi1HTKDbjbwg=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=
@@ -168,8 +168,8 @@ github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c h1://sE/WLpO7
 github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c/go.mod h1:MGRT1+2m2adVRc4aAn0RVGysjsSRKN9VCyBJLHvQd4k=
 github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f h1:ofxY1akRlVdJ/AEDj0EakK4Aez8fzeWTTe2mCAZiJ0A=
 github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f/go.mod h1:f0DVcqddOy1RALOgXJHwpQnkp1u1yeBX/+A2+Bf4EGc=
-github.com/xaionaro-go/xsync v0.0.0-20250511184922-deec5fb01a0f h1:bIIGdmjgIHqaL0ioAtAuqcOk6LGeALakI1HeJEZptxY=
-github.com/xaionaro-go/xsync v0.0.0-20250511184922-deec5fb01a0f/go.mod h1:FCpywNAl4a4hgzE8j7Z+TpdhBQi5WHxnI35jOrFpoQw=
+github.com/xaionaro-go/xsync v0.0.0-20250823213430-c05fb7aa7ed0 h1:ocUDrC9Cnehwsu/DRGZm/llHlQwcHpCfIhgdX0Jox3Y=
+github.com/xaionaro-go/xsync v0.0.0-20250823213430-c05fb7aa7ed0/go.mod h1:FCpywNAl4a4hgzE8j7Z+TpdhBQi5WHxnI35jOrFpoQw=
 github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5 h1:jAy7VLg8y8XE1R8jBte4PRDJzOaAE+sUfmttfB9ZcAY=
 github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5/go.mod h1:KJuX7yl27vU+KV6CpsWOe5ZMY4zSg70hvEhwoYdr17w=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
