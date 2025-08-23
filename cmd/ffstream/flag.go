@@ -204,6 +204,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 			flags.VideoEncoder.Codec.Codec(ctx, true).ID(),
 			uint32(autoBitrateMaxHeight.Value()),
 		)
+		if flags.MuxMode == streammuxtypes.MuxModeForbid {
+			cfg.ResolutionsAndBitRates = streammuxtypes.AutoBitRateResolutionAndBitRateConfigs{
+				*cfg.ResolutionsAndBitRates.Best(),
+			}
+		}
 		flags.AutoBitRate = &cfg
 	}
 
