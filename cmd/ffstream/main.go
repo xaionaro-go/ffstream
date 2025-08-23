@@ -10,6 +10,7 @@ import (
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
+	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -90,8 +91,9 @@ func main() {
 		}
 
 		err := s.AddOutputTemplate(ctx, ffstream.OutputTemplate{
-			URLTemplate: outputParams.URL,
-			Options:     outputOptions,
+			URLTemplate:       outputParams.URL,
+			Options:           outputOptions,
+			AutoBitRateConfig: flags.AutoBitRate,
 		})
 		assertNoError(ctx, err)
 
@@ -124,7 +126,7 @@ func main() {
 		VideoTrackConfigs: []streammuxtypes.VideoTrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
-			CodecName:          flags.VideoEncoder.Codec,
+			CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
 			AverageBitRate:     flags.VideoEncoder.BitRate,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceType: hardwareDeviceType,
@@ -136,7 +138,7 @@ func main() {
 		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs: []int{1},
-			CodecName:      flags.AudioEncoder.Codec,
+			CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
 			AverageBitRate: flags.AudioEncoder.BitRate,
 			CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
 		}},

@@ -18,7 +18,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250823155628-0f72d2845ef5
+	github.com/xaionaro-go/avpipeline v0.0.0-20250823210941-a5d5445bcd95
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
@@ -29,7 +29,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 )
 
-require github.com/xaionaro-go/sockopt v0.0.0-20250526214909-e15e1e4bc738 // indirect
+require github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51 // indirect
 
 require (
 	github.com/DataDog/gostackparse v0.7.0 // indirect
@@ -55,7 +55,7 @@ require (
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/xaionaro-go/avcommon v0.0.0-20250629220425-ad846e62efb6 // indirect
+	github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d // indirect
 	github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect

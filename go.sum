@@ -131,12 +131,12 @@ github.com/xaionaro-go/astiav v0.0.0-20250521203320-7402f3e25a7c h1:MTrVWO9fpyua
 github.com/xaionaro-go/astiav v0.0.0-20250521203320-7402f3e25a7c/go.mod h1:GI0pHw6K2/pl/o8upCtT49P/q4KCwhv/8nGLlCsZLdA=
 github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9 h1:f953nYixjfXfTrn9Mhiu2FkjyKCO6XZpUrNePlvw28k=
 github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9/go.mod h1:F69CAbtiDu3PxOFnKw/j25MO8b0LBbvc+/BTa3J7TeE=
-github.com/xaionaro-go/avcommon v0.0.0-20250629220425-ad846e62efb6 h1:Z/krIvEqIU9VVogzrtRR6/AWJt12qIhFQ7GoZVC+gSg=
-github.com/xaionaro-go/avcommon v0.0.0-20250629220425-ad846e62efb6/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
+github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d h1:++uR850Cqo5qXGTfAq60p2sIfq7oSYK0x0KoKL8B9Ts=
+github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 h1:FZn9+TN3uHhohfpanWkR9lFNHApizznZbML6XjvEgTU=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8/go.mod h1:2W2Kp/HJFXcFBppQ4YytgDy/ydFL3hGc23xSB1U/Luc=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823155628-0f72d2845ef5 h1:xB2rEpAakQLSGxoxN2lTFU5/dv8P/jgCl8OjvhhaVhE=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823155628-0f72d2845ef5/go.mod h1:itsgAqmdtr9a7MoJUJTKHjgptBc4xRaETk5i0W04CS0=
+github.com/xaionaro-go/avpipeline v0.0.0-20250823210941-a5d5445bcd95 h1:7lb0YVCUGr6roMF+TMR9NIakYnfRzYiPArSWclrlahc=
+github.com/xaionaro-go/avpipeline v0.0.0-20250823210941-a5d5445bcd95/go.mod h1:dS8TAMoe5lKgEdKmoJ5wqGnCTe78JNlF1MSgqC6qySs=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7TlNavGKzAgCf598zWRfZCSpi1HTKDbjbwg=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=
@@ -155,8 +155,8 @@ github.com/xaionaro-go/proxy v0.0.0-20250525144747-579f5a891c15 h1:Qqoy9MDWq2Yh6
 github.com/xaionaro-go/proxy v0.0.0-20250525144747-579f5a891c15/go.mod h1:6kxHtLmOImv/zwXSvaI1CW9Q8Pw+m5b891ZoejMKHPA=
 github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2 h1:QHpTWfyfmz65cE0MtFXe9fScdi+X0VIYR2wgolSYEUk=
 github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2/go.mod h1:XKoHGZ4VKMbVBl8VotLIoWQdrB6Q7jnR++RbkiegZFU=
-github.com/xaionaro-go/sockopt v0.0.0-20250526214909-e15e1e4bc738 h1:aGQY6gS+Y8GBwgt+Dg33f7JiUTU3p3OGrVKxqGzU7MM=
-github.com/xaionaro-go/sockopt v0.0.0-20250526214909-e15e1e4bc738/go.mod h1:CqilA8ZWT91g8OUBwHE0JTIklhtB77lBrgTM7HlKYo4=
+github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51 h1:ZeRN8OK3k+txztuH9nOaAWktDnDjye26DleTm9GPEqg=
+github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51/go.mod h1:CqilA8ZWT91g8OUBwHE0JTIklhtB77lBrgTM7HlKYo4=
 github.com/xaionaro-go/spinlock v0.0.0-20190309154744-55278e21e817/go.mod h1:Nb/15eS0BMty6TMuWgRQM8WCDIUlyPZagcpchHT6c9Y=
 github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 h1:1Kqw9dv2LnznIhJoMt3dNzc/ctSj6VHjyGh4YZHjpE4=
 github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1/go.mod h1:UwmTXX+EpoEYHuy0rSys1Rp5PW+eVTgZSjgMVLJENKg=

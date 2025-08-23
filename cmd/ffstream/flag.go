@@ -8,6 +8,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
+	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
 )
@@ -27,6 +28,7 @@ type Flags struct {
 	VideoEncoder          Encoder
 	AudioEncoder          Encoder
 	MuxMode               streammuxtypes.MuxMode
+	AutoBitRate           *streammuxtypes.AutoBitRateConfig
 	Outputs               []Resource
 }
 
@@ -62,6 +64,8 @@ func parseFlags(args []string) (context.Context, Flags) {
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	muxModeString := flag.AddParameter(p, "mux_mode", false, ptr(flag.String("forbid")))
+	autoBitrate := flag.AddParameter(p, "auto_bitrate", false, ptr(flag.Bool(false)))
+	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
@@ -192,6 +196,15 @@ func parseFlags(args []string) (context.Context, Flags) {
 			Codec:   codec.Name(v),
 			Options: encoderAudioFlag.CollectedUnknownOptions[0],
 		}
+	}
+
+	if autoBitrate.Value() {
+		logger.Tracef(ctx, "enabling auto bitrate")
+		cfg := streammux.DefaultAutoBitrateConfig(
+			flags.VideoEncoder.Codec.Codec(ctx, true).ID(),
+			uint32(autoBitrateMaxHeight.Value()),
+		)
+		flags.AutoBitRate = &cfg
 	}
 
 	return ctx, flags

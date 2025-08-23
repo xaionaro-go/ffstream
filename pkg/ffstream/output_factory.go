@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
@@ -14,8 +15,9 @@ import (
 )
 
 type OutputTemplate struct {
-	URLTemplate string
-	Options     []avptypes.DictionaryItem
+	URLTemplate       string
+	Options           []avptypes.DictionaryItem
+	AutoBitRateConfig *streammux.AutoBitRateConfig
 }
 
 func (t *OutputTemplate) GetURL(
@@ -23,8 +25,8 @@ func (t *OutputTemplate) GetURL(
 	outputKey streammux.OutputKey,
 ) string {
 	url := t.URLTemplate
-	url = strings.ReplaceAll(url, "${a:0:codec}", string(outputKey.AudioCodec.Canonicalize(ctx, true)))
-	url = strings.ReplaceAll(url, "${v:0:codec}", string(outputKey.VideoCodec.Canonicalize(ctx, true)))
+	url = strings.ReplaceAll(url, "${a:0:codec}", string(codec.Name(outputKey.AudioCodec).Canonicalize(ctx, true)))
+	url = strings.ReplaceAll(url, "${v:0:codec}", string(codec.Name(outputKey.VideoCodec).Canonicalize(ctx, true)))
 	url = strings.ReplaceAll(url, "${v:0:width}", fmt.Sprintf("%d", outputKey.Resolution.Width))
 	url = strings.ReplaceAll(url, "${v:0:height}", fmt.Sprintf("%d", outputKey.Resolution.Height))
 	return url
@@ -55,5 +57,7 @@ func (s *outputFactory) NewOutput(
 	}
 
 	outputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return outputNode, streammux.OutputConfig{}, nil
+	return outputNode, streammux.OutputConfig{
+		AutoBitrate: outputTemplate.AutoBitRateConfig,
+	}, nil
 }
