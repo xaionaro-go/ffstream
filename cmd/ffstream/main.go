@@ -128,8 +128,10 @@ func main() {
 			AverageBitRate:     flags.VideoEncoder.BitRate,
 			CustomOptions:      encoderVideoOptions,
 			HardwareDeviceType: hardwareDeviceType,
-			Width:              resolution.Width,
-			Height:             resolution.Height,
+			Resolution: codec.Resolution{
+				Width:  resolution.Width,
+				Height: resolution.Height,
+			},
 		}},
 		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
 			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},

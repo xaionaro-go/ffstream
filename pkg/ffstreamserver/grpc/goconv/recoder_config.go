@@ -20,8 +20,10 @@ func RecoderConfigFromGRPC(
 			CustomOptions:      CustomOptionsFromGRPC(req.GetVideo().GetCustomOptions()),
 			HardwareDeviceType: types.HardwareDeviceType(videoDeviceTypeName),
 			HardwareDeviceName: types.HardwareDeviceName(req.GetVideo().GetHardwareDeviceName()),
-			Width:              req.GetVideo().GetWidth(),
-			Height:             req.GetVideo().GetHeight(),
+			Resolution: codec.Resolution{
+				Width:  req.GetVideo().GetWidth(),
+				Height: req.GetVideo().GetHeight(),
+			},
 		}},
 		AudioTrackConfigs: []types.AudioTrackConfig{{
 			InputTrackIDs:   []int{0, 1, 2, 3, 4, 5, 6, 7},
@@ -56,8 +58,8 @@ func RecoderConfigToGRPC(
 			CustomOptions:      CustomOptionsToGRPC(video.CustomOptions),
 			HardwareDeviceType: string(video.HardwareDeviceType.String()),
 			HardwareDeviceName: string(video.HardwareDeviceName),
-			Width:              video.Width,
-			Height:             video.Height,
+			Width:              video.Resolution.Width,
+			Height:             video.Resolution.Height,
 		}
 	}
 	return result
