@@ -127,6 +127,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/xaionaro-go/androidetc v0.0.0-20250824193302-b7ecebb3b825 h1:4f2P9/JASUXx2GWhQ6wyGlwOtr+nIfM6PUq9wTHqHmM=
+github.com/xaionaro-go/androidetc v0.0.0-20250824193302-b7ecebb3b825/go.mod h1:IvRt8Hto32EGtBEf7A94HVxiYEt7hGXLWabjdnUYmAE=
 github.com/xaionaro-go/astiav v0.0.0-20250822190616-666bb00322f2 h1:vF6cfoaaStIwRu70WrPLy2s8Kl2rW0oZi34SVGWnM8Q=
 github.com/xaionaro-go/astiav v0.0.0-20250822190616-666bb00322f2/go.mod h1:txVrlvD3ErCtyacQ6WBMarn9+oD1V8vk33dWmVCGQhM=
 github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9 h1:f953nYixjfXfTrn9Mhiu2FkjyKCO6XZpUrNePlvw28k=
@@ -135,8 +137,8 @@ github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d h1:++uR850Cqo
 github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 h1:FZn9+TN3uHhohfpanWkR9lFNHApizznZbML6XjvEgTU=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8/go.mod h1:2W2Kp/HJFXcFBppQ4YytgDy/ydFL3hGc23xSB1U/Luc=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823232339-a6656835101e h1:sxR8M/1ir3vaI6gcoe7ToN0uF1ZKn5VZqCZZZHE8EaA=
-github.com/xaionaro-go/avpipeline v0.0.0-20250823232339-a6656835101e/go.mod h1:JBHORHdHAoH/6SkYWSrNiJifoDVDy7t6RzjrzhtVhAY=
+github.com/xaionaro-go/avpipeline v0.0.0-20250824204415-29efd9852472 h1:Fx6UokIhFyqD56eSM35l5FkRYb0BuT82s1XQH8aEpHI=
+github.com/xaionaro-go/avpipeline v0.0.0-20250824204415-29efd9852472/go.mod h1:Ebt+dr5kYftYeW1VgCERTbRrPMzDba/HNFuxqoCuOxs=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7TlNavGKzAgCf598zWRfZCSpi1HTKDbjbwg=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=

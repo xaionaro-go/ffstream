@@ -10,6 +10,8 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
+	"github.com/xaionaro-go/avpipeline/codec"
+	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
@@ -95,6 +97,12 @@ func (s *FFStream) SetRecoderConfig(
 	}()
 	if s.StreamMux == nil {
 		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
+	}
+	if len(cfg.VideoTrackConfigs) > 0 {
+		videoCfg := &cfg.VideoTrackConfigs[0]
+		if videoCfg.CodecName != codectypes.Name(codec.NameCopy) && videoCfg.Resolution == (codec.Resolution{}) {
+			return fmt.Errorf("resolution must be set for video codec %q", videoCfg.CodecName)
+		}
 	}
 	return s.StreamMux.SetRecoderConfig(ctx, cfg)
 }
