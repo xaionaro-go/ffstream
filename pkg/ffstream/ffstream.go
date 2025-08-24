@@ -195,12 +195,18 @@ func (s *FFStream) Start(
 
 	if autoBitRate != nil {
 		outputKey := streammux.OutputKeyFromRecoderConfig(ctx, &recoderConfig)
+		var wg sync.WaitGroup
 		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
 			outputKey.Resolution = output.Resolution
-			if _, err := s.StreamMux.InitOutput(ctx, outputKey); err != nil {
-				return fmt.Errorf("unable to init output for resolution %#+v: %w", output.Resolution, err)
-			}
+			wg.Add(1)
+			go func(output streammuxtypes.OutputKey) {
+				defer wg.Done()
+				if _, err := s.StreamMux.InitOutput(ctx, outputKey); err != nil {
+					logger.Errorf(ctx, "unable to init output for resolution %#+v: %w", output.Resolution, err)
+				}
+			}(outputKey)
 		}
+		wg.Wait()
 	}
 
 	errCh := make(chan node.Error, 100)
