@@ -67,6 +67,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	muxModeString := flag.AddParameter(p, "mux_mode", false, ptr(flag.String("forbid")))
 	autoBitrate := flag.AddParameter(p, "auto_bitrate", false, ptr(flag.Bool(false)))
 	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
+	autoBitrateMinHeight := flag.AddParameter(p, "auto_bitrate_min_height", false, ptr(flag.Uint64(480)))
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
 	retryOutputOnFailure := flag.AddParameter(p, "retry_output_on_failure", false, ptr(flag.Bool(false)))
 	version := flag.AddFlag(p, "version", false)
@@ -210,8 +211,9 @@ func parseFlags(args []string) (context.Context, Flags) {
 		}
 		cfg := streammux.DefaultAutoBitrateConfig(
 			vCodec.ID(),
-			uint32(autoBitrateMaxHeight.Value()),
 		)
+		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MaxHeight(autoBitrateMaxHeight.Value())
+		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MinHeight(autoBitrateMinHeight.Value())
 		if flags.MuxMode == streammuxtypes.MuxModeForbid {
 			cfg.ResolutionsAndBitRates = streammuxtypes.AutoBitRateResolutionAndBitRateConfigs{
 				*cfg.ResolutionsAndBitRates.Best(),
