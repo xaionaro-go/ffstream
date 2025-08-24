@@ -156,6 +156,15 @@ func getContext(
 	if u, err := user.Current(); err == nil {
 		ctx = belt.WithField(ctx, "user", u.Username)
 	}
+	buildInfo := getBuildInfo()
+	switch {
+	case buildInfo.BuildInfo != nil && buildInfo.BuildInfo.Main.Version != "" && buildInfo.BuildInfo.Main.Version != "(devel)":
+		ctx = belt.WithField(ctx, "revision", buildInfo.BuildInfo.Main.Version)
+	case buildInfo.BuildVars != nil && buildInfo.BuildVars.GitCommit != "":
+		ctx = belt.WithField(ctx, "revision", buildInfo.BuildVars.GitCommit)
+	case buildInfo.FindBuildInfoSetting("vcs.revision") != "":
+		ctx = belt.WithField(ctx, "revision", buildInfo.FindBuildInfoSetting("vcs.revision"))
+	}
 
 	l = logger.FromCtx(ctx)
 	logger.Default = func() logger.Logger {

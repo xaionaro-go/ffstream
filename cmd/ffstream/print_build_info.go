@@ -51,3 +51,15 @@ func printBuildInfo(
 	err := enc.Encode(bi)
 	assertNoError(ctx, err)
 }
+
+func (b buildInfo) FindBuildInfoSetting(key string) string {
+	if b.BuildInfo == nil {
+		return ""
+	}
+	for _, s := range b.BuildInfo.Settings {
+		if s.Key == key {
+			return s.Value
+		}
+	}
+	return ""
+}
