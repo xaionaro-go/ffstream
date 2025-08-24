@@ -18,6 +18,8 @@ service FFStream {
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
   rpc GetPipelines (GetPipelinesRequest) returns (GetPipelinesResponse);
+  rpc GetAutoBitRateCalculator (GetAutoBitRateCalculatorRequest) returns (GetAutoBitRateCalculatorReply) {}
+  rpc SetAutoBitRateCalculator (SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
 }
 
 enum LoggingLevel {
@@ -228,3 +230,18 @@ message GetPipelinesRequest {}
 message GetPipelinesResponse {
     repeated avpipeline.Node nodes = 1;
 }
+
+message AutoBitRateCalculator {
+  oneof calculator {
+    avpipeline.AutoBitRateCalculatorThresholds thresholds = 1;
+  }
+}
+
+message GetAutoBitRateCalculatorRequest {}
+message GetAutoBitRateCalculatorReply {
+    AutoBitRateCalculator calculator = 1;
+}
+message SetAutoBitRateCalculatorRequest {
+    AutoBitRateCalculator calculator = 1;
+}
+message SetAutoBitRateCalculatorReply {}

@@ -266,3 +266,53 @@ func (c *Client) GetPipelines(
 
 	return resp, nil
 }
+
+func (c *Client) GetAutoBitRateCalculator(
+	ctx context.Context,
+) (streammuxtypes.AutoBitRateCalculator, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetAutoBitRateCalculator(ctx, &ffstream_grpc.GetAutoBitRateCalculatorRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	calc, err := goconv.AutoBitRateCalculatorFromGRPC(resp.GetCalculator())
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert the auto bitrate calculator from gRPC: %v", err)
+	}
+
+	return calc, nil
+}
+
+func (c *Client) SetAutoBitRateCalculator(
+	ctx context.Context,
+	calculator streammuxtypes.AutoBitRateCalculator,
+) (_err error) {
+	logger.Debugf(ctx, "SetAutoBitRateCalculator(ctx, %#+v)", calculator)
+	defer func() { logger.Debugf(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v", calculator, _err) }()
+
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	calcGRPC, err := goconv.AutoBitRateCalculatorToGRPC(calculator)
+	if err != nil {
+		return fmt.Errorf("unable to convert the auto bitrate calculator to gRPC: %v", err)
+	}
+
+	_, err = client.SetAutoBitRateCalculator(ctx, &ffstream_grpc.SetAutoBitRateCalculatorRequest{
+		Calculator: calcGRPC,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}

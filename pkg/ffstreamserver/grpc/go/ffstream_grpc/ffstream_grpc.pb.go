@@ -32,6 +32,8 @@ const (
 	FFStream_WaitChan_FullMethodName                         = "/ffstream_grpc.FFStream/WaitChan"
 	FFStream_End_FullMethodName                              = "/ffstream_grpc.FFStream/End"
 	FFStream_GetPipelines_FullMethodName                     = "/ffstream_grpc.FFStream/GetPipelines"
+	FFStream_GetAutoBitRateCalculator_FullMethodName         = "/ffstream_grpc.FFStream/GetAutoBitRateCalculator"
+	FFStream_SetAutoBitRateCalculator_FullMethodName         = "/ffstream_grpc.FFStream/SetAutoBitRateCalculator"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -51,6 +53,8 @@ type FFStreamClient interface {
 	WaitChan(ctx context.Context, in *WaitRequest, opts ...grpc.CallOption) (FFStream_WaitChanClient, error)
 	End(ctx context.Context, in *EndRequest, opts ...grpc.CallOption) (*EndReply, error)
 	GetPipelines(ctx context.Context, in *GetPipelinesRequest, opts ...grpc.CallOption) (*GetPipelinesResponse, error)
+	GetAutoBitRateCalculator(ctx context.Context, in *GetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetAutoBitRateCalculatorReply, error)
+	SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error)
 }
 
 type fFStreamClient struct {
@@ -214,6 +218,26 @@ func (c *fFStreamClient) GetPipelines(ctx context.Context, in *GetPipelinesReque
 	return out, nil
 }
 
+func (c *fFStreamClient) GetAutoBitRateCalculator(ctx context.Context, in *GetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetAutoBitRateCalculatorReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAutoBitRateCalculatorReply)
+	err := c.cc.Invoke(ctx, FFStream_GetAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAutoBitRateCalculatorReply)
+	err := c.cc.Invoke(ctx, FFStream_SetAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -231,6 +255,8 @@ type FFStreamServer interface {
 	WaitChan(*WaitRequest, FFStream_WaitChanServer) error
 	End(context.Context, *EndRequest) (*EndReply, error)
 	GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error)
+	GetAutoBitRateCalculator(context.Context, *GetAutoBitRateCalculatorRequest) (*GetAutoBitRateCalculatorReply, error)
+	SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -276,6 +302,12 @@ func (UnimplementedFFStreamServer) End(context.Context, *EndRequest) (*EndReply,
 }
 func (UnimplementedFFStreamServer) GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPipelines not implemented")
+}
+func (UnimplementedFFStreamServer) GetAutoBitRateCalculator(context.Context, *GetAutoBitRateCalculatorRequest) (*GetAutoBitRateCalculatorReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAutoBitRateCalculator not implemented")
+}
+func (UnimplementedFFStreamServer) SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAutoBitRateCalculator not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -527,6 +559,42 @@ func _FFStream_GetPipelines_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAutoBitRateCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetAutoBitRateCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetAutoBitRateCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetAutoBitRateCalculator(ctx, req.(*GetAutoBitRateCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_SetAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAutoBitRateCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetAutoBitRateCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetAutoBitRateCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetAutoBitRateCalculator(ctx, req.(*SetAutoBitRateCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -581,6 +649,14 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPipelines",
 			Handler:    _FFStream_GetPipelines_Handler,
+		},
+		{
+			MethodName: "GetAutoBitRateCalculator",
+			Handler:    _FFStream_GetAutoBitRateCalculator_Handler,
+		},
+		{
+			MethodName: "SetAutoBitRateCalculator",
+			Handler:    _FFStream_SetAutoBitRateCalculator_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

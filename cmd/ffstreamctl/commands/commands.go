@@ -10,6 +10,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
+	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
@@ -120,6 +121,26 @@ var (
 		Args: cobra.ExactArgs(0),
 		Run:  pipelinesGet,
 	}
+
+	AutoBitRate = &cobra.Command{
+		Use: "auto_bitrate",
+	}
+
+	AutoBitRateCalculator = &cobra.Command{
+		Use: "calculator",
+	}
+
+	AutoBitRateCalculatorGet = &cobra.Command{
+		Use:  "get",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateCalculatorGet,
+	}
+
+	AutoBitRateCalculatorSet = &cobra.Command{
+		Use:  "set",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateCalculatorSet,
+	}
 )
 
 func init() {
@@ -146,6 +167,11 @@ func init() {
 
 	Root.AddCommand(Pipelines)
 	Pipelines.AddCommand(PipelinesGet)
+
+	Root.AddCommand(AutoBitRate)
+	AutoBitRate.AddCommand(AutoBitRateCalculator)
+	AutoBitRateCalculator.AddCommand(AutoBitRateCalculatorGet)
+	AutoBitRateCalculator.AddCommand(AutoBitRateCalculatorSet)
 }
 func assertNoError(ctx context.Context, err error) {
 	if err != nil {
@@ -235,4 +261,33 @@ func pipelinesGet(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), pipelines)
+}
+
+func autoBitRateCalculatorGet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	calculator, err := client.GetAutoBitRateCalculator(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), calculator)
+}
+
+func autoBitRateCalculatorSet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	// accept arbitrary JSON for the calculator configuration
+	cfg := jsonInput[streammux.AutoBitrateCalculatorThresholds](ctx, cmd.InOrStdin())
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	err = client.SetAutoBitRateCalculator(ctx, &cfg)
+	assertNoError(ctx, err)
 }

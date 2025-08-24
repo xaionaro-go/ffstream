@@ -127,3 +127,35 @@ func (srv *GRPCServer) GetPipelines(
 		Nodes: []*avpipeline_grpc.Node{nodeInput},
 	}, nil
 }
+
+func (srv *GRPCServer) GetAutoBitRateCalculator(
+	ctx context.Context,
+	req *ffstream_grpc.GetAutoBitRateCalculatorRequest,
+) (*ffstream_grpc.GetAutoBitRateCalculatorReply, error) {
+	calc := srv.FFStream.GetAutoBitRateCalculator(ctx)
+	if calc == nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get the auto bitrate calculator")
+	}
+	calcGRPC, err := goconv.AutoBitRateCalculatorToGRPC(calc)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to convert the auto bitrate calculator to gRPC: %v", err)
+	}
+	return &ffstream_grpc.GetAutoBitRateCalculatorReply{
+		Calculator: calcGRPC,
+	}, nil
+}
+
+func (srv *GRPCServer) SetAutoBitRateCalculator(
+	ctx context.Context,
+	req *ffstream_grpc.SetAutoBitRateCalculatorRequest,
+) (*ffstream_grpc.SetAutoBitRateCalculatorReply, error) {
+	calc, err := goconv.AutoBitRateCalculatorFromGRPC(req.GetCalculator())
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to convert the auto bitrate calculator from gRPC: %v", err)
+	}
+	err = srv.FFStream.SetAutoBitRateCalculator(ctx, calc)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to configure the auto bitrate calculator: %v", err)
+	}
+	return &ffstream_grpc.SetAutoBitRateCalculatorReply{}, nil
+}

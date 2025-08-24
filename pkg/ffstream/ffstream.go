@@ -261,3 +261,32 @@ func (s *FFStream) Wait(
 	defer func() { logger.Debugf(ctx, "/Wait: %v", _err) }()
 	return s.StreamMux.WaitForStop(ctx)
 }
+func (s *FFStream) GetAutoBitRateCalculator(
+	ctx context.Context,
+) streammux.AutoBitRateCalculator {
+	if s == nil {
+		return nil
+	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil || s.StreamMux.AutoBitRateHandler == nil {
+		return nil
+	}
+	return s.StreamMux.AutoBitRateHandler.Calculator
+}
+
+func (s *FFStream) SetAutoBitRateCalculator(
+	ctx context.Context,
+	calculator streammux.AutoBitRateCalculator,
+) (_err error) {
+	logger.Debugf(ctx, "SetAutoBitRateCalculator(ctx, %#+v)", calculator)
+	defer func() { logger.Debugf(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v", calculator, _err) }()
+
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil || s.StreamMux.AutoBitRateHandler == nil {
+		return fmt.Errorf("it is allowed to use SetAutoBitRateCalculator only after Start is invoked with non-nil AutoBitRateConfig")
+	}
+	s.StreamMux.AutoBitRateHandler.Calculator = calculator
+	return nil
+}
