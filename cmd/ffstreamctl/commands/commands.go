@@ -10,7 +10,6 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
-	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
@@ -86,6 +85,23 @@ var (
 		Run:  encoderConfigSet,
 	}
 
+	// New FPS divider commands
+	EncoderFPSDivider = &cobra.Command{
+		Use: "fps_divider",
+	}
+
+	EncoderFPSDividerGet = &cobra.Command{
+		Use:  "get",
+		Args: cobra.ExactArgs(0),
+		Run:  encoderFPSDividerGet,
+	}
+
+	EncoderFPSDividerSet = &cobra.Command{
+		Use:  "set",
+		Args: cobra.ExactArgs(2),
+		Run:  encoderFPSDividerSet,
+	}
+
 	Buffer = &cobra.Command{
 		Use: "buffer",
 	}
@@ -150,6 +166,11 @@ func init() {
 	Root.AddCommand(EncoderConfig)
 	EncoderConfig.AddCommand(EncoderConfigGet)
 	EncoderConfig.AddCommand(EncoderConfigSet)
+
+	// Register new fps_divider commands under encoder_config
+	EncoderConfig.AddCommand(EncoderFPSDivider)
+	EncoderFPSDivider.AddCommand(EncoderFPSDividerGet)
+	EncoderFPSDivider.AddCommand(EncoderFPSDividerSet)
 
 	Root.PersistentFlags().Var(&LoggerLevel, "log-level", "")
 	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the address to an ffstream instance")
@@ -220,6 +241,41 @@ func encoderConfigSet(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 }
 
+// encoderFPSDividerGet calls the server and prints "num den\n"
+func encoderFPSDividerGet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	// expecting client.GetFPSDivider(ctx) to return (num uint32, den uint32, err error)
+	num, den, err := c.GetFPSDivider(ctx)
+	assertNoError(ctx, err)
+
+	fmt.Fprintf(cmd.OutOrStdout(), "%d %d\n", num, den)
+}
+
+// encoderFPSDividerSet parses two integers (num den) and sends them to the server
+func encoderFPSDividerSet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	num64, err := strconv.ParseUint(args[0], 10, 32)
+	assertNoError(ctx, err)
+	den64, err := strconv.ParseUint(args[1], 10, 32)
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	// expecting client.SetFPSDivider(ctx, num uint32, den uint32) error
+	err = c.SetFPSDivider(ctx, uint32(num64), uint32(den64))
+	assertNoError(ctx, err)
+}
+
 func bufferOutputTolerableGet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
@@ -281,7 +337,7 @@ func autoBitRateCalculatorSet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	// accept arbitrary JSON for the calculator configuration
-	cfg := jsonInput[streammux.AutoBitrateCalculatorThresholds](ctx, cmd.InOrStdin())
+	cfg := jsonInput[streammuxtypes.AutoBitrateCalculatorThresholds](ctx, cmd.InOrStdin())
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
 	assertNoError(ctx, err)

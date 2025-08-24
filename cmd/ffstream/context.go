@@ -78,8 +78,10 @@ func getContext(
 	}
 
 	l := xlogrus.New(ll).WithLevel(logger.LevelTrace).WithPreHooks(logPreHooks...).WithHooks(logHooks...)
+	logrus.SetLevel(xlogrus.LevelToLogrus(l.Level()))
 
 	if flags.LogFile != "" {
+		l.Infof("logging to file '%s'", flags.LogFile)
 		logPathUnexpanded := flags.LogFile
 		logPath, err := xpath.Expand(logPathUnexpanded)
 		if err != nil {
@@ -116,8 +118,6 @@ func getContext(
 			})
 		}
 	}
-
-	logrus.SetLevel(xlogrus.LevelToLogrus(l.Level()))
 
 	if flags.SentryDSN != "" {
 		l.Infof("setting up Sentry at DSN '%s'", flags.SentryDSN)

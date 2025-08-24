@@ -20,6 +20,8 @@ service FFStream {
   rpc GetPipelines (GetPipelinesRequest) returns (GetPipelinesResponse);
   rpc GetAutoBitRateCalculator (GetAutoBitRateCalculatorRequest) returns (GetAutoBitRateCalculatorReply) {}
   rpc SetAutoBitRateCalculator (SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
+  rpc GetFPSDivider (GetFPSDividerRequest) returns (GetFPSDividerReply) {}
+  rpc SetFPSDivider (SetFPSDividerRequest) returns (SetFPSDividerReply) {}
 }
 
 enum LoggingLevel {
@@ -245,3 +247,14 @@ message SetAutoBitRateCalculatorRequest {
     AutoBitRateCalculator calculator = 1;
 }
 message SetAutoBitRateCalculatorReply {}
+
+message GetFPSDividerRequest {}
+message GetFPSDividerReply {
+    uint32 num = 1;
+    uint32 den = 2;
+}
+message SetFPSDividerRequest {
+    uint32 num = 1;
+    uint32 den = 2;
+}
+message SetFPSDividerReply {}

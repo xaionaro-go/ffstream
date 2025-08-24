@@ -212,8 +212,8 @@ func parseFlags(args []string) (context.Context, Flags) {
 		cfg := streammux.DefaultAutoBitrateConfig(
 			vCodec.ID(),
 		)
-		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MaxHeight(autoBitrateMaxHeight.Value())
-		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MinHeight(autoBitrateMinHeight.Value())
+		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MaxHeight(uint32(autoBitrateMaxHeight.Value()))
+		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MinHeight(uint32(autoBitrateMinHeight.Value()))
 		if flags.MuxMode == streammuxtypes.MuxModeForbid {
 			cfg.ResolutionsAndBitRates = streammuxtypes.AutoBitRateResolutionAndBitRateConfigs{
 				*cfg.ResolutionsAndBitRates.Best(),

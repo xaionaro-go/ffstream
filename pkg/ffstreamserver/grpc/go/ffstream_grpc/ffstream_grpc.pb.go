@@ -34,6 +34,8 @@ const (
 	FFStream_GetPipelines_FullMethodName                     = "/ffstream_grpc.FFStream/GetPipelines"
 	FFStream_GetAutoBitRateCalculator_FullMethodName         = "/ffstream_grpc.FFStream/GetAutoBitRateCalculator"
 	FFStream_SetAutoBitRateCalculator_FullMethodName         = "/ffstream_grpc.FFStream/SetAutoBitRateCalculator"
+	FFStream_GetFPSDivider_FullMethodName                    = "/ffstream_grpc.FFStream/GetFPSDivider"
+	FFStream_SetFPSDivider_FullMethodName                    = "/ffstream_grpc.FFStream/SetFPSDivider"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -55,6 +57,8 @@ type FFStreamClient interface {
 	GetPipelines(ctx context.Context, in *GetPipelinesRequest, opts ...grpc.CallOption) (*GetPipelinesResponse, error)
 	GetAutoBitRateCalculator(ctx context.Context, in *GetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetAutoBitRateCalculatorReply, error)
 	SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error)
+	GetFPSDivider(ctx context.Context, in *GetFPSDividerRequest, opts ...grpc.CallOption) (*GetFPSDividerReply, error)
+	SetFPSDivider(ctx context.Context, in *SetFPSDividerRequest, opts ...grpc.CallOption) (*SetFPSDividerReply, error)
 }
 
 type fFStreamClient struct {
@@ -238,6 +242,26 @@ func (c *fFStreamClient) SetAutoBitRateCalculator(ctx context.Context, in *SetAu
 	return out, nil
 }
 
+func (c *fFStreamClient) GetFPSDivider(ctx context.Context, in *GetFPSDividerRequest, opts ...grpc.CallOption) (*GetFPSDividerReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetFPSDividerReply)
+	err := c.cc.Invoke(ctx, FFStream_GetFPSDivider_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) SetFPSDivider(ctx context.Context, in *SetFPSDividerRequest, opts ...grpc.CallOption) (*SetFPSDividerReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetFPSDividerReply)
+	err := c.cc.Invoke(ctx, FFStream_SetFPSDivider_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -257,6 +281,8 @@ type FFStreamServer interface {
 	GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error)
 	GetAutoBitRateCalculator(context.Context, *GetAutoBitRateCalculatorRequest) (*GetAutoBitRateCalculatorReply, error)
 	SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error)
+	GetFPSDivider(context.Context, *GetFPSDividerRequest) (*GetFPSDividerReply, error)
+	SetFPSDivider(context.Context, *SetFPSDividerRequest) (*SetFPSDividerReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -308,6 +334,12 @@ func (UnimplementedFFStreamServer) GetAutoBitRateCalculator(context.Context, *Ge
 }
 func (UnimplementedFFStreamServer) SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetAutoBitRateCalculator not implemented")
+}
+func (UnimplementedFFStreamServer) GetFPSDivider(context.Context, *GetFPSDividerRequest) (*GetFPSDividerReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFPSDivider not implemented")
+}
+func (UnimplementedFFStreamServer) SetFPSDivider(context.Context, *SetFPSDividerRequest) (*SetFPSDividerReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetFPSDivider not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -595,6 +627,42 @@ func _FFStream_SetAutoBitRateCalculator_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetFPSDivider_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFPSDividerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetFPSDivider(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetFPSDivider_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetFPSDivider(ctx, req.(*GetFPSDividerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_SetFPSDivider_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetFPSDividerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetFPSDivider(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetFPSDivider_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetFPSDivider(ctx, req.(*SetFPSDividerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -657,6 +725,14 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetAutoBitRateCalculator",
 			Handler:    _FFStream_SetAutoBitRateCalculator_Handler,
+		},
+		{
+			MethodName: "GetFPSDivider",
+			Handler:    _FFStream_GetFPSDivider_Handler,
+		},
+		{
+			MethodName: "SetFPSDivider",
+			Handler:    _FFStream_SetFPSDivider_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

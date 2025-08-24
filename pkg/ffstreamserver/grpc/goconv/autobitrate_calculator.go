@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/xaionaro-go/avpipeline/preset/streammux"
-	"github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func AutoBitRateCalculatorFromGRPC(
 	in *ffstream_grpc.AutoBitRateCalculator,
-) (types.AutoBitRateCalculator, error) {
+) (streammuxtypes.AutoBitRateCalculator, error) {
 	switch calculator := in.GetCalculator().(type) {
 	case nil:
 		return nil, nil
 	case *ffstream_grpc.AutoBitRateCalculator_Thresholds:
-		return &streammux.AutoBitrateCalculatorThresholds{
+		return &streammuxtypes.AutoBitrateCalculatorThresholds{
 			OutputExtremelyHighQueueSizeDuration: time.Duration(calculator.Thresholds.GetOutputExtremelyHighQueueSizeDurationMS()) * time.Millisecond,
 			OutputVeryHighQueueSizeDuration:      time.Duration(calculator.Thresholds.GetOutputVeryHighQueueSizeDurationMS()) * time.Millisecond,
 			OutputHighQueueSizeDuration:          time.Duration(calculator.Thresholds.GetOutputHighQueueSizeDurationMS()) * time.Millisecond,
@@ -34,14 +33,14 @@ func AutoBitRateCalculatorFromGRPC(
 	}
 }
 func AutoBitRateCalculatorToGRPC(
-	in types.AutoBitRateCalculator,
+	in streammuxtypes.AutoBitRateCalculator,
 ) (*ffstream_grpc.AutoBitRateCalculator, error) {
 	if in == nil {
 		return nil, nil
 	}
 
 	switch c := in.(type) {
-	case *streammux.AutoBitrateCalculatorThresholds:
+	case *streammuxtypes.AutoBitrateCalculatorThresholds:
 		return &ffstream_grpc.AutoBitRateCalculator{
 			Calculator: &ffstream_grpc.AutoBitRateCalculator_Thresholds{
 				Thresholds: &avpipeline_grpc.AutoBitRateCalculatorThresholds{
