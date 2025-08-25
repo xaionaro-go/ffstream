@@ -317,8 +317,7 @@ func (c *Client) SetAutoBitRateCalculator(
 	return nil
 }
 
-
-func (c *Client) GetFPSDivider(
+func (c *Client) GetFPSFraction(
 	ctx context.Context,
 ) (uint32, uint32, error) {
 	client, conn, err := c.grpcClient()
@@ -327,7 +326,7 @@ func (c *Client) GetFPSDivider(
 	}
 	defer conn.Close()
 
-	resp, err := client.GetFPSDivider(ctx, &ffstream_grpc.GetFPSDividerRequest{})
+	resp, err := client.GetFPSFraction(ctx, &ffstream_grpc.GetFPSFractionRequest{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("query error: %w", err)
 	}
@@ -335,7 +334,7 @@ func (c *Client) GetFPSDivider(
 	return resp.GetNum(), resp.GetDen(), nil
 }
 
-func (c *Client) SetFPSDivider(
+func (c *Client) SetFPSFraction(
 	ctx context.Context,
 	num uint32,
 	den uint32,
@@ -346,7 +345,7 @@ func (c *Client) SetFPSDivider(
 	}
 	defer conn.Close()
 
-	_, err = client.SetFPSDivider(ctx, &ffstream_grpc.SetFPSDividerRequest{
+	_, err = client.SetFPSFraction(ctx, &ffstream_grpc.SetFPSFractionRequest{
 		Num: num,
 		Den: den,
 	})

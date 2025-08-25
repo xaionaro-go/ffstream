@@ -160,27 +160,27 @@ func (srv *GRPCServer) SetAutoBitRateCalculator(
 	return &ffstream_grpc.SetAutoBitRateCalculatorReply{}, nil
 }
 
-func (srv *GRPCServer) GetFPSDivider(
+func (srv *GRPCServer) GetFPSFraction(
 	ctx context.Context,
-	req *ffstream_grpc.GetFPSDividerRequest,
-) (*ffstream_grpc.GetFPSDividerReply, error) {
-	num, den, err := srv.FFStream.GetFPSDivider(ctx)
+	req *ffstream_grpc.GetFPSFractionRequest,
+) (*ffstream_grpc.GetFPSFractionReply, error) {
+	num, den, err := srv.FFStream.GetFPSFraction(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get FPS divider: %v", err)
 	}
-	return &ffstream_grpc.GetFPSDividerReply{
+	return &ffstream_grpc.GetFPSFractionReply{
 		Num: num,
 		Den: den,
 	}, nil
 }
 
-func (srv *GRPCServer) SetFPSDivider(
+func (srv *GRPCServer) SetFPSFraction(
 	ctx context.Context,
-	req *ffstream_grpc.SetFPSDividerRequest,
-) (*ffstream_grpc.SetFPSDividerReply, error) {
-	err := srv.FFStream.SetFPSDivider(ctx, req.GetNum(), req.GetDen())
+	req *ffstream_grpc.SetFPSFractionRequest,
+) (*ffstream_grpc.SetFPSFractionReply, error) {
+	err := srv.FFStream.SetFPSFraction(ctx, req.GetNum(), req.GetDen())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to set FPS divider: %v", err)
 	}
-	return &ffstream_grpc.SetFPSDividerReply{}, nil
+	return &ffstream_grpc.SetFPSFractionReply{}, nil
 }

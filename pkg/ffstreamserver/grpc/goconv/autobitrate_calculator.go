@@ -6,16 +6,15 @@ import (
 
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
-	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func AutoBitRateCalculatorFromGRPC(
-	in *ffstream_grpc.AutoBitRateCalculator,
+	in *avpipeline_grpc.AutoBitrateCalculator,
 ) (streammuxtypes.AutoBitRateCalculator, error) {
-	switch calculator := in.GetCalculator().(type) {
+	switch calculator := in.GetAutoBitrateCalculator().(type) {
 	case nil:
 		return nil, nil
-	case *ffstream_grpc.AutoBitRateCalculator_Thresholds:
+	case *avpipeline_grpc.AutoBitrateCalculator_Thresholds:
 		return &streammuxtypes.AutoBitrateCalculatorThresholds{
 			OutputExtremelyHighQueueSizeDuration: time.Duration(calculator.Thresholds.GetOutputExtremelyHighQueueSizeDurationMS()) * time.Millisecond,
 			OutputVeryHighQueueSizeDuration:      time.Duration(calculator.Thresholds.GetOutputVeryHighQueueSizeDurationMS()) * time.Millisecond,
@@ -28,21 +27,26 @@ func AutoBitRateCalculatorFromGRPC(
 			QuickDecreaseK:                       calculator.Thresholds.GetQuickDecreaseK(),
 			ExtremeDecreaseK:                     calculator.Thresholds.GetExtremeDecreaseK(),
 		}, nil
+	case *avpipeline_grpc.AutoBitrateCalculator_ConstantQueueSize:
+		return &streammuxtypes.AutoBitrateCalculatorConstantQueueSize{
+			QueueOptimal:  time.Duration(calculator.ConstantQueueSize.GetQueueOptimalMS()) * time.Millisecond,
+			MovingAverage: MovingAverageFromGRPC(calculator.ConstantQueueSize.GetMovingAverage()),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown AutoBitRateCalculator type: %T", calculator)
 	}
 }
 func AutoBitRateCalculatorToGRPC(
 	in streammuxtypes.AutoBitRateCalculator,
-) (*ffstream_grpc.AutoBitRateCalculator, error) {
+) (*avpipeline_grpc.AutoBitrateCalculator, error) {
 	if in == nil {
 		return nil, nil
 	}
 
 	switch c := in.(type) {
 	case *streammuxtypes.AutoBitrateCalculatorThresholds:
-		return &ffstream_grpc.AutoBitRateCalculator{
-			Calculator: &ffstream_grpc.AutoBitRateCalculator_Thresholds{
+		return &avpipeline_grpc.AutoBitrateCalculator{
+			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_Thresholds{
 				Thresholds: &avpipeline_grpc.AutoBitRateCalculatorThresholds{
 					OutputExtremelyHighQueueSizeDurationMS: uint64(c.OutputExtremelyHighQueueSizeDuration / time.Millisecond),
 					OutputVeryHighQueueSizeDurationMS:      uint64(c.OutputVeryHighQueueSizeDuration / time.Millisecond),
@@ -54,6 +58,15 @@ func AutoBitRateCalculatorToGRPC(
 					QuickIncreaseK:                         c.QuickIncreaseK,
 					QuickDecreaseK:                         c.QuickDecreaseK,
 					ExtremeDecreaseK:                       c.ExtremeDecreaseK,
+				},
+			},
+		}, nil
+	case *streammuxtypes.AutoBitrateCalculatorConstantQueueSize:
+		return &avpipeline_grpc.AutoBitrateCalculator{
+			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_ConstantQueueSize{
+				ConstantQueueSize: &avpipeline_grpc.AutoBitrateCalculatorConstantQueueSize{
+					QueueOptimalMS: uint64(c.QueueOptimal / time.Millisecond),
+					MovingAverage:  MovingAverageToGRPC(c.MovingAverage),
 				},
 			},
 		}, nil

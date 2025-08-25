@@ -291,7 +291,7 @@ func (s *FFStream) SetAutoBitRateCalculator(
 	return nil
 }
 
-func (s *FFStream) GetFPSDivider(
+func (s *FFStream) GetFPSFraction(
 	ctx context.Context,
 ) (num uint32, den uint32, err error) {
 	if s == nil {
@@ -300,24 +300,24 @@ func (s *FFStream) GetFPSDivider(
 	s.locker.Lock()
 	defer s.locker.Unlock()
 	if s.StreamMux == nil {
-		return 0, 1, fmt.Errorf("it is allowed to use GetFPSDivider only after Start is invoked")
+		return 0, 1, fmt.Errorf("it is allowed to use GetFPSFraction only after Start is invoked")
 	}
-	num, den = s.StreamMux.GetFPSDivider(ctx)
+	num, den = s.StreamMux.GetFPSFraction(ctx)
 	return num, den, nil
 }
 
-func (s *FFStream) SetFPSDivider(
+func (s *FFStream) SetFPSFraction(
 	ctx context.Context,
 	num uint32,
 	den uint32,
 ) (_err error) {
-	logger.Debugf(ctx, "SetFPSDivider(ctx, %d/%d)", num, den)
-	defer func() { logger.Debugf(ctx, "/SetFPSDivider(ctx, %d/%d): %v", num, den, _err) }()
+	logger.Debugf(ctx, "SetFPSFraction(ctx, %d/%d)", num, den)
+	defer func() { logger.Debugf(ctx, "/SetFPSFraction(ctx, %d/%d): %v", num, den, _err) }()
 
 	s.locker.Lock()
 	defer s.locker.Unlock()
 	if s.StreamMux == nil {
-		return fmt.Errorf("it is allowed to use SetFPSDivider only after Start is invoked")
+		return fmt.Errorf("it is allowed to use SetFPSFraction only after Start is invoked")
 	}
 	if den == 0 {
 		return fmt.Errorf("den must be non-zero")
@@ -325,6 +325,6 @@ func (s *FFStream) SetFPSDivider(
 	if num%den != 0 {
 		return fmt.Errorf("divider must be an integer fraction (num divisible by den), got %d/%d", num, den)
 	}
-	s.StreamMux.SetFPSDivider(ctx, num, den)
+	s.StreamMux.SetFPSFraction(ctx, num, den)
 	return nil
 }

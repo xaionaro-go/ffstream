@@ -109,20 +109,20 @@ var (
 		Run:  autoBitRateCalculatorSet,
 	}
 
-	EncoderFPSDivider = &cobra.Command{
-		Use: "fps_divider",
+	EncoderFPSFraction = &cobra.Command{
+		Use: "fps_fraction",
 	}
 
-	EncoderFPSDividerGet = &cobra.Command{
+	EncoderFPSFractionGet = &cobra.Command{
 		Use:  "get",
 		Args: cobra.ExactArgs(0),
-		Run:  encoderFPSDividerGet,
+		Run:  encoderFPSFractionGet,
 	}
 
-	EncoderFPSDividerSet = &cobra.Command{
+	EncoderFPSFractionSet = &cobra.Command{
 		Use:  "set",
 		Args: cobra.ExactArgs(2),
-		Run:  encoderFPSDividerSet,
+		Run:  encoderFPSFractionSet,
 	}
 
 	Buffer = &cobra.Command{
@@ -176,9 +176,9 @@ func init() {
 	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorGet)
 	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorSet)
 
-	Encoder.AddCommand(EncoderFPSDivider)
-	EncoderFPSDivider.AddCommand(EncoderFPSDividerGet)
-	EncoderFPSDivider.AddCommand(EncoderFPSDividerSet)
+	Encoder.AddCommand(EncoderFPSFraction)
+	EncoderFPSFraction.AddCommand(EncoderFPSFractionGet)
+	EncoderFPSFraction.AddCommand(EncoderFPSFractionSet)
 
 	Root.PersistentFlags().Var(&LoggerLevel, "log-level", "")
 	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the address to an ffstream instance")
@@ -244,8 +244,8 @@ func encoderConfigSet(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 }
 
-// encoderFPSDividerGet calls the server and prints "num den\n"
-func encoderFPSDividerGet(cmd *cobra.Command, args []string) {
+// encoderFPSFractionGet calls the server and prints "num den\n"
+func encoderFPSFractionGet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
@@ -253,15 +253,15 @@ func encoderFPSDividerGet(cmd *cobra.Command, args []string) {
 
 	c := client.New(remoteAddr)
 
-	// expecting client.GetFPSDivider(ctx) to return (num uint32, den uint32, err error)
-	num, den, err := c.GetFPSDivider(ctx)
+	// expecting client.GetFPSFraction(ctx) to return (num uint32, den uint32, err error)
+	num, den, err := c.GetFPSFraction(ctx)
 	assertNoError(ctx, err)
 
 	fmt.Fprintf(cmd.OutOrStdout(), "%d %d\n", num, den)
 }
 
-// encoderFPSDividerSet parses two integers (num den) and sends them to the server
-func encoderFPSDividerSet(cmd *cobra.Command, args []string) {
+// encoderFPSFractionSet parses two integers (num den) and sends them to the server
+func encoderFPSFractionSet(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	num64, err := strconv.ParseUint(args[0], 10, 32)
@@ -274,8 +274,8 @@ func encoderFPSDividerSet(cmd *cobra.Command, args []string) {
 
 	c := client.New(remoteAddr)
 
-	// expecting client.SetFPSDivider(ctx, num uint32, den uint32) error
-	err = c.SetFPSDivider(ctx, uint32(num64), uint32(den64))
+	// expecting client.SetFPSFraction(ctx, num uint32, den uint32) error
+	err = c.SetFPSFraction(ctx, uint32(num64), uint32(den64))
 	assertNoError(ctx, err)
 }
 
