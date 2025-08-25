@@ -2,7 +2,9 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -10,9 +12,11 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
+	"github.com/xaionaro-go/avpipeline/indicator"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/polyjson"
 )
 
 var (
@@ -196,7 +200,14 @@ func init() {
 
 	Root.AddCommand(Pipelines)
 	Pipelines.AddCommand(PipelinesGet)
+
+	polyjson.AutoRegisterTypes = true
+	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorThresholds{})
+	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorLogK{})
+	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorStatic(0))
+	polyjson.RegisterType(indicator.MAMA[float64]{})
 }
+
 func assertNoError(ctx context.Context, err error) {
 	if err != nil {
 		logger.Panic(ctx, err)
@@ -332,21 +343,41 @@ func autoBitRateCalculatorGet(cmd *cobra.Command, args []string) {
 
 	calculator, err := client.GetAutoBitRateCalculator(ctx)
 	assertNoError(ctx, err)
+	logger.Debugf(ctx, "got AutoBitRateCalculator: %#v", calculator)
 
-	jsonOutput(ctx, cmd.OutOrStdout(), calculator)
+	m := map[string]streammuxtypes.AutoBitRateCalculator{
+		"calculator": calculator,
+	}
+
+	b, err := polyjson.MarshalWithTypeIDs(m, polyjson.TypeRegistry())
+	assertNoError(ctx, err)
+
+	// a workaround for a bug in polyjson:
+	m2 := map[string]json.RawMessage{}
+	err = json.Unmarshal(b, &m2)
+	assertNoError(ctx, err)
+
+	cmd.OutOrStdout().Write(m2["calculator"])
 }
 
 func autoBitRateCalculatorSet(cmd *cobra.Command, args []string) {
+	// an example:
+	// echo '{"./avpipeline/preset/streammux/types.AutoBitrateCalculatorStatic":1000}' | ffstreamctl encoder auto_bitrate calculator set
 	ctx := cmd.Context()
 
-	// accept arbitrary JSON for the calculator configuration
-	cfg := jsonInput[streammuxtypes.AutoBitrateCalculatorThresholds](ctx, cmd.InOrStdin())
+	b, err := io.ReadAll(cmd.InOrStdin())
+	assertNoError(ctx, err)
+
+	var m map[string]streammuxtypes.AutoBitRateCalculator
+	err = polyjson.UnmarshalWithTypeIDs([]byte(`{"calculator":`+string(b)+`}`), &m, polyjson.TypeRegistry())
+	assertNoError(ctx, err)
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
 	assertNoError(ctx, err)
 
 	client := client.New(remoteAddr)
 
-	err = client.SetAutoBitRateCalculator(ctx, &cfg)
+	logger.Debugf(ctx, "setting AutoBitRateCalculator: %#v", m["calculator"])
+	err = client.SetAutoBitRateCalculator(ctx, m["calculator"])
 	assertNoError(ctx, err)
 }

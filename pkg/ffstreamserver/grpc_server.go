@@ -2,8 +2,10 @@ package ffstreamserver
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
+	"github.com/facebookincubator/go-belt/tool/logger"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	avpgoconv "github.com/xaionaro-go/avpipeline/protobuf/goconv"
@@ -131,7 +133,9 @@ func (srv *GRPCServer) GetPipelines(
 func (srv *GRPCServer) GetAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.GetAutoBitRateCalculatorRequest,
-) (*ffstream_grpc.GetAutoBitRateCalculatorReply, error) {
+) (_ret *ffstream_grpc.GetAutoBitRateCalculatorReply, _err error) {
+	logger.Tracef(ctx, "GetAutoBitRateCalculator(ctx, %#+v)", req)
+	defer func() { logger.Tracef(ctx, "/GetAutoBitRateCalculator(ctx, %#+v): %v %v", req, _ret, _err) }()
 	calc := srv.FFStream.GetAutoBitRateCalculator(ctx)
 	if calc == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the auto bitrate calculator")
@@ -148,7 +152,11 @@ func (srv *GRPCServer) GetAutoBitRateCalculator(
 func (srv *GRPCServer) SetAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.SetAutoBitRateCalculatorRequest,
-) (*ffstream_grpc.SetAutoBitRateCalculatorReply, error) {
+) (_ret *ffstream_grpc.SetAutoBitRateCalculatorReply, _err error) {
+	logger.Tracef(ctx, "SetAutoBitRateCalculator(ctx, %#+v): %s", req.GetCalculator().GetAutoBitrateCalculator(), try(json.Marshal(req.GetCalculator().GetAutoBitrateCalculator())))
+	defer func() {
+		logger.Tracef(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v %v", req.GetCalculator().GetAutoBitrateCalculator(), _ret, _err)
+	}()
 	calc, err := goconv.AutoBitRateCalculatorFromGRPC(req.GetCalculator())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to convert the auto bitrate calculator from gRPC: %v", err)

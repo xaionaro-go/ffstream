@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -307,6 +308,7 @@ func (c *Client) SetAutoBitRateCalculator(
 		return fmt.Errorf("unable to convert the auto bitrate calculator to gRPC: %v", err)
 	}
 
+	logger.Tracef(ctx, "SetAutoBitRateCalculator: %s", try(json.Marshal(calcGRPC)))
 	_, err = client.SetAutoBitRateCalculator(ctx, &ffstream_grpc.SetAutoBitRateCalculatorRequest{
 		Calculator: calcGRPC,
 	})

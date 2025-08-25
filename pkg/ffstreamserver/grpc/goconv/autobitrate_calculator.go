@@ -33,6 +33,8 @@ func AutoBitRateCalculatorFromGRPC(
 			Inertia:       calculator.LogK.GetInertia(),
 			MovingAverage: MovingAverageFromGRPC(calculator.LogK.GetMovingAverage()),
 		}, nil
+	case *avpipeline_grpc.AutoBitrateCalculator_Static:
+		return streammuxtypes.AutoBitrateCalculatorStatic(calculator.Static), nil
 	default:
 		return nil, fmt.Errorf("unknown AutoBitRateCalculator type: %T", calculator)
 	}
@@ -70,6 +72,12 @@ func AutoBitRateCalculatorToGRPC(
 					Inertia:        c.Inertia,
 					MovingAverage:  MovingAverageToGRPC(c.MovingAverage),
 				},
+			},
+		}, nil
+	case streammuxtypes.AutoBitrateCalculatorStatic:
+		return &avpipeline_grpc.AutoBitrateCalculator{
+			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_Static{
+				Static: uint64(c),
 			},
 		}, nil
 	default:
