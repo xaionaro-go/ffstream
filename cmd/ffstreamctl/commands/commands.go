@@ -205,6 +205,7 @@ func init() {
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorThresholds{})
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorLogK{})
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorStatic(0))
+	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorQueueSizeGapDecay{})
 	polyjson.RegisterType(indicator.MAMA[float64]{})
 }
 

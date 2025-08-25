@@ -37,13 +37,13 @@ func MovingAverageToGRPC[T constraints.Float | constraints.Integer](
 	}
 }
 
-func MovingAverageFromGRPC(in *avpipeline_grpc.MovingAverageConfig) streammuxtypes.MovingAverage[float64] {
+func MovingAverageFromGRPC[T constraints.Integer | constraints.Float](in *avpipeline_grpc.MovingAverageConfig) streammuxtypes.MovingAverage[T] {
 	if in == nil {
 		return nil
 	}
 	switch cfg := in.GetMovingAverageConfig().(type) {
 	case *avpipeline_grpc.MovingAverageConfig_Mama:
-		return indicator.NewMAMA[float64](10, cfg.Mama.GetFastLimit(), cfg.Mama.GetSlowLimit())
+		return indicator.NewMAMA[T](10, cfg.Mama.GetFastLimit(), cfg.Mama.GetSlowLimit())
 	default:
 		return nil
 	}

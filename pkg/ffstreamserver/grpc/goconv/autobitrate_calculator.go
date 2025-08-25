@@ -31,10 +31,16 @@ func AutoBitRateCalculatorFromGRPC(
 		return &streammuxtypes.AutoBitrateCalculatorLogK{
 			QueueOptimal:  time.Duration(calculator.LogK.GetQueueOptimalMS()) * time.Millisecond,
 			Inertia:       calculator.LogK.GetInertia(),
-			MovingAverage: MovingAverageFromGRPC(calculator.LogK.GetMovingAverage()),
+			MovingAverage: MovingAverageFromGRPC[float64](calculator.LogK.GetMovingAverage()),
 		}, nil
 	case *avpipeline_grpc.AutoBitrateCalculator_Static:
 		return streammuxtypes.AutoBitrateCalculatorStatic(calculator.Static), nil
+	case *avpipeline_grpc.AutoBitrateCalculator_QueueSizeGapDecay:
+		return &streammuxtypes.AutoBitrateCalculatorQueueSizeGapDecay{
+			QueueOptimal:       time.Duration(calculator.QueueSizeGapDecay.GetQueueOptimalMS()) * time.Millisecond,
+			Decay:              time.Duration(calculator.QueueSizeGapDecay.GetDecayMS()) * time.Millisecond,
+			DerivativeSmoothed: MovingAverageFromGRPC[streammuxtypes.UBps](calculator.QueueSizeGapDecay.GetDerivativeSmoothed()),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown AutoBitRateCalculator type: %T", calculator)
 	}
@@ -78,6 +84,16 @@ func AutoBitRateCalculatorToGRPC(
 		return &avpipeline_grpc.AutoBitrateCalculator{
 			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_Static{
 				Static: uint64(c),
+			},
+		}, nil
+	case *streammuxtypes.AutoBitrateCalculatorQueueSizeGapDecay:
+		return &avpipeline_grpc.AutoBitrateCalculator{
+			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_QueueSizeGapDecay{
+				QueueSizeGapDecay: &avpipeline_grpc.AutoBitrateCalculatorQueueSizeGapDecay{
+					QueueOptimalMS:     uint64(c.QueueOptimal / time.Millisecond),
+					DecayMS:            uint64(c.Decay / time.Millisecond),
+					DerivativeSmoothed: MovingAverageToGRPC(c.DerivativeSmoothed),
+				},
 			},
 		}, nil
 	default:
