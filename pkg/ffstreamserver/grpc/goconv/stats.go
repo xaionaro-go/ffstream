@@ -1,12 +1,12 @@
 package goconv
 
 import (
-	"github.com/xaionaro-go/avpipeline/node"
+	nodetypes "github.com/xaionaro-go/avpipeline/node/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func ProcessingPacketsOrFramesStatisticsToGRPC(
-	s *node.FramesOrPacketsStatistics,
+	s *nodetypes.FramesOrPacketsStatistics,
 ) *ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics {
 	if s == nil {
 		return nil
@@ -19,7 +19,7 @@ func ProcessingPacketsOrFramesStatisticsToGRPC(
 }
 
 func ProcessingPacketsOrFramesStatisticsSectionToGRPC(
-	s *node.FramesOrPacketsStatisticsSection,
+	s *nodetypes.FramesOrPacketsStatisticsSection,
 ) *ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection {
 	if s == nil {
 		return nil

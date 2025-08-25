@@ -1,6 +1,8 @@
 package goconv
 
-import "time"
+import (
+	"time"
+)
 
 func DurationToGRPC(d time.Duration) int64 {
 	return d.Nanoseconds()

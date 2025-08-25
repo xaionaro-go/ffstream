@@ -2,30 +2,31 @@ package goconv
 
 import (
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
-	"github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func RecoderConfigFromGRPC(
 	req *ffstream_grpc.RecoderConfig,
-) types.RecoderConfig {
-	videoDeviceTypeName := types.HardwareDeviceTypeFromString(req.GetVideo().GetHardwareDeviceType())
-	return types.RecoderConfig{
-		VideoTrackConfigs: []types.VideoTrackConfig{{
+) streammuxtypes.RecoderConfig {
+	videoDeviceTypeName := avptypes.HardwareDeviceTypeFromString(req.GetVideo().GetHardwareDeviceType())
+	return streammuxtypes.RecoderConfig{
+		VideoTrackConfigs: []streammuxtypes.VideoTrackConfig{{
 			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:     []int{0},
 			CodecName:          codectypes.Name(req.GetVideo().GetCodecName()),
 			AveragingPeriod:    DurationFromGRPC(int64(req.GetVideo().GetAveragingPeriod())),
 			AverageBitRate:     req.GetVideo().GetAverageBitRate(),
 			CustomOptions:      CustomOptionsFromGRPC(req.GetVideo().GetCustomOptions()),
-			HardwareDeviceType: types.HardwareDeviceType(videoDeviceTypeName),
-			HardwareDeviceName: types.HardwareDeviceName(req.GetVideo().GetHardwareDeviceName()),
+			HardwareDeviceType: streammuxtypes.HardwareDeviceType(videoDeviceTypeName),
+			HardwareDeviceName: streammuxtypes.HardwareDeviceName(req.GetVideo().GetHardwareDeviceName()),
 			Resolution: codectypes.Resolution{
 				Width:  req.GetVideo().GetWidth(),
 				Height: req.GetVideo().GetHeight(),
 			},
 		}},
-		AudioTrackConfigs: []types.AudioTrackConfig{{
+		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
 			InputTrackIDs:   []int{0, 1, 2, 3, 4, 5, 6, 7},
 			OutputTrackIDs:  []int{1},
 			CodecName:       codectypes.Name(req.GetAudio().GetCodecName()),
@@ -37,7 +38,7 @@ func RecoderConfigFromGRPC(
 }
 
 func RecoderConfigToGRPC(
-	cfg types.RecoderConfig,
+	cfg streammuxtypes.RecoderConfig,
 ) *ffstream_grpc.RecoderConfig {
 	result := &ffstream_grpc.RecoderConfig{}
 	if len(cfg.AudioTrackConfigs) > 0 {

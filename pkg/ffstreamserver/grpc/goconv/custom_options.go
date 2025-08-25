@@ -1,17 +1,17 @@
 package goconv
 
 import (
-	"github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
 func CustomOptionsFromGRPC(
 	opts []*ffstream_grpc.CustomOption,
-) []types.DictionaryItem {
-	result := make([]types.DictionaryItem, 0, len(opts))
+) []streammuxtypes.DictionaryItem {
+	result := make([]streammuxtypes.DictionaryItem, 0, len(opts))
 
 	for _, opt := range opts {
-		result = append(result, types.DictionaryItem{
+		result = append(result, streammuxtypes.DictionaryItem{
 			Key:   opt.GetKey(),
 			Value: opt.GetValue(),
 		})
@@ -21,7 +21,7 @@ func CustomOptionsFromGRPC(
 }
 
 func CustomOptionsToGRPC(
-	opts []types.DictionaryItem,
+	opts []streammuxtypes.DictionaryItem,
 ) []*ffstream_grpc.CustomOption {
 	result := make([]*ffstream_grpc.CustomOption, 0, len(opts))
 
