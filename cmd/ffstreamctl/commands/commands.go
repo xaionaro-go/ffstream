@@ -69,8 +69,12 @@ var (
 		Use: "int",
 	}
 
+	Encoder = &cobra.Command{
+		Use: "encoder",
+	}
+
 	EncoderConfig = &cobra.Command{
-		Use: "encoder_config",
+		Use: "config",
 	}
 
 	EncoderConfigGet = &cobra.Command{
@@ -85,7 +89,26 @@ var (
 		Run:  encoderConfigSet,
 	}
 
-	// New FPS divider commands
+	EncoderAutoBitRate = &cobra.Command{
+		Use: "auto_bitrate",
+	}
+
+	EncoderAutoBitRateCalculator = &cobra.Command{
+		Use: "calculator",
+	}
+
+	EncoderAutoBitRateCalculatorGet = &cobra.Command{
+		Use:  "get",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateCalculatorGet,
+	}
+
+	EncoderAutoBitRateCalculatorSet = &cobra.Command{
+		Use:  "set",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateCalculatorSet,
+	}
+
 	EncoderFPSDivider = &cobra.Command{
 		Use: "fps_divider",
 	}
@@ -137,38 +160,23 @@ var (
 		Args: cobra.ExactArgs(0),
 		Run:  pipelinesGet,
 	}
-
-	AutoBitRate = &cobra.Command{
-		Use: "auto_bitrate",
-	}
-
-	AutoBitRateCalculator = &cobra.Command{
-		Use: "calculator",
-	}
-
-	AutoBitRateCalculatorGet = &cobra.Command{
-		Use:  "get",
-		Args: cobra.ExactArgs(0),
-		Run:  autoBitRateCalculatorGet,
-	}
-
-	AutoBitRateCalculatorSet = &cobra.Command{
-		Use:  "set",
-		Args: cobra.ExactArgs(0),
-		Run:  autoBitRateCalculatorSet,
-	}
 )
 
 func init() {
 	Root.AddCommand(Stats)
 	Stats.AddCommand(StatsEncoder)
 
-	Root.AddCommand(EncoderConfig)
+	Root.AddCommand(Encoder)
+	Encoder.AddCommand(EncoderConfig)
 	EncoderConfig.AddCommand(EncoderConfigGet)
 	EncoderConfig.AddCommand(EncoderConfigSet)
 
-	// Register new fps_divider commands under encoder_config
-	EncoderConfig.AddCommand(EncoderFPSDivider)
+	Encoder.AddCommand(EncoderAutoBitRate)
+	EncoderAutoBitRate.AddCommand(EncoderAutoBitRateCalculator)
+	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorGet)
+	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorSet)
+
+	Encoder.AddCommand(EncoderFPSDivider)
 	EncoderFPSDivider.AddCommand(EncoderFPSDividerGet)
 	EncoderFPSDivider.AddCommand(EncoderFPSDividerSet)
 
@@ -188,11 +196,6 @@ func init() {
 
 	Root.AddCommand(Pipelines)
 	Pipelines.AddCommand(PipelinesGet)
-
-	Root.AddCommand(AutoBitRate)
-	AutoBitRate.AddCommand(AutoBitRateCalculator)
-	AutoBitRateCalculator.AddCommand(AutoBitRateCalculatorGet)
-	AutoBitRateCalculator.AddCommand(AutoBitRateCalculatorSet)
 }
 func assertNoError(ctx context.Context, err error) {
 	if err != nil {

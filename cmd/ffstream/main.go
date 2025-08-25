@@ -118,9 +118,9 @@ func main() {
 		}
 	}
 
-	hardwareDeviceType := streammuxtypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
+	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
 	if hardwareDeviceType == -1 {
-		hardwareDeviceType = streammuxtypes.HardwareDeviceTypeNone
+		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
 	}
 	recoderConfig := streammuxtypes.RecoderConfig{
 		VideoTrackConfigs: []streammuxtypes.VideoTrackConfig{{
