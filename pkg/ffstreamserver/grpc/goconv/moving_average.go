@@ -6,14 +6,17 @@ import (
 	"github.com/xaionaro-go/avpipeline/indicator"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
+	"golang.org/x/exp/constraints"
 )
 
-func MovingAverageToGRPC(in streammuxtypes.MovingAverage) *avpipeline_grpc.MovingAverageConfig {
+func MovingAverageToGRPC[T constraints.Float | constraints.Integer](
+	in streammuxtypes.MovingAverage[T],
+) *avpipeline_grpc.MovingAverageConfig {
 	if in == nil {
 		return nil
 	}
 	switch in := in.(type) {
-	case *indicator.MAMA[uint64]:
+	case *indicator.MAMA[T]:
 		return &avpipeline_grpc.MovingAverageConfig{
 			MovingAverageConfig: &avpipeline_grpc.MovingAverageConfig_Mama{
 				Mama: &avpipeline_grpc.MovingAverageConfigMAMA{
@@ -34,13 +37,13 @@ func MovingAverageToGRPC(in streammuxtypes.MovingAverage) *avpipeline_grpc.Movin
 	}
 }
 
-func MovingAverageFromGRPC(in *avpipeline_grpc.MovingAverageConfig) streammuxtypes.MovingAverage {
+func MovingAverageFromGRPC(in *avpipeline_grpc.MovingAverageConfig) streammuxtypes.MovingAverage[float64] {
 	if in == nil {
 		return nil
 	}
 	switch cfg := in.GetMovingAverageConfig().(type) {
 	case *avpipeline_grpc.MovingAverageConfig_Mama:
-		return indicator.NewMAMA[uint64](100, cfg.Mama.GetFastLimit(), cfg.Mama.GetSlowLimit())
+		return indicator.NewMAMA[float64](10, cfg.Mama.GetFastLimit(), cfg.Mama.GetSlowLimit())
 	default:
 		return nil
 	}

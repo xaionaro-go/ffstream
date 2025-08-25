@@ -27,10 +27,11 @@ func AutoBitRateCalculatorFromGRPC(
 			QuickDecreaseK:                       calculator.Thresholds.GetQuickDecreaseK(),
 			ExtremeDecreaseK:                     calculator.Thresholds.GetExtremeDecreaseK(),
 		}, nil
-	case *avpipeline_grpc.AutoBitrateCalculator_ConstantQueueSize:
-		return &streammuxtypes.AutoBitrateCalculatorConstantQueueSize{
-			QueueOptimal:  time.Duration(calculator.ConstantQueueSize.GetQueueOptimalMS()) * time.Millisecond,
-			MovingAverage: MovingAverageFromGRPC(calculator.ConstantQueueSize.GetMovingAverage()),
+	case *avpipeline_grpc.AutoBitrateCalculator_LogK:
+		return &streammuxtypes.AutoBitrateCalculatorLogK{
+			QueueOptimal:  time.Duration(calculator.LogK.GetQueueOptimalMS()) * time.Millisecond,
+			Inertia:       calculator.LogK.GetInertia(),
+			MovingAverage: MovingAverageFromGRPC(calculator.LogK.GetMovingAverage()),
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown AutoBitRateCalculator type: %T", calculator)
@@ -61,11 +62,12 @@ func AutoBitRateCalculatorToGRPC(
 				},
 			},
 		}, nil
-	case *streammuxtypes.AutoBitrateCalculatorConstantQueueSize:
+	case *streammuxtypes.AutoBitrateCalculatorLogK:
 		return &avpipeline_grpc.AutoBitrateCalculator{
-			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_ConstantQueueSize{
-				ConstantQueueSize: &avpipeline_grpc.AutoBitrateCalculatorConstantQueueSize{
+			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_LogK{
+				LogK: &avpipeline_grpc.AutoBitrateCalculatorLogK{
 					QueueOptimalMS: uint64(c.QueueOptimal / time.Millisecond),
+					Inertia:        c.Inertia,
 					MovingAverage:  MovingAverageToGRPC(c.MovingAverage),
 				},
 			},

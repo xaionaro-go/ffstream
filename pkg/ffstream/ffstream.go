@@ -195,7 +195,7 @@ func (s *FFStream) Start(
 	if err != nil {
 		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
-	s.NodeInput.AddPushPacketsTo(s.StreamMux.Input())
+	s.NodeInput.AddPushPacketsTo(s.StreamMux)
 
 	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
 		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)

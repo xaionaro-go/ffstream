@@ -220,6 +220,8 @@ func parseFlags(args []string) (context.Context, Flags) {
 			}
 		}
 		cfg.AutoByPass = autoBitrateAutoBypass.Value()
+		cfg.MaxBitRate = cfg.ResolutionsAndBitRates.Best().BitrateHigh
+		cfg.MinBitRate = cfg.ResolutionsAndBitRates.Worst().BitrateLow
 		flags.AutoBitRate = &cfg
 	}
 
