@@ -19,7 +19,7 @@ func (s *FFStream) WithSRTOutput(
 	outputID int,
 	callback func(*threadsafe.Socket) error,
 ) error {
-	output, err := xsync.DoR2(ctx, &s.StreamMux.Locker, func() (*streammux.Output[struct{}], error) {
+	output, err := xsync.DoR2(ctx, &s.StreamMux.Locker, func() (*streammux.Output, error) {
 		if outputID < 0 || outputID >= len(s.StreamMux.Outputs) {
 			return nil, fmt.Errorf("outputID %d is out of range [0..%d)", outputID, len(s.StreamMux.Outputs))
 		}
