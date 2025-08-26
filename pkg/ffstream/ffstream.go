@@ -214,6 +214,18 @@ func (s *FFStream) Start(
 				}
 			}(outputKey)
 		}
+		if autoBitRate.AutoByPass {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if _, err := s.StreamMux.InitOutput(ctx, streammuxtypes.OutputKey{
+					AudioCodec: codectypes.NameCopy,
+					VideoCodec: codectypes.NameCopy,
+				}); err != nil {
+					logger.Errorf(ctx, "unable to init output for the bypass: %w", err)
+				}
+			}()
+		}
 		wg.Wait()
 	}
 
