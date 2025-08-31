@@ -17,6 +17,9 @@ import (
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
+	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
+	avpgoconv "github.com/xaionaro-go/avpipeline/protobuf/goconv"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
@@ -114,26 +117,28 @@ func (s *FFStream) GetStats(
 		return nil
 	}
 	r := &ffstream_grpc.GetStatsReply{
-		Packets: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{
-			Wrote: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{},
-		},
-		Frames: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics{
-			Wrote: &ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection{},
+		NodeCounters: &avpipeline_grpc.NodeCounters{
+			Received:  &avpipeline_grpc.NodeCountersSection{},
+			Processed: &avpipeline_grpc.NodeCountersSection{},
+			Missed:    &avpipeline_grpc.NodeCountersSection{},
+			Generated: &avpipeline_grpc.NodeCountersSection{},
+			Sent:      &avpipeline_grpc.NodeCountersSection{},
 		},
 	}
 	if s.NodeInput != nil {
-		r.BytesCountRead = s.NodeInput.Statistics.BytesCountWrote.Load()
-		r.Packets.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Packets.Wrote)
-		r.Frames.Read = goconv.ProcessingPacketsOrFramesStatisticsSectionToGRPC(&s.NodeInput.Statistics.Frames.Wrote)
+		inputCounters := avpgoconv.NodeCountersToGRPC(s.NodeInput.GetCountersPtr(), s.NodeInput.GetProcessor().CountersPtr())
+		r.NodeCounters.Received = inputCounters.Received
 	}
 	if s.StreamMux != nil {
 		for _, output := range s.StreamMux.Outputs {
-			stats := output.OutputNode.GetStatistics().Convert()
-			r.BytesCountWrote += stats.BytesCountRead
-			r.Packets.Wrote.Unknown += stats.Packets.Read.Unknown
-			r.Packets.Wrote.Other += stats.Packets.Read.Other
-			r.Packets.Wrote.Video += stats.Packets.Read.Video
-			r.Packets.Wrote.Audio += stats.Packets.Read.Audio
+			outputCounters := avpgoconv.NodeCountersToGRPC(
+				output.OutputNode.GetCountersPtr(),
+				output.OutputNode.GetProcessor().CountersPtr(),
+			)
+			r.NodeCounters.Processed = goconv.AddNodeCountersSection(r.NodeCounters.Processed, outputCounters.Processed)
+			r.NodeCounters.Missed = goconv.AddNodeCountersSection(r.NodeCounters.Missed, outputCounters.Missed)
+			r.NodeCounters.Generated = goconv.AddNodeCountersSection(r.NodeCounters.Generated, outputCounters.Generated)
+			r.NodeCounters.Sent = goconv.AddNodeCountersSection(r.NodeCounters.Sent, outputCounters.Sent)
 		}
 	}
 	return r
@@ -141,7 +146,7 @@ func (s *FFStream) GetStats(
 
 func (s *FFStream) GetAllStats(
 	ctx context.Context,
-) map[string]*node.ProcessingStatistics {
+) map[string]avptypes.Statistics {
 	return s.StreamMux.GetAllStats(ctx)
 }
 

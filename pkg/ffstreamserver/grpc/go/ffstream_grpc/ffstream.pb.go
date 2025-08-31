@@ -921,15 +921,10 @@ func (*GetStatsRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetStatsReply struct {
-	state              protoimpl.MessageState                      `protogen:"open.v1"`
-	BytesCountRead     uint64                                      `protobuf:"varint,1,opt,name=BytesCountRead,proto3" json:"BytesCountRead,omitempty"`
-	BytesCountBuffered uint64                                      `protobuf:"varint,2,opt,name=BytesCountBuffered,proto3" json:"BytesCountBuffered,omitempty"`
-	BytesCountDropped  uint64                                      `protobuf:"varint,3,opt,name=BytesCountDropped,proto3" json:"BytesCountDropped,omitempty"`
-	BytesCountWrote    uint64                                      `protobuf:"varint,4,opt,name=BytesCountWrote,proto3" json:"BytesCountWrote,omitempty"`
-	Packets            *CommonsProcessingPacketsOrFramesStatistics `protobuf:"bytes,5,opt,name=Packets,proto3" json:"Packets,omitempty"`
-	Frames             *CommonsProcessingPacketsOrFramesStatistics `protobuf:"bytes,6,opt,name=Frames,proto3" json:"Frames,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	NodeCounters  *avpipeline.NodeCounters `protobuf:"bytes,1,opt,name=nodeCounters,proto3" json:"nodeCounters,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetStatsReply) Reset() {
@@ -962,182 +957,11 @@ func (*GetStatsReply) Descriptor() ([]byte, []int) {
 	return file_ffstream_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *GetStatsReply) GetBytesCountRead() uint64 {
+func (x *GetStatsReply) GetNodeCounters() *avpipeline.NodeCounters {
 	if x != nil {
-		return x.BytesCountRead
-	}
-	return 0
-}
-
-func (x *GetStatsReply) GetBytesCountBuffered() uint64 {
-	if x != nil {
-		return x.BytesCountBuffered
-	}
-	return 0
-}
-
-func (x *GetStatsReply) GetBytesCountDropped() uint64 {
-	if x != nil {
-		return x.BytesCountDropped
-	}
-	return 0
-}
-
-func (x *GetStatsReply) GetBytesCountWrote() uint64 {
-	if x != nil {
-		return x.BytesCountWrote
-	}
-	return 0
-}
-
-func (x *GetStatsReply) GetPackets() *CommonsProcessingPacketsOrFramesStatistics {
-	if x != nil {
-		return x.Packets
+		return x.NodeCounters
 	}
 	return nil
-}
-
-func (x *GetStatsReply) GetFrames() *CommonsProcessingPacketsOrFramesStatistics {
-	if x != nil {
-		return x.Frames
-	}
-	return nil
-}
-
-type CommonsProcessingPacketsOrFramesStatistics struct {
-	state         protoimpl.MessageState                             `protogen:"open.v1"`
-	Read          *CommonsProcessingPacketsOrFramesStatisticsSection `protobuf:"bytes,5,opt,name=read,proto3" json:"read,omitempty"`
-	Missed        *CommonsProcessingPacketsOrFramesStatisticsSection `protobuf:"bytes,6,opt,name=missed,proto3" json:"missed,omitempty"`
-	Dropped       *CommonsProcessingPacketsOrFramesStatisticsSection `protobuf:"bytes,7,opt,name=dropped,proto3" json:"dropped,omitempty"`
-	Wrote         *CommonsProcessingPacketsOrFramesStatisticsSection `protobuf:"bytes,8,opt,name=wrote,proto3" json:"wrote,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) Reset() {
-	*x = CommonsProcessingPacketsOrFramesStatistics{}
-	mi := &file_ffstream_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CommonsProcessingPacketsOrFramesStatistics) ProtoMessage() {}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CommonsProcessingPacketsOrFramesStatistics.ProtoReflect.Descriptor instead.
-func (*CommonsProcessingPacketsOrFramesStatistics) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) GetRead() *CommonsProcessingPacketsOrFramesStatisticsSection {
-	if x != nil {
-		return x.Read
-	}
-	return nil
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) GetMissed() *CommonsProcessingPacketsOrFramesStatisticsSection {
-	if x != nil {
-		return x.Missed
-	}
-	return nil
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) GetDropped() *CommonsProcessingPacketsOrFramesStatisticsSection {
-	if x != nil {
-		return x.Dropped
-	}
-	return nil
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatistics) GetWrote() *CommonsProcessingPacketsOrFramesStatisticsSection {
-	if x != nil {
-		return x.Wrote
-	}
-	return nil
-}
-
-type CommonsProcessingPacketsOrFramesStatisticsSection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Unknown       uint64                 `protobuf:"varint,1,opt,name=Unknown,proto3" json:"Unknown,omitempty"`
-	Other         uint64                 `protobuf:"varint,2,opt,name=Other,proto3" json:"Other,omitempty"`
-	Video         uint64                 `protobuf:"varint,3,opt,name=Video,proto3" json:"Video,omitempty"`
-	Audio         uint64                 `protobuf:"varint,4,opt,name=Audio,proto3" json:"Audio,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) Reset() {
-	*x = CommonsProcessingPacketsOrFramesStatisticsSection{}
-	mi := &file_ffstream_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CommonsProcessingPacketsOrFramesStatisticsSection) ProtoMessage() {}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CommonsProcessingPacketsOrFramesStatisticsSection.ProtoReflect.Descriptor instead.
-func (*CommonsProcessingPacketsOrFramesStatisticsSection) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) GetUnknown() uint64 {
-	if x != nil {
-		return x.Unknown
-	}
-	return 0
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) GetOther() uint64 {
-	if x != nil {
-		return x.Other
-	}
-	return 0
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) GetVideo() uint64 {
-	if x != nil {
-		return x.Video
-	}
-	return 0
-}
-
-func (x *CommonsProcessingPacketsOrFramesStatisticsSection) GetAudio() uint64 {
-	if x != nil {
-		return x.Audio
-	}
-	return 0
 }
 
 type GetOutputSRTStatsRequest struct {
@@ -1149,7 +973,7 @@ type GetOutputSRTStatsRequest struct {
 
 func (x *GetOutputSRTStatsRequest) Reset() {
 	*x = GetOutputSRTStatsRequest{}
-	mi := &file_ffstream_proto_msgTypes[20]
+	mi := &file_ffstream_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +985,7 @@ func (x *GetOutputSRTStatsRequest) String() string {
 func (*GetOutputSRTStatsRequest) ProtoMessage() {}
 
 func (x *GetOutputSRTStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[20]
+	mi := &file_ffstream_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +998,7 @@ func (x *GetOutputSRTStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOutputSRTStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetOutputSRTStatsRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{20}
+	return file_ffstream_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetOutputSRTStatsRequest) GetOutputID() int32 {
@@ -1274,7 +1098,7 @@ type GetOutputSRTStatsReply struct {
 
 func (x *GetOutputSRTStatsReply) Reset() {
 	*x = GetOutputSRTStatsReply{}
-	mi := &file_ffstream_proto_msgTypes[21]
+	mi := &file_ffstream_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1110,7 @@ func (x *GetOutputSRTStatsReply) String() string {
 func (*GetOutputSRTStatsReply) ProtoMessage() {}
 
 func (x *GetOutputSRTStatsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[21]
+	mi := &file_ffstream_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1123,7 @@ func (x *GetOutputSRTStatsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOutputSRTStatsReply.ProtoReflect.Descriptor instead.
 func (*GetOutputSRTStatsReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{21}
+	return file_ffstream_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetOutputSRTStatsReply) GetMsTimeStamp() int64 {
@@ -1886,7 +1710,7 @@ type GetSRTFlagIntRequest struct {
 
 func (x *GetSRTFlagIntRequest) Reset() {
 	*x = GetSRTFlagIntRequest{}
-	mi := &file_ffstream_proto_msgTypes[22]
+	mi := &file_ffstream_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1898,7 +1722,7 @@ func (x *GetSRTFlagIntRequest) String() string {
 func (*GetSRTFlagIntRequest) ProtoMessage() {}
 
 func (x *GetSRTFlagIntRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[22]
+	mi := &file_ffstream_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1911,7 +1735,7 @@ func (x *GetSRTFlagIntRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSRTFlagIntRequest.ProtoReflect.Descriptor instead.
 func (*GetSRTFlagIntRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{22}
+	return file_ffstream_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetSRTFlagIntRequest) GetOutputID() int32 {
@@ -1937,7 +1761,7 @@ type GetSRTFlagIntReply struct {
 
 func (x *GetSRTFlagIntReply) Reset() {
 	*x = GetSRTFlagIntReply{}
-	mi := &file_ffstream_proto_msgTypes[23]
+	mi := &file_ffstream_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1949,7 +1773,7 @@ func (x *GetSRTFlagIntReply) String() string {
 func (*GetSRTFlagIntReply) ProtoMessage() {}
 
 func (x *GetSRTFlagIntReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[23]
+	mi := &file_ffstream_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1962,7 +1786,7 @@ func (x *GetSRTFlagIntReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSRTFlagIntReply.ProtoReflect.Descriptor instead.
 func (*GetSRTFlagIntReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{23}
+	return file_ffstream_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetSRTFlagIntReply) GetValue() int64 {
@@ -1983,7 +1807,7 @@ type SetSRTFlagIntRequest struct {
 
 func (x *SetSRTFlagIntRequest) Reset() {
 	*x = SetSRTFlagIntRequest{}
-	mi := &file_ffstream_proto_msgTypes[24]
+	mi := &file_ffstream_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1995,7 +1819,7 @@ func (x *SetSRTFlagIntRequest) String() string {
 func (*SetSRTFlagIntRequest) ProtoMessage() {}
 
 func (x *SetSRTFlagIntRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[24]
+	mi := &file_ffstream_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2008,7 +1832,7 @@ func (x *SetSRTFlagIntRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSRTFlagIntRequest.ProtoReflect.Descriptor instead.
 func (*SetSRTFlagIntRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{24}
+	return file_ffstream_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SetSRTFlagIntRequest) GetOutputID() int32 {
@@ -2040,7 +1864,7 @@ type SetSRTFlagIntReply struct {
 
 func (x *SetSRTFlagIntReply) Reset() {
 	*x = SetSRTFlagIntReply{}
-	mi := &file_ffstream_proto_msgTypes[25]
+	mi := &file_ffstream_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2052,7 +1876,7 @@ func (x *SetSRTFlagIntReply) String() string {
 func (*SetSRTFlagIntReply) ProtoMessage() {}
 
 func (x *SetSRTFlagIntReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[25]
+	mi := &file_ffstream_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2065,7 +1889,7 @@ func (x *SetSRTFlagIntReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSRTFlagIntReply.ProtoReflect.Descriptor instead.
 func (*SetSRTFlagIntReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{25}
+	return file_ffstream_proto_rawDescGZIP(), []int{23}
 }
 
 type WaitRequest struct {
@@ -2076,7 +1900,7 @@ type WaitRequest struct {
 
 func (x *WaitRequest) Reset() {
 	*x = WaitRequest{}
-	mi := &file_ffstream_proto_msgTypes[26]
+	mi := &file_ffstream_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2088,7 +1912,7 @@ func (x *WaitRequest) String() string {
 func (*WaitRequest) ProtoMessage() {}
 
 func (x *WaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[26]
+	mi := &file_ffstream_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2101,7 +1925,7 @@ func (x *WaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitRequest.ProtoReflect.Descriptor instead.
 func (*WaitRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{26}
+	return file_ffstream_proto_rawDescGZIP(), []int{24}
 }
 
 type WaitReply struct {
@@ -2112,7 +1936,7 @@ type WaitReply struct {
 
 func (x *WaitReply) Reset() {
 	*x = WaitReply{}
-	mi := &file_ffstream_proto_msgTypes[27]
+	mi := &file_ffstream_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2124,7 +1948,7 @@ func (x *WaitReply) String() string {
 func (*WaitReply) ProtoMessage() {}
 
 func (x *WaitReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[27]
+	mi := &file_ffstream_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2137,7 +1961,7 @@ func (x *WaitReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitReply.ProtoReflect.Descriptor instead.
 func (*WaitReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{27}
+	return file_ffstream_proto_rawDescGZIP(), []int{25}
 }
 
 type EndRequest struct {
@@ -2148,7 +1972,7 @@ type EndRequest struct {
 
 func (x *EndRequest) Reset() {
 	*x = EndRequest{}
-	mi := &file_ffstream_proto_msgTypes[28]
+	mi := &file_ffstream_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2160,7 +1984,7 @@ func (x *EndRequest) String() string {
 func (*EndRequest) ProtoMessage() {}
 
 func (x *EndRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[28]
+	mi := &file_ffstream_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2173,7 +1997,7 @@ func (x *EndRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndRequest.ProtoReflect.Descriptor instead.
 func (*EndRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{28}
+	return file_ffstream_proto_rawDescGZIP(), []int{26}
 }
 
 type EndReply struct {
@@ -2184,7 +2008,7 @@ type EndReply struct {
 
 func (x *EndReply) Reset() {
 	*x = EndReply{}
-	mi := &file_ffstream_proto_msgTypes[29]
+	mi := &file_ffstream_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2196,7 +2020,7 @@ func (x *EndReply) String() string {
 func (*EndReply) ProtoMessage() {}
 
 func (x *EndReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[29]
+	mi := &file_ffstream_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2209,7 +2033,7 @@ func (x *EndReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndReply.ProtoReflect.Descriptor instead.
 func (*EndReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{29}
+	return file_ffstream_proto_rawDescGZIP(), []int{27}
 }
 
 type GetPipelinesRequest struct {
@@ -2220,7 +2044,7 @@ type GetPipelinesRequest struct {
 
 func (x *GetPipelinesRequest) Reset() {
 	*x = GetPipelinesRequest{}
-	mi := &file_ffstream_proto_msgTypes[30]
+	mi := &file_ffstream_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2232,7 +2056,7 @@ func (x *GetPipelinesRequest) String() string {
 func (*GetPipelinesRequest) ProtoMessage() {}
 
 func (x *GetPipelinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[30]
+	mi := &file_ffstream_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2245,7 +2069,7 @@ func (x *GetPipelinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelinesRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelinesRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{30}
+	return file_ffstream_proto_rawDescGZIP(), []int{28}
 }
 
 type GetPipelinesResponse struct {
@@ -2257,7 +2081,7 @@ type GetPipelinesResponse struct {
 
 func (x *GetPipelinesResponse) Reset() {
 	*x = GetPipelinesResponse{}
-	mi := &file_ffstream_proto_msgTypes[31]
+	mi := &file_ffstream_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2269,7 +2093,7 @@ func (x *GetPipelinesResponse) String() string {
 func (*GetPipelinesResponse) ProtoMessage() {}
 
 func (x *GetPipelinesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[31]
+	mi := &file_ffstream_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2282,7 +2106,7 @@ func (x *GetPipelinesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelinesResponse.ProtoReflect.Descriptor instead.
 func (*GetPipelinesResponse) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{31}
+	return file_ffstream_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetPipelinesResponse) GetNodes() []*avpipeline.Node {
@@ -2300,7 +2124,7 @@ type GetAutoBitRateCalculatorRequest struct {
 
 func (x *GetAutoBitRateCalculatorRequest) Reset() {
 	*x = GetAutoBitRateCalculatorRequest{}
-	mi := &file_ffstream_proto_msgTypes[32]
+	mi := &file_ffstream_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2312,7 +2136,7 @@ func (x *GetAutoBitRateCalculatorRequest) String() string {
 func (*GetAutoBitRateCalculatorRequest) ProtoMessage() {}
 
 func (x *GetAutoBitRateCalculatorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[32]
+	mi := &file_ffstream_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2325,7 +2149,7 @@ func (x *GetAutoBitRateCalculatorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAutoBitRateCalculatorRequest.ProtoReflect.Descriptor instead.
 func (*GetAutoBitRateCalculatorRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{32}
+	return file_ffstream_proto_rawDescGZIP(), []int{30}
 }
 
 type GetAutoBitRateCalculatorReply struct {
@@ -2337,7 +2161,7 @@ type GetAutoBitRateCalculatorReply struct {
 
 func (x *GetAutoBitRateCalculatorReply) Reset() {
 	*x = GetAutoBitRateCalculatorReply{}
-	mi := &file_ffstream_proto_msgTypes[33]
+	mi := &file_ffstream_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2349,7 +2173,7 @@ func (x *GetAutoBitRateCalculatorReply) String() string {
 func (*GetAutoBitRateCalculatorReply) ProtoMessage() {}
 
 func (x *GetAutoBitRateCalculatorReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[33]
+	mi := &file_ffstream_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2362,7 +2186,7 @@ func (x *GetAutoBitRateCalculatorReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAutoBitRateCalculatorReply.ProtoReflect.Descriptor instead.
 func (*GetAutoBitRateCalculatorReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{33}
+	return file_ffstream_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetAutoBitRateCalculatorReply) GetCalculator() *avpipeline.AutoBitrateCalculator {
@@ -2381,7 +2205,7 @@ type SetAutoBitRateCalculatorRequest struct {
 
 func (x *SetAutoBitRateCalculatorRequest) Reset() {
 	*x = SetAutoBitRateCalculatorRequest{}
-	mi := &file_ffstream_proto_msgTypes[34]
+	mi := &file_ffstream_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2393,7 +2217,7 @@ func (x *SetAutoBitRateCalculatorRequest) String() string {
 func (*SetAutoBitRateCalculatorRequest) ProtoMessage() {}
 
 func (x *SetAutoBitRateCalculatorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[34]
+	mi := &file_ffstream_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2406,7 +2230,7 @@ func (x *SetAutoBitRateCalculatorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAutoBitRateCalculatorRequest.ProtoReflect.Descriptor instead.
 func (*SetAutoBitRateCalculatorRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{34}
+	return file_ffstream_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SetAutoBitRateCalculatorRequest) GetCalculator() *avpipeline.AutoBitrateCalculator {
@@ -2424,7 +2248,7 @@ type SetAutoBitRateCalculatorReply struct {
 
 func (x *SetAutoBitRateCalculatorReply) Reset() {
 	*x = SetAutoBitRateCalculatorReply{}
-	mi := &file_ffstream_proto_msgTypes[35]
+	mi := &file_ffstream_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2436,7 +2260,7 @@ func (x *SetAutoBitRateCalculatorReply) String() string {
 func (*SetAutoBitRateCalculatorReply) ProtoMessage() {}
 
 func (x *SetAutoBitRateCalculatorReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[35]
+	mi := &file_ffstream_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2449,7 +2273,7 @@ func (x *SetAutoBitRateCalculatorReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAutoBitRateCalculatorReply.ProtoReflect.Descriptor instead.
 func (*SetAutoBitRateCalculatorReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{35}
+	return file_ffstream_proto_rawDescGZIP(), []int{33}
 }
 
 type GetFPSFractionRequest struct {
@@ -2460,7 +2284,7 @@ type GetFPSFractionRequest struct {
 
 func (x *GetFPSFractionRequest) Reset() {
 	*x = GetFPSFractionRequest{}
-	mi := &file_ffstream_proto_msgTypes[36]
+	mi := &file_ffstream_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2472,7 +2296,7 @@ func (x *GetFPSFractionRequest) String() string {
 func (*GetFPSFractionRequest) ProtoMessage() {}
 
 func (x *GetFPSFractionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[36]
+	mi := &file_ffstream_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2485,7 +2309,7 @@ func (x *GetFPSFractionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFPSFractionRequest.ProtoReflect.Descriptor instead.
 func (*GetFPSFractionRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{36}
+	return file_ffstream_proto_rawDescGZIP(), []int{34}
 }
 
 type GetFPSFractionReply struct {
@@ -2498,7 +2322,7 @@ type GetFPSFractionReply struct {
 
 func (x *GetFPSFractionReply) Reset() {
 	*x = GetFPSFractionReply{}
-	mi := &file_ffstream_proto_msgTypes[37]
+	mi := &file_ffstream_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2510,7 +2334,7 @@ func (x *GetFPSFractionReply) String() string {
 func (*GetFPSFractionReply) ProtoMessage() {}
 
 func (x *GetFPSFractionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[37]
+	mi := &file_ffstream_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2523,7 +2347,7 @@ func (x *GetFPSFractionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFPSFractionReply.ProtoReflect.Descriptor instead.
 func (*GetFPSFractionReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{37}
+	return file_ffstream_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetFPSFractionReply) GetNum() uint32 {
@@ -2550,7 +2374,7 @@ type SetFPSFractionRequest struct {
 
 func (x *SetFPSFractionRequest) Reset() {
 	*x = SetFPSFractionRequest{}
-	mi := &file_ffstream_proto_msgTypes[38]
+	mi := &file_ffstream_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2562,7 +2386,7 @@ func (x *SetFPSFractionRequest) String() string {
 func (*SetFPSFractionRequest) ProtoMessage() {}
 
 func (x *SetFPSFractionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[38]
+	mi := &file_ffstream_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2575,7 +2399,7 @@ func (x *SetFPSFractionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetFPSFractionRequest.ProtoReflect.Descriptor instead.
 func (*SetFPSFractionRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{38}
+	return file_ffstream_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SetFPSFractionRequest) GetNum() uint32 {
@@ -2600,7 +2424,7 @@ type SetFPSFractionReply struct {
 
 func (x *SetFPSFractionReply) Reset() {
 	*x = SetFPSFractionReply{}
-	mi := &file_ffstream_proto_msgTypes[39]
+	mi := &file_ffstream_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2612,7 +2436,7 @@ func (x *SetFPSFractionReply) String() string {
 func (*SetFPSFractionReply) ProtoMessage() {}
 
 func (x *SetFPSFractionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[39]
+	mi := &file_ffstream_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2625,7 +2449,7 @@ func (x *SetFPSFractionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetFPSFractionReply.ProtoReflect.Descriptor instead.
 func (*SetFPSFractionReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{39}
+	return file_ffstream_proto_rawDescGZIP(), []int{37}
 }
 
 var File_ffstream_proto protoreflect.FileDescriptor
@@ -2718,64 +2542,12 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x75, 0x65, 0x22, 0x27, 0x0a, 0x25, 0x53, 0x65, 0x74, 0x54, 0x6f, 0x6c, 0x65, 0x72, 0x61, 0x62,
 	0x6c, 0x65, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x51, 0x75, 0x65, 0x75, 0x65, 0x53, 0x69, 0x7a,
 	0x65, 0x42, 0x79, 0x74, 0x65, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x11, 0x0a, 0x0f, 0x47,
-	0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0xe7,
-	0x02, 0x0a, 0x0d, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79,
-	0x12, 0x26, 0x0a, 0x0e, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65,
-	0x61, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0e, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43,
-	0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x61, 0x64, 0x12, 0x2e, 0x0a, 0x12, 0x42, 0x79, 0x74, 0x65,
-	0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x42, 0x75, 0x66, 0x66, 0x65, 0x72, 0x65, 0x64, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x04, 0x52, 0x12, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74,
-	0x42, 0x75, 0x66, 0x66, 0x65, 0x72, 0x65, 0x64, 0x12, 0x2c, 0x0a, 0x11, 0x42, 0x79, 0x74, 0x65,
-	0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x44, 0x72, 0x6f, 0x70, 0x70, 0x65, 0x64, 0x18, 0x03, 0x20,
-	0x01, 0x28, 0x04, 0x52, 0x11, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x44,
-	0x72, 0x6f, 0x70, 0x70, 0x65, 0x64, 0x12, 0x28, 0x0a, 0x0f, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43,
-	0x6f, 0x75, 0x6e, 0x74, 0x57, 0x72, 0x6f, 0x74, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52,
-	0x0f, 0x42, 0x79, 0x74, 0x65, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x57, 0x72, 0x6f, 0x74, 0x65,
-	0x12, 0x53, 0x0a, 0x07, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x39, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70,
-	0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73,
-	0x69, 0x6e, 0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72, 0x46, 0x72, 0x61, 0x6d,
-	0x65, 0x73, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x52, 0x07, 0x50, 0x61,
-	0x63, 0x6b, 0x65, 0x74, 0x73, 0x12, 0x51, 0x0a, 0x06, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x18,
-	0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x39, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
-	0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f,
-	0x63, 0x65, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72,
-	0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73,
-	0x52, 0x06, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x22, 0x90, 0x03, 0x0a, 0x2a, 0x43, 0x6f, 0x6d,
-	0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x50, 0x61,
-	0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x53, 0x74, 0x61,
-	0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x12, 0x54, 0x0a, 0x04, 0x72, 0x65, 0x61, 0x64, 0x18,
-	0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x40, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
-	0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f,
-	0x63, 0x65, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72,
-	0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73,
-	0x53, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x04, 0x72, 0x65, 0x61, 0x64, 0x12, 0x58, 0x0a,
-	0x06, 0x6d, 0x69, 0x73, 0x73, 0x65, 0x64, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x40, 0x2e,
-	0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f,
-	0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x50,
-	0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x53, 0x74,
-	0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x53, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52,
-	0x06, 0x6d, 0x69, 0x73, 0x73, 0x65, 0x64, 0x12, 0x5a, 0x0a, 0x07, 0x64, 0x72, 0x6f, 0x70, 0x70,
-	0x65, 0x64, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x40, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72,
-	0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73,
-	0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74,
-	0x73, 0x4f, 0x72, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74,
-	0x69, 0x63, 0x73, 0x53, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x07, 0x64, 0x72, 0x6f, 0x70,
-	0x70, 0x65, 0x64, 0x12, 0x56, 0x0a, 0x05, 0x77, 0x72, 0x6f, 0x74, 0x65, 0x18, 0x08, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x40, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72,
-	0x70, 0x63, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73,
-	0x73, 0x69, 0x6e, 0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72, 0x46, 0x72, 0x61,
-	0x6d, 0x65, 0x73, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x53, 0x65, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x52, 0x05, 0x77, 0x72, 0x6f, 0x74, 0x65, 0x22, 0x8f, 0x01, 0x0a, 0x31,
-	0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x73, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x69, 0x6e,
-	0x67, 0x50, 0x61, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x4f, 0x72, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x73,
-	0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x53, 0x65, 0x63, 0x74, 0x69, 0x6f,
-	0x6e, 0x12, 0x18, 0x0a, 0x07, 0x55, 0x6e, 0x6b, 0x6e, 0x6f, 0x77, 0x6e, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x07, 0x55, 0x6e, 0x6b, 0x6e, 0x6f, 0x77, 0x6e, 0x12, 0x14, 0x0a, 0x05, 0x4f,
-	0x74, 0x68, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x4f, 0x74, 0x68, 0x65,
-	0x72, 0x12, 0x14, 0x0a, 0x05, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04,
-	0x52, 0x05, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x12, 0x14, 0x0a, 0x05, 0x41, 0x75, 0x64, 0x69, 0x6f,
-	0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x41, 0x75, 0x64, 0x69, 0x6f, 0x22, 0x36, 0x0a,
+	0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4d,
+	0x0a, 0x0d, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12,
+	0x3c, 0x0a, 0x0c, 0x6e, 0x6f, 0x64, 0x65, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x73, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70, 0x65, 0x6c, 0x69,
+	0x6e, 0x65, 0x2e, 0x4e, 0x6f, 0x64, 0x65, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x73, 0x52,
+	0x0c, 0x6e, 0x6f, 0x64, 0x65, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x73, 0x22, 0x36, 0x0a,
 	0x18, 0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x53, 0x52, 0x54, 0x53, 0x74, 0x61,
 	0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x6f, 0x75, 0x74,
 	0x70, 0x75, 0x74, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x6f, 0x75, 0x74,
@@ -3176,52 +2948,51 @@ func file_ffstream_proto_rawDescGZIP() []byte {
 }
 
 var file_ffstream_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_ffstream_proto_goTypes = []any{
-	(LoggingLevel)(0),                                         // 0: ffstream_grpc.LoggingLevel
-	(SRTFlagInt)(0),                                           // 1: ffstream_grpc.SRTFlagInt
-	(*SetLoggingLevelRequest)(nil),                            // 2: ffstream_grpc.SetLoggingLevelRequest
-	(*SetLoggingLevelReply)(nil),                              // 3: ffstream_grpc.SetLoggingLevelReply
-	(*CustomOption)(nil),                                      // 4: ffstream_grpc.customOption
-	(*RemoveOutputRequest)(nil),                               // 5: ffstream_grpc.RemoveOutputRequest
-	(*RemoveOutputReply)(nil),                                 // 6: ffstream_grpc.RemoveOutputReply
-	(*AudioCodecConfig)(nil),                                  // 7: ffstream_grpc.AudioCodecConfig
-	(*VideoCodecConfig)(nil),                                  // 8: ffstream_grpc.VideoCodecConfig
-	(*RecoderConfig)(nil),                                     // 9: ffstream_grpc.RecoderConfig
-	(*GetRecoderConfigRequest)(nil),                           // 10: ffstream_grpc.GetRecoderConfigRequest
-	(*GetRecoderConfigReply)(nil),                             // 11: ffstream_grpc.GetRecoderConfigReply
-	(*SetRecoderConfigRequest)(nil),                           // 12: ffstream_grpc.SetRecoderConfigRequest
-	(*SetRecoderConfigReply)(nil),                             // 13: ffstream_grpc.SetRecoderConfigReply
-	(*GetTolerableOutputQueueSizeBytesRequest)(nil),           // 14: ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest
-	(*GetTolerableOutputQueueSizeBytesReply)(nil),             // 15: ffstream_grpc.GetTolerableOutputQueueSizeBytesReply
-	(*SetTolerableOutputQueueSizeBytesRequest)(nil),           // 16: ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest
-	(*SetTolerableOutputQueueSizeBytesReply)(nil),             // 17: ffstream_grpc.SetTolerableOutputQueueSizeBytesReply
-	(*GetStatsRequest)(nil),                                   // 18: ffstream_grpc.GetStatsRequest
-	(*GetStatsReply)(nil),                                     // 19: ffstream_grpc.GetStatsReply
-	(*CommonsProcessingPacketsOrFramesStatistics)(nil),        // 20: ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics
-	(*CommonsProcessingPacketsOrFramesStatisticsSection)(nil), // 21: ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection
-	(*GetOutputSRTStatsRequest)(nil),                          // 22: ffstream_grpc.GetOutputSRTStatsRequest
-	(*GetOutputSRTStatsReply)(nil),                            // 23: ffstream_grpc.GetOutputSRTStatsReply
-	(*GetSRTFlagIntRequest)(nil),                              // 24: ffstream_grpc.GetSRTFlagIntRequest
-	(*GetSRTFlagIntReply)(nil),                                // 25: ffstream_grpc.GetSRTFlagIntReply
-	(*SetSRTFlagIntRequest)(nil),                              // 26: ffstream_grpc.SetSRTFlagIntRequest
-	(*SetSRTFlagIntReply)(nil),                                // 27: ffstream_grpc.SetSRTFlagIntReply
-	(*WaitRequest)(nil),                                       // 28: ffstream_grpc.WaitRequest
-	(*WaitReply)(nil),                                         // 29: ffstream_grpc.WaitReply
-	(*EndRequest)(nil),                                        // 30: ffstream_grpc.EndRequest
-	(*EndReply)(nil),                                          // 31: ffstream_grpc.EndReply
-	(*GetPipelinesRequest)(nil),                               // 32: ffstream_grpc.GetPipelinesRequest
-	(*GetPipelinesResponse)(nil),                              // 33: ffstream_grpc.GetPipelinesResponse
-	(*GetAutoBitRateCalculatorRequest)(nil),                   // 34: ffstream_grpc.GetAutoBitRateCalculatorRequest
-	(*GetAutoBitRateCalculatorReply)(nil),                     // 35: ffstream_grpc.GetAutoBitRateCalculatorReply
-	(*SetAutoBitRateCalculatorRequest)(nil),                   // 36: ffstream_grpc.SetAutoBitRateCalculatorRequest
-	(*SetAutoBitRateCalculatorReply)(nil),                     // 37: ffstream_grpc.SetAutoBitRateCalculatorReply
-	(*GetFPSFractionRequest)(nil),                             // 38: ffstream_grpc.GetFPSFractionRequest
-	(*GetFPSFractionReply)(nil),                               // 39: ffstream_grpc.GetFPSFractionReply
-	(*SetFPSFractionRequest)(nil),                             // 40: ffstream_grpc.SetFPSFractionRequest
-	(*SetFPSFractionReply)(nil),                               // 41: ffstream_grpc.SetFPSFractionReply
-	(*avpipeline.Node)(nil),                                   // 42: avpipeline.Node
-	(*avpipeline.AutoBitrateCalculator)(nil),                  // 43: avpipeline.AutoBitrateCalculator
+	(LoggingLevel)(0),                               // 0: ffstream_grpc.LoggingLevel
+	(SRTFlagInt)(0),                                 // 1: ffstream_grpc.SRTFlagInt
+	(*SetLoggingLevelRequest)(nil),                  // 2: ffstream_grpc.SetLoggingLevelRequest
+	(*SetLoggingLevelReply)(nil),                    // 3: ffstream_grpc.SetLoggingLevelReply
+	(*CustomOption)(nil),                            // 4: ffstream_grpc.customOption
+	(*RemoveOutputRequest)(nil),                     // 5: ffstream_grpc.RemoveOutputRequest
+	(*RemoveOutputReply)(nil),                       // 6: ffstream_grpc.RemoveOutputReply
+	(*AudioCodecConfig)(nil),                        // 7: ffstream_grpc.AudioCodecConfig
+	(*VideoCodecConfig)(nil),                        // 8: ffstream_grpc.VideoCodecConfig
+	(*RecoderConfig)(nil),                           // 9: ffstream_grpc.RecoderConfig
+	(*GetRecoderConfigRequest)(nil),                 // 10: ffstream_grpc.GetRecoderConfigRequest
+	(*GetRecoderConfigReply)(nil),                   // 11: ffstream_grpc.GetRecoderConfigReply
+	(*SetRecoderConfigRequest)(nil),                 // 12: ffstream_grpc.SetRecoderConfigRequest
+	(*SetRecoderConfigReply)(nil),                   // 13: ffstream_grpc.SetRecoderConfigReply
+	(*GetTolerableOutputQueueSizeBytesRequest)(nil), // 14: ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest
+	(*GetTolerableOutputQueueSizeBytesReply)(nil),   // 15: ffstream_grpc.GetTolerableOutputQueueSizeBytesReply
+	(*SetTolerableOutputQueueSizeBytesRequest)(nil), // 16: ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest
+	(*SetTolerableOutputQueueSizeBytesReply)(nil),   // 17: ffstream_grpc.SetTolerableOutputQueueSizeBytesReply
+	(*GetStatsRequest)(nil),                         // 18: ffstream_grpc.GetStatsRequest
+	(*GetStatsReply)(nil),                           // 19: ffstream_grpc.GetStatsReply
+	(*GetOutputSRTStatsRequest)(nil),                // 20: ffstream_grpc.GetOutputSRTStatsRequest
+	(*GetOutputSRTStatsReply)(nil),                  // 21: ffstream_grpc.GetOutputSRTStatsReply
+	(*GetSRTFlagIntRequest)(nil),                    // 22: ffstream_grpc.GetSRTFlagIntRequest
+	(*GetSRTFlagIntReply)(nil),                      // 23: ffstream_grpc.GetSRTFlagIntReply
+	(*SetSRTFlagIntRequest)(nil),                    // 24: ffstream_grpc.SetSRTFlagIntRequest
+	(*SetSRTFlagIntReply)(nil),                      // 25: ffstream_grpc.SetSRTFlagIntReply
+	(*WaitRequest)(nil),                             // 26: ffstream_grpc.WaitRequest
+	(*WaitReply)(nil),                               // 27: ffstream_grpc.WaitReply
+	(*EndRequest)(nil),                              // 28: ffstream_grpc.EndRequest
+	(*EndReply)(nil),                                // 29: ffstream_grpc.EndReply
+	(*GetPipelinesRequest)(nil),                     // 30: ffstream_grpc.GetPipelinesRequest
+	(*GetPipelinesResponse)(nil),                    // 31: ffstream_grpc.GetPipelinesResponse
+	(*GetAutoBitRateCalculatorRequest)(nil),         // 32: ffstream_grpc.GetAutoBitRateCalculatorRequest
+	(*GetAutoBitRateCalculatorReply)(nil),           // 33: ffstream_grpc.GetAutoBitRateCalculatorReply
+	(*SetAutoBitRateCalculatorRequest)(nil),         // 34: ffstream_grpc.SetAutoBitRateCalculatorRequest
+	(*SetAutoBitRateCalculatorReply)(nil),           // 35: ffstream_grpc.SetAutoBitRateCalculatorReply
+	(*GetFPSFractionRequest)(nil),                   // 36: ffstream_grpc.GetFPSFractionRequest
+	(*GetFPSFractionReply)(nil),                     // 37: ffstream_grpc.GetFPSFractionReply
+	(*SetFPSFractionRequest)(nil),                   // 38: ffstream_grpc.SetFPSFractionRequest
+	(*SetFPSFractionReply)(nil),                     // 39: ffstream_grpc.SetFPSFractionReply
+	(*avpipeline.NodeCounters)(nil),                 // 40: avpipeline.NodeCounters
+	(*avpipeline.Node)(nil),                         // 41: avpipeline.Node
+	(*avpipeline.AutoBitrateCalculator)(nil),        // 42: avpipeline.AutoBitrateCalculator
 }
 var file_ffstream_proto_depIdxs = []int32{
 	0,  // 0: ffstream_grpc.SetLoggingLevelRequest.level:type_name -> ffstream_grpc.LoggingLevel
@@ -3231,56 +3002,51 @@ var file_ffstream_proto_depIdxs = []int32{
 	8,  // 4: ffstream_grpc.RecoderConfig.video:type_name -> ffstream_grpc.VideoCodecConfig
 	9,  // 5: ffstream_grpc.GetRecoderConfigReply.config:type_name -> ffstream_grpc.RecoderConfig
 	9,  // 6: ffstream_grpc.SetRecoderConfigRequest.config:type_name -> ffstream_grpc.RecoderConfig
-	20, // 7: ffstream_grpc.GetStatsReply.Packets:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics
-	20, // 8: ffstream_grpc.GetStatsReply.Frames:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics
-	21, // 9: ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics.read:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection
-	21, // 10: ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics.missed:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection
-	21, // 11: ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics.dropped:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection
-	21, // 12: ffstream_grpc.CommonsProcessingPacketsOrFramesStatistics.wrote:type_name -> ffstream_grpc.CommonsProcessingPacketsOrFramesStatisticsSection
-	1,  // 13: ffstream_grpc.GetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
-	1,  // 14: ffstream_grpc.SetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
-	42, // 15: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
-	43, // 16: ffstream_grpc.GetAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
-	43, // 17: ffstream_grpc.SetAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
-	2,  // 18: ffstream_grpc.FFStream.SetLoggingLevel:input_type -> ffstream_grpc.SetLoggingLevelRequest
-	5,  // 19: ffstream_grpc.FFStream.RemoveOutput:input_type -> ffstream_grpc.RemoveOutputRequest
-	10, // 20: ffstream_grpc.FFStream.GetRecoderConfig:input_type -> ffstream_grpc.GetRecoderConfigRequest
-	12, // 21: ffstream_grpc.FFStream.SetRecoderConfig:input_type -> ffstream_grpc.SetRecoderConfigRequest
-	14, // 22: ffstream_grpc.FFStream.GetTolerableOutputQueueSizeBytes:input_type -> ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest
-	16, // 23: ffstream_grpc.FFStream.SetTolerableOutputQueueSizeBytes:input_type -> ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest
-	18, // 24: ffstream_grpc.FFStream.GetStats:input_type -> ffstream_grpc.GetStatsRequest
-	22, // 25: ffstream_grpc.FFStream.GetOutputSRTStats:input_type -> ffstream_grpc.GetOutputSRTStatsRequest
-	24, // 26: ffstream_grpc.FFStream.GetSRTFlagInt:input_type -> ffstream_grpc.GetSRTFlagIntRequest
-	26, // 27: ffstream_grpc.FFStream.SetSRTFlagInt:input_type -> ffstream_grpc.SetSRTFlagIntRequest
-	28, // 28: ffstream_grpc.FFStream.WaitChan:input_type -> ffstream_grpc.WaitRequest
-	30, // 29: ffstream_grpc.FFStream.End:input_type -> ffstream_grpc.EndRequest
-	32, // 30: ffstream_grpc.FFStream.GetPipelines:input_type -> ffstream_grpc.GetPipelinesRequest
-	34, // 31: ffstream_grpc.FFStream.GetAutoBitRateCalculator:input_type -> ffstream_grpc.GetAutoBitRateCalculatorRequest
-	36, // 32: ffstream_grpc.FFStream.SetAutoBitRateCalculator:input_type -> ffstream_grpc.SetAutoBitRateCalculatorRequest
-	38, // 33: ffstream_grpc.FFStream.GetFPSFraction:input_type -> ffstream_grpc.GetFPSFractionRequest
-	40, // 34: ffstream_grpc.FFStream.SetFPSFraction:input_type -> ffstream_grpc.SetFPSFractionRequest
-	3,  // 35: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
-	6,  // 36: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
-	11, // 37: ffstream_grpc.FFStream.GetRecoderConfig:output_type -> ffstream_grpc.GetRecoderConfigReply
-	13, // 38: ffstream_grpc.FFStream.SetRecoderConfig:output_type -> ffstream_grpc.SetRecoderConfigReply
-	15, // 39: ffstream_grpc.FFStream.GetTolerableOutputQueueSizeBytes:output_type -> ffstream_grpc.GetTolerableOutputQueueSizeBytesReply
-	17, // 40: ffstream_grpc.FFStream.SetTolerableOutputQueueSizeBytes:output_type -> ffstream_grpc.SetTolerableOutputQueueSizeBytesReply
-	19, // 41: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
-	23, // 42: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
-	25, // 43: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
-	27, // 44: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
-	29, // 45: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
-	31, // 46: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
-	33, // 47: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
-	35, // 48: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
-	37, // 49: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
-	39, // 50: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
-	41, // 51: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
-	35, // [35:52] is the sub-list for method output_type
-	18, // [18:35] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	40, // 7: ffstream_grpc.GetStatsReply.nodeCounters:type_name -> avpipeline.NodeCounters
+	1,  // 8: ffstream_grpc.GetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
+	1,  // 9: ffstream_grpc.SetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
+	41, // 10: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
+	42, // 11: ffstream_grpc.GetAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	42, // 12: ffstream_grpc.SetAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	2,  // 13: ffstream_grpc.FFStream.SetLoggingLevel:input_type -> ffstream_grpc.SetLoggingLevelRequest
+	5,  // 14: ffstream_grpc.FFStream.RemoveOutput:input_type -> ffstream_grpc.RemoveOutputRequest
+	10, // 15: ffstream_grpc.FFStream.GetRecoderConfig:input_type -> ffstream_grpc.GetRecoderConfigRequest
+	12, // 16: ffstream_grpc.FFStream.SetRecoderConfig:input_type -> ffstream_grpc.SetRecoderConfigRequest
+	14, // 17: ffstream_grpc.FFStream.GetTolerableOutputQueueSizeBytes:input_type -> ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest
+	16, // 18: ffstream_grpc.FFStream.SetTolerableOutputQueueSizeBytes:input_type -> ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest
+	18, // 19: ffstream_grpc.FFStream.GetStats:input_type -> ffstream_grpc.GetStatsRequest
+	20, // 20: ffstream_grpc.FFStream.GetOutputSRTStats:input_type -> ffstream_grpc.GetOutputSRTStatsRequest
+	22, // 21: ffstream_grpc.FFStream.GetSRTFlagInt:input_type -> ffstream_grpc.GetSRTFlagIntRequest
+	24, // 22: ffstream_grpc.FFStream.SetSRTFlagInt:input_type -> ffstream_grpc.SetSRTFlagIntRequest
+	26, // 23: ffstream_grpc.FFStream.WaitChan:input_type -> ffstream_grpc.WaitRequest
+	28, // 24: ffstream_grpc.FFStream.End:input_type -> ffstream_grpc.EndRequest
+	30, // 25: ffstream_grpc.FFStream.GetPipelines:input_type -> ffstream_grpc.GetPipelinesRequest
+	32, // 26: ffstream_grpc.FFStream.GetAutoBitRateCalculator:input_type -> ffstream_grpc.GetAutoBitRateCalculatorRequest
+	34, // 27: ffstream_grpc.FFStream.SetAutoBitRateCalculator:input_type -> ffstream_grpc.SetAutoBitRateCalculatorRequest
+	36, // 28: ffstream_grpc.FFStream.GetFPSFraction:input_type -> ffstream_grpc.GetFPSFractionRequest
+	38, // 29: ffstream_grpc.FFStream.SetFPSFraction:input_type -> ffstream_grpc.SetFPSFractionRequest
+	3,  // 30: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
+	6,  // 31: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
+	11, // 32: ffstream_grpc.FFStream.GetRecoderConfig:output_type -> ffstream_grpc.GetRecoderConfigReply
+	13, // 33: ffstream_grpc.FFStream.SetRecoderConfig:output_type -> ffstream_grpc.SetRecoderConfigReply
+	15, // 34: ffstream_grpc.FFStream.GetTolerableOutputQueueSizeBytes:output_type -> ffstream_grpc.GetTolerableOutputQueueSizeBytesReply
+	17, // 35: ffstream_grpc.FFStream.SetTolerableOutputQueueSizeBytes:output_type -> ffstream_grpc.SetTolerableOutputQueueSizeBytesReply
+	19, // 36: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
+	21, // 37: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
+	23, // 38: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
+	25, // 39: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
+	27, // 40: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
+	29, // 41: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
+	31, // 42: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
+	33, // 43: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
+	35, // 44: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
+	37, // 45: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
+	39, // 46: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
+	30, // [30:47] is the sub-list for method output_type
+	13, // [13:30] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_ffstream_proto_init() }
@@ -3294,7 +3060,7 @@ func file_ffstream_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ffstream_proto_rawDesc), len(file_ffstream_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   40,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

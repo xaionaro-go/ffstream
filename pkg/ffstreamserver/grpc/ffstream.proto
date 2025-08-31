@@ -94,27 +94,9 @@ message SetTolerableOutputQueueSizeBytesReply {}
 
 message GetStatsRequest {}
 message GetStatsReply {
-  uint64 BytesCountRead = 1;
-  uint64 BytesCountBuffered = 2;
-  uint64 BytesCountDropped = 3;
-  uint64 BytesCountWrote = 4;
-  CommonsProcessingPacketsOrFramesStatistics Packets = 5;
-  CommonsProcessingPacketsOrFramesStatistics Frames = 6;
+  avpipeline.NodeCounters nodeCounters = 1;
 }
 
-message CommonsProcessingPacketsOrFramesStatistics {
-  CommonsProcessingPacketsOrFramesStatisticsSection read = 5;
-  CommonsProcessingPacketsOrFramesStatisticsSection missed = 6;
-  CommonsProcessingPacketsOrFramesStatisticsSection dropped = 7;
-  CommonsProcessingPacketsOrFramesStatisticsSection wrote = 8;
-}
-
-message CommonsProcessingPacketsOrFramesStatisticsSection {
-  uint64 Unknown = 1;
-  uint64 Other = 2;
-  uint64 Video = 3;
-  uint64 Audio = 4;
-}
 
 message GetOutputSRTStatsRequest {
   int32 outputID = 1;
