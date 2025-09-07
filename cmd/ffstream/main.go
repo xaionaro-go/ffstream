@@ -68,6 +68,7 @@ func main() {
 	encoderVideoOptions = append(encoderVideoOptions,
 		convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)...,
 	)
+	encoderVideoOptions = encoderVideoOptions.Deduplicate()
 
 	for idx, v := range encoderVideoOptions {
 		logger.Tracef(ctx, "encoderVideoOptions[%d]: %s=%s", idx, v.Key, v.Value)
