@@ -1,11 +1,15 @@
 
 ENABLE_VLC?=false
-ENABLE_LIBAV?=false
+ENABLE_LIBAV?=true
+ENABLE_LIBSRT?=false
 ENABLE_DEBUG_TRACE?=false
 
 GOTAGS:=
 ifeq ($(ENABLE_LIBAV), true)
-	GOTAGS:=$(GOTAGS),with_libav
+	GOTAGS:=$(GOTAGS),with_libav,patched_libav
+endif
+ifeq ($(ENABLE_LIBSRT), true)
+	GOTAGS:=$(GOTAGS),with_libsrt
 endif
 ifeq ($(ENABLE_VLC), true)
 	GOTAGS:=$(GOTAGS),with_libvlc
@@ -22,16 +26,16 @@ ifneq ($(GOTAGS),)
 	GOBUILD_FLAGS+=-tags=$(GOTAGS)
 endif
 
-all: ffstream-linux-amd64 ffstream-linux-arm64 ffstreamctl-linux-amd64 ffstreamctl-linux-arm64
+all: bin/ffstream-linux-amd64 bin/ffstream-linux-arm64 bin/ffstreamctl-linux-amd64 bin/ffstreamctl-linux-arm64
 
 build:
 	mkdir -p build
 
 bin/ffstream-linux-amd64: build
-	GOOS=linux GOARCH=amd64 go build $(GOBUILD_FLAGS) -o bin/ffstream-linux-amd64 ./cmd/ffstream
+	CGO_ENABLED=1 ASAN_OPTIONS=protect_shadow_gap=0 GOOS=linux GOARCH=amd64 go build $(GOBUILD_FLAGS) -o bin/ffstream-linux-amd64 ./cmd/ffstream
 
 bin/ffstream-linux-arm64: build
-	GOOS=linux GOARCH=arm64 go build $(GOBUILD_FLAGS) -o bin/ffstream-linux-arm64 ./cmd/ffstream
+	CGO_ENABLED=1 ASAN_OPTIONS=protect_shadow_gap=0 GOOS=linux GOARCH=arm64 go build $(GOBUILD_FLAGS) -o bin/ffstream-linux-arm64 ./cmd/ffstream
 
 bin/ffstreamctl-linux-amd64: build
 	CGO_ENABLED=false GOOS=linux GOARCH=amd64 go build $(GOBUILD_FLAGS) -o bin/ffstreamctl-linux-amd64 ./cmd/ffstreamctl

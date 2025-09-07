@@ -4,7 +4,7 @@ go 1.24.4
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250828234701-33c10cd451a6
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250907230500-45a5f440e59d
 
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
@@ -18,7 +18,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250907173249-1aabd0d5c4ca
+	github.com/xaionaro-go/avpipeline v0.0.0-20250908001332-324d1c8b748c
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
