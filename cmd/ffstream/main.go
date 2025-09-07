@@ -62,11 +62,25 @@ func main() {
 	var resolution codec.Resolution
 
 	var encoderVideoOptions avptypes.DictionaryItems
-	encoderVideoOptions = append(encoderVideoOptions, codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...)
-	encoderVideoOptions = append(
-		encoderVideoOptions,
+	encoderVideoOptions = append(encoderVideoOptions,
+		codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...,
+	)
+	encoderVideoOptions = append(encoderVideoOptions,
 		convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)...,
 	)
+
+	for idx, v := range encoderVideoOptions {
+		logger.Tracef(ctx, "encoderVideoOptions[%d]: %s=%s", idx, v.Key, v.Value)
+		if len(v.Key) == 0 {
+			logger.Fatalf(ctx, "unexpected empty output option key with value %q", v.Value)
+		}
+		switch v.Key {
+		case "s":
+			_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
+			assertNoError(ctx, err)
+			logger.Debugf(ctx, "parsed resolution: %dx%d", resolution.Width, resolution.Height)
+		}
+	}
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
@@ -102,29 +116,6 @@ func main() {
 			RetryOutputOnFailure: flags.RetryOutputOnFailure,
 		})
 		assertNoError(ctx, err)
-
-		for idx, v := range outputOptions {
-			logger.Tracef(ctx, "outputOptions[%d]: %s=%s", idx, v.Key, v)
-			if len(v.Key) == 0 {
-				logger.Fatalf(ctx, "unexpected empty output option key with value %q", v.Value)
-			}
-			key := v.Key[1:]
-			switch key {
-			case "gpu":
-				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
-					Key:   key,
-					Value: v.Value,
-				})
-			case "s":
-				_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
-				assertNoError(ctx, err)
-			case "g", "r", "bufsize":
-				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
-					Key:   key,
-					Value: v.Value,
-				})
-			}
-		}
 	}
 
 	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)

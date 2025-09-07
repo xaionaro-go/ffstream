@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
@@ -13,7 +15,7 @@ func convertUnknownOptionsToCustomOptions(
 	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
 
-		opt := arg
+		opt := strings.TrimPrefix(arg, "-")
 		value := unknownOpts[idx+1]
 
 		result = append(result, streammuxtypes.DictionaryItem{
@@ -33,7 +35,7 @@ func convertUnknownOptionsToAVPCustomOptions(
 	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
 		arg := unknownOpts[idx]
 
-		opt := arg
+		opt := strings.TrimPrefix(arg, "-")
 		value := unknownOpts[idx+1]
 
 		result = append(result, avptypes.DictionaryItem{
