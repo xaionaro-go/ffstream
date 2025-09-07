@@ -105,17 +105,20 @@ func main() {
 
 		for idx, v := range outputOptions {
 			logger.Tracef(ctx, "outputOptions[%d]: %s=%s", idx, v.Key, v)
-			key := v.Key
+			if len(v.Key) == 0 {
+				logger.Fatalf(ctx, "unexpected empty output option key with value %q", v.Value)
+			}
+			key := v.Key[1:]
 			switch key {
-			case "-gpu":
+			case "gpu":
 				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
 					Key:   key,
 					Value: v.Value,
 				})
-			case "-s":
+			case "s":
 				_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
 				assertNoError(ctx, err)
-			case "-g", "-r", "-bufsize":
+			case "g", "r", "bufsize":
 				encoderVideoOptions = append(encoderVideoOptions, streammuxtypes.DictionaryItem{
 					Key:   key,
 					Value: v.Value,
