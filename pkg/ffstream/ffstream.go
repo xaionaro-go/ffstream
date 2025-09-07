@@ -101,8 +101,8 @@ func (s *FFStream) SetRecoderConfig(
 	if s.StreamMux == nil {
 		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
 	}
-	if len(cfg.VideoTrackConfigs) > 0 {
-		videoCfg := &cfg.VideoTrackConfigs[0]
+	if len(cfg.Output.VideoTrackConfigs) > 0 {
+		videoCfg := &cfg.Output.VideoTrackConfigs[0]
 		if videoCfg.CodecName != codectypes.Name(codec.NameCopy) && videoCfg.Resolution == (codec.Resolution{}) {
 			return fmt.Errorf("resolution must be set for video codec %q", videoCfg.CodecName)
 		}

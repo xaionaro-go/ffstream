@@ -60,7 +60,13 @@ func main() {
 	}
 
 	var resolution codec.Resolution
-	encoderVideoOptions := convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)
+
+	var encoderVideoOptions avptypes.DictionaryItems
+	encoderVideoOptions = append(encoderVideoOptions, codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...)
+	encoderVideoOptions = append(
+		encoderVideoOptions,
+		convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)...,
+	)
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
@@ -123,25 +129,27 @@ func main() {
 		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
 	}
 	recoderConfig := streammuxtypes.RecoderConfig{
-		VideoTrackConfigs: []streammuxtypes.VideoTrackConfig{{
-			InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
-			OutputTrackIDs:     []int{0},
-			CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
-			AverageBitRate:     flags.VideoEncoder.BitRate,
-			CustomOptions:      encoderVideoOptions,
-			HardwareDeviceType: hardwareDeviceType,
-			Resolution: codec.Resolution{
-				Width:  resolution.Width,
-				Height: resolution.Height,
-			},
-		}},
-		AudioTrackConfigs: []streammuxtypes.AudioTrackConfig{{
-			InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
-			OutputTrackIDs: []int{1},
-			CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
-			AverageBitRate: flags.AudioEncoder.BitRate,
-			CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
-		}},
+		Output: streammuxtypes.RecoderOutputConfig{
+			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
+				InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
+				OutputTrackIDs:     []int{0},
+				CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
+				AverageBitRate:     flags.VideoEncoder.BitRate,
+				CustomOptions:      encoderVideoOptions,
+				HardwareDeviceType: hardwareDeviceType,
+				Resolution: codec.Resolution{
+					Width:  resolution.Width,
+					Height: resolution.Height,
+				},
+			}},
+			AudioTrackConfigs: []streammuxtypes.OutputAudioTrackConfig{{
+				InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
+				OutputTrackIDs: []int{1},
+				CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
+				AverageBitRate: flags.AudioEncoder.BitRate,
+				CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
+			}},
+		},
 	}
 
 	err = s.Start(ctx, recoderConfig, flags.MuxMode, flags.AutoBitRate)

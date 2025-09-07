@@ -1,6 +1,6 @@
 module github.com/xaionaro-go/ffstream
 
-go 1.24.2
+go 1.24.4
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
@@ -18,7 +18,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/avpipeline v0.0.0-20250831162051-de945d39964c
+	github.com/xaionaro-go/avpipeline v0.0.0-20250907164546-8bb1f09cc814
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
@@ -31,10 +31,12 @@ require (
 )
 
 require (
+	github.com/av-elier/go-decimal-to-rational v0.0.0-20250603203441-f39a07f43ff3 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51 // indirect
+	tailscale.com v1.86.5 // indirect
 )
 
 require (
@@ -88,8 +90,8 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	gocv.io/x/gocv v0.41.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/image v0.25.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/image v0.27.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	gonum.org/v1/plot v0.16.0 // indirect
