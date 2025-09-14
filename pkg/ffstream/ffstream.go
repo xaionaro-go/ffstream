@@ -214,7 +214,7 @@ func (s *FFStream) Start(
 			wg.Add(1)
 			go func(output streammuxtypes.OutputKey) {
 				defer wg.Done()
-				if _, err := s.StreamMux.InitOutput(ctx, outputKey); err != nil {
+				if _, err := s.StreamMux.GetOrInitOutput(ctx, outputKey); err != nil {
 					logger.Errorf(ctx, "unable to init output for resolution %#+v: %w", output.Resolution, err)
 				}
 			}(outputKey)
@@ -223,7 +223,7 @@ func (s *FFStream) Start(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if _, err := s.StreamMux.InitOutput(ctx, streammuxtypes.OutputKey{
+				if _, err := s.StreamMux.GetOrInitOutput(ctx, streammuxtypes.OutputKey{
 					AudioCodec: codectypes.NameCopy,
 					VideoCodec: codectypes.NameCopy,
 				}); err != nil {
