@@ -37,9 +37,11 @@ func AutoBitRateCalculatorFromGRPC(
 		return streammuxtypes.AutoBitrateCalculatorStatic(calculator.Static), nil
 	case *avpipeline_grpc.AutoBitrateCalculator_QueueSizeGapDecay:
 		return &streammuxtypes.AutoBitrateCalculatorQueueSizeGapDecay{
-			QueueOptimal:       time.Duration(calculator.QueueSizeGapDecay.GetQueueOptimalMS()) * time.Millisecond,
-			Decay:              time.Duration(calculator.QueueSizeGapDecay.GetDecayMS()) * time.Millisecond,
-			DerivativeSmoothed: MovingAverageFromGRPC[streammuxtypes.UBps](calculator.QueueSizeGapDecay.GetDerivativeSmoothed()),
+			QueueDurationOptimal: time.Duration(calculator.QueueSizeGapDecay.GetQueueOptimalMS()) * time.Millisecond,
+			QueueSizeMin:         streammuxtypes.UB(calculator.QueueSizeGapDecay.GetQueueSizeMin()),
+			GapDecay:             time.Duration(calculator.QueueSizeGapDecay.GetGapDecayMS()) * time.Millisecond,
+			InertiaIncrease:      time.Duration(calculator.QueueSizeGapDecay.GetIncreaseInertiaMS()) * time.Millisecond,
+			DerivativeSmoothed:   MovingAverageFromGRPC[streammuxtypes.UBps](calculator.QueueSizeGapDecay.GetDerivativeSmoothed()),
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown AutoBitRateCalculator type: %T", calculator)
@@ -90,8 +92,10 @@ func AutoBitRateCalculatorToGRPC(
 		return &avpipeline_grpc.AutoBitrateCalculator{
 			AutoBitrateCalculator: &avpipeline_grpc.AutoBitrateCalculator_QueueSizeGapDecay{
 				QueueSizeGapDecay: &avpipeline_grpc.AutoBitrateCalculatorQueueSizeGapDecay{
-					QueueOptimalMS:     uint64(c.QueueOptimal / time.Millisecond),
-					DecayMS:            uint64(c.Decay / time.Millisecond),
+					QueueOptimalMS:     uint64(c.QueueDurationOptimal / time.Millisecond),
+					QueueSizeMin:       uint64(c.QueueSizeMin),
+					GapDecayMS:         uint64(c.GapDecay / time.Millisecond),
+					IncreaseInertiaMS:  uint64(c.InertiaIncrease / time.Millisecond),
 					DerivativeSmoothed: MovingAverageToGRPC(c.DerivativeSmoothed),
 				},
 			},

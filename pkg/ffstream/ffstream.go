@@ -237,7 +237,9 @@ func (s *FFStream) Start(
 	errCh := make(chan node.Error, 100)
 	observability.Go(ctx, func(ctx context.Context) {
 		defer close(errCh)
-		avpipeline.Serve(ctx, avpipeline.ServeConfig{}, errCh, s.NodeInput)
+		avpipeline.Serve(ctx, avpipeline.ServeConfig{
+			EachNode: node.ServeConfig{},
+		}, errCh, s.NodeInput)
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {

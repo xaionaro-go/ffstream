@@ -55,6 +55,7 @@ dockerbuilder-android-arm64:
 			--detach \
 			--init \
 			--name $(DOCKER_CONTAINER_NAME) \
+			--volume "$(PWD)/.cache:/home/builder/.cache" \
 			--tty \
 			--volume ".:/project" \
 			$(DOCKER_IMAGE) >/dev/null 2>&1 || /bin/true; \
@@ -70,7 +71,7 @@ bin/ffstream-android-arm64: dockerbuilder-android-arm64
 		git branch -D v0-termux; \
 		git branch v0-termux; \
 		docker exec $(DOCKER_CONTAINER_NAME) make ENABLE_VLC="$(ENABLE_VLC)" ENABLE_LIBAV="$(ENABLE_LIBAV)" ENABLE_DEBUG_TRACE="$(ENABLE_DEBUG_TRACE)" -C /project ffstream-android-arm64-in-docker; \
-		docker cp ffstream-android-builder:/home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb bin/ffstream-android-termux-arm64.deb; \
+		docker cp $(DOCKER_CONTAINER_NAME):/home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb bin/ffstream-android-termux-arm64.deb; \
 	else \
 		echo "ERROR: there are uncommitted changes, please either stash them or commit" >&2; \
 	fi

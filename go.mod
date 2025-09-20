@@ -4,7 +4,9 @@ go 1.24.4
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250907230500-45a5f440e59d
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250921154926-f1a150c6bf00
+
+replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
 
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
