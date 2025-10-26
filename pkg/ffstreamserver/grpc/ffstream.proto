@@ -7,10 +7,8 @@ import "imports/avpipeline/protobuf/avpipeline.proto";
 service FFStream {
   rpc SetLoggingLevel(SetLoggingLevelRequest) returns (SetLoggingLevelReply) {}
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
-  rpc GetRecoderConfig(GetRecoderConfigRequest) returns (GetRecoderConfigReply) {}
-  rpc SetRecoderConfig(SetRecoderConfigRequest) returns (SetRecoderConfigReply) {}
-  rpc GetTolerableOutputQueueSizeBytes(GetTolerableOutputQueueSizeBytesRequest) returns (GetTolerableOutputQueueSizeBytesReply) {}
-  rpc SetTolerableOutputQueueSizeBytes(SetTolerableOutputQueueSizeBytesRequest) returns (SetTolerableOutputQueueSizeBytesReply) {}
+  rpc GetCurrentOutput(GetCurrentOutputRequest) returns (GetCurrentOutputReply) {}
+  rpc SwitchOutputByProps(SwitchOutputByPropsRequest) returns (SwitchOutputByPropsReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest) returns (GetOutputSRTStatsReply) {}
   rpc GetSRTFlagInt(GetSRTFlagIntRequest) returns (GetSRTFlagIntReply) {}
@@ -71,26 +69,17 @@ message RecoderConfig {
   AudioCodecConfig audio = 1;
   VideoCodecConfig video = 2;
 }
-message GetRecoderConfigRequest {}
-message GetRecoderConfigReply {
+message GetCurrentOutputRequest {}
+message GetCurrentOutputReply {
+  uint64 id = 1;
+  RecoderConfig config = 2;
+  uint64 maxBitRate = 3;
+}
+message SwitchOutputByPropsRequest {
   RecoderConfig config = 1;
+  uint64 maxBitRate = 2;
 }
-message SetRecoderConfigRequest {
-  RecoderConfig config = 1;
-}
-message SetRecoderConfigReply {}
-
-message GetTolerableOutputQueueSizeBytesRequest {}
-
-message GetTolerableOutputQueueSizeBytesReply {
-  uint64 value = 1;
-}
-
-message SetTolerableOutputQueueSizeBytesRequest {
-  uint64 value = 1;
-}
-
-message SetTolerableOutputQueueSizeBytesReply {}
+message SwitchOutputByPropsReply {}
 
 message GetStatsRequest {}
 message GetStatsReply {

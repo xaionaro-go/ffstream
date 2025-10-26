@@ -33,7 +33,7 @@ func (s *FFStream) WithSRTOutput(
 		return fmt.Errorf("unable to get the output: %w", err)
 	}
 
-	procAbstract := output.OutputNode.GetProcessor()
+	procAbstract := output.SendingNode.GetProcessor()
 	proc, ok := procAbstract.(processor.GetKerneler)
 	if !ok {
 		return fmt.Errorf("output %d processor %T does not implement GetKerneler interface", outputID, procAbstract)

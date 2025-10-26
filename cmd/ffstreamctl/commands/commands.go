@@ -81,18 +81,6 @@ var (
 		Use: "config",
 	}
 
-	EncoderConfigGet = &cobra.Command{
-		Use:  "get",
-		Args: cobra.ExactArgs(0),
-		Run:  encoderConfigGet,
-	}
-
-	EncoderConfigSet = &cobra.Command{
-		Use:  "set",
-		Args: cobra.ExactArgs(0),
-		Run:  encoderConfigSet,
-	}
-
 	EncoderAutoBitRate = &cobra.Command{
 		Use: "auto_bitrate",
 	}
@@ -137,22 +125,6 @@ var (
 		Use: "output",
 	}
 
-	BufferOutputTolerable = &cobra.Command{
-		Use: "tolerable",
-	}
-
-	BufferOutputTolerableGet = &cobra.Command{
-		Use:  "get",
-		Args: cobra.ExactArgs(0),
-		Run:  bufferOutputTolerableGet,
-	}
-
-	BufferOutputTolerableSet = &cobra.Command{
-		Use:  "set",
-		Args: cobra.ExactArgs(1),
-		Run:  bufferOutputTolerableSet,
-	}
-
 	LoggerLevel = logger.LevelWarning
 
 	Pipelines = &cobra.Command{
@@ -172,8 +144,6 @@ func init() {
 
 	Root.AddCommand(Encoder)
 	Encoder.AddCommand(EncoderConfig)
-	EncoderConfig.AddCommand(EncoderConfigGet)
-	EncoderConfig.AddCommand(EncoderConfigSet)
 
 	Encoder.AddCommand(EncoderAutoBitRate)
 	EncoderAutoBitRate.AddCommand(EncoderAutoBitRateCalculator)
@@ -194,9 +164,6 @@ func init() {
 
 	Root.AddCommand(Buffer)
 	Buffer.AddCommand(BufferOutput)
-	BufferOutput.AddCommand(BufferOutputTolerable)
-	BufferOutputTolerable.AddCommand(BufferOutputTolerableGet)
-	BufferOutputTolerable.AddCommand(BufferOutputTolerableSet)
 
 	Root.AddCommand(Pipelines)
 	Pipelines.AddCommand(PipelinesGet)
@@ -227,33 +194,6 @@ func statsEncoder(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), stats)
-}
-
-func encoderConfigGet(cmd *cobra.Command, args []string) {
-	ctx := cmd.Context()
-
-	remoteAddr, err := cmd.Flags().GetString("remote-addr")
-	assertNoError(ctx, err)
-
-	client := client.New(remoteAddr)
-
-	cfg, err := client.GetRecoderConfig(ctx)
-	assertNoError(ctx, err)
-
-	jsonOutput(ctx, cmd.OutOrStdout(), cfg)
-}
-
-func encoderConfigSet(cmd *cobra.Command, args []string) {
-	ctx := cmd.Context()
-
-	cfg := jsonInput[streammuxtypes.RecoderConfig](ctx, cmd.InOrStdin())
-
-	remoteAddr, err := cmd.Flags().GetString("remote-addr")
-	assertNoError(ctx, err)
-	client := client.New(remoteAddr)
-
-	err = client.SetRecoderConfig(ctx, cfg)
-	assertNoError(ctx, err)
 }
 
 // encoderFPSFractionGet calls the server and prints "num den\n"
@@ -288,35 +228,6 @@ func encoderFPSFractionSet(cmd *cobra.Command, args []string) {
 
 	// expecting client.SetFPSFraction(ctx, num uint32, den uint32) error
 	err = c.SetFPSFraction(ctx, uint32(num64), uint32(den64))
-	assertNoError(ctx, err)
-}
-
-func bufferOutputTolerableGet(cmd *cobra.Command, args []string) {
-	ctx := cmd.Context()
-
-	remoteAddr, err := cmd.Flags().GetString("remote-addr")
-	assertNoError(ctx, err)
-
-	client := client.New(remoteAddr)
-
-	value, err := client.GetTolerableOutputQueueSizeBytes(ctx)
-	assertNoError(ctx, err)
-
-	fmt.Fprintf(cmd.OutOrStdout(), "%d\n", value)
-}
-
-func bufferOutputTolerableSet(cmd *cobra.Command, args []string) {
-	ctx := cmd.Context()
-
-	value, err := strconv.ParseInt(args[0], 10, 64)
-	assertNoError(ctx, err)
-
-	remoteAddr, err := cmd.Flags().GetString("remote-addr")
-	assertNoError(ctx, err)
-
-	client := client.New(remoteAddr)
-
-	err = client.SetTolerableOutputQueueSizeBytes(ctx, uint(value))
 	assertNoError(ctx, err)
 }
 

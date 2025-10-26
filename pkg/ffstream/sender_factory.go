@@ -11,20 +11,21 @@ import (
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
 )
 
-type OutputTemplate struct {
+type SenderTemplate struct {
 	URLTemplate          string
 	Options              []avptypes.DictionaryItem
 	RetryOutputOnFailure bool
 }
 
-func (t *OutputTemplate) GetURL(
+func (t *SenderTemplate) GetURL(
 	ctx context.Context,
-	outputKey streammux.OutputKey,
+	outputKey streammux.SenderKey,
 ) string {
 	url := t.URLTemplate
 	url = strings.ReplaceAll(url, "${a:0:codec}", string(codec.Name(outputKey.AudioCodec).Canonicalize(ctx, true)))
@@ -34,55 +35,73 @@ func (t *OutputTemplate) GetURL(
 	return url
 }
 
-type outputFactory FFStream
+type senderFactory FFStream
 
-var _ streammux.OutputFactory = (*outputFactory)(nil)
+var _ streammux.SenderFactory = (*senderFactory)(nil)
 
-func (s *FFStream) asOutputFactory() *outputFactory {
-	return (*outputFactory)(s)
+func (s *FFStream) asSenderFactory() *senderFactory {
+	return (*senderFactory)(s)
 }
 
-func (s *outputFactory) NewOutput(
+func (s *senderFactory) asFFStream() *FFStream {
+	return (*FFStream)(s)
+}
+
+func (s *senderFactory) NewSender(
 	ctx context.Context,
-	outputKey streammux.OutputKey,
-) (node.Abstract, streammux.OutputConfig, error) {
+	outputKey streammux.SenderKey,
+) (node.Abstract, streammuxtypes.SenderConfig, error) {
 	if len(s.OutputTemplates) != 1 {
-		return nil, streammux.OutputConfig{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
+		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
 	}
 	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
-	if outputTemplate.RetryOutputOnFailure {
-		return s.newOutputWithRetry(ctx, outputTemplate, outputURL)
+	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Find(outputKey.Resolution)
+	var sendBufSize uint
+	if resCfg == nil {
+		if outputKey.Resolution != (codec.Resolution{}) {
+			logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.Resolution)
+		}
+		resCfg = s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Best()
 	}
-	return s.newOutput(ctx, outputTemplate, outputURL)
+	sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
+	sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
+	if outputTemplate.RetryOutputOnFailure {
+		return s.newOutputWithRetry(ctx, outputTemplate, outputURL, sendBufSize)
+	}
+	return s.newOutput(ctx, outputTemplate, outputURL, sendBufSize)
 }
 
-func (s *outputFactory) newOutput(
+func (s *senderFactory) newOutput(
 	ctx context.Context,
-	outputTemplate OutputTemplate,
+	outputTemplate SenderTemplate,
 	outputURL string,
-) (node.Abstract, streammux.OutputConfig, error) {
+	bufSize uint,
+) (node.Abstract, streammuxtypes.SenderConfig, error) {
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
-		CustomOptions: outputTemplate.Options,
+		CustomOptions:  outputTemplate.Options,
+		SendBufferSize: bufSize,
 	})
 	if err != nil {
-		return nil, streammux.OutputConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
+		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
 
 	outputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return outputNode, streammux.OutputConfig{}, nil
+	return outputNode, streammuxtypes.SenderConfig{}, nil
 }
 
-func (s *outputFactory) newOutputWithRetry(
+func (s *senderFactory) newOutputWithRetry(
 	ctx context.Context,
-	outputTemplate OutputTemplate,
+	outputTemplate SenderTemplate,
 	outputURL string,
-) (node.Abstract, streammux.OutputConfig, error) {
+	bufSize uint,
+) (node.Abstract, streammuxtypes.SenderConfig, error) {
 	outputKernel := kernel.NewRetry(
 		ctx,
 		func(ctx context.Context) (*kernel.Output, error) {
 			outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
-				CustomOptions: outputTemplate.Options,
+				CustomOptions:  outputTemplate.Options,
+				SendBufferSize: bufSize,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
@@ -100,5 +119,5 @@ func (s *outputFactory) newOutputWithRetry(
 	)
 
 	retryOutputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return retryOutputNode, streammux.OutputConfig{}, nil
+	return retryOutputNode, streammuxtypes.SenderConfig{}, nil
 }

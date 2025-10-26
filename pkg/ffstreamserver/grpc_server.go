@@ -37,30 +37,14 @@ func (srv *GRPCServer) SetLoggingLevel(
 	return nil, status.Errorf(codes.Unimplemented, "method SetLoggingLevel not implemented, yet")
 }
 
-func (srv *GRPCServer) GetRecoderConfig(
+func (srv *GRPCServer) GetCurrentOutput(
 	ctx context.Context,
-	req *ffstream_grpc.GetRecoderConfigRequest,
-) (*ffstream_grpc.GetRecoderConfigReply, error) {
+	req *ffstream_grpc.GetCurrentOutputRequest,
+) (*ffstream_grpc.GetCurrentOutputReply, error) {
 	cfg := srv.FFStream.GetRecoderConfig(ctx)
-	return &ffstream_grpc.GetRecoderConfigReply{
+	return &ffstream_grpc.GetCurrentOutputReply{
 		Config: goconv.RecoderConfigToGRPC(cfg),
 	}, nil
-}
-
-func (srv *GRPCServer) SetRecoderConfig(
-	ctx context.Context,
-	req *ffstream_grpc.SetRecoderConfigRequest,
-) (*ffstream_grpc.SetRecoderConfigReply, error) {
-	cfg := goconv.RecoderConfigFromGRPC(req.GetConfig())
-	if srv.FFStream.StreamMux == nil {
-		srv.initialRecoderConfig = cfg
-		return &ffstream_grpc.SetRecoderConfigReply{}, nil
-	}
-	err := srv.FFStream.SetRecoderConfig(ctx, cfg)
-	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "unable to configure the encoder: %v", err)
-	}
-	return &ffstream_grpc.SetRecoderConfigReply{}, nil
 }
 
 func (srv *GRPCServer) GetStats(
@@ -101,23 +85,6 @@ func (srv *GRPCServer) End(
 	srv.stopRecodingFunc()
 	srv.stopRecodingFunc = nil
 	return &ffstream_grpc.EndReply{}, nil
-}
-
-func (srv *GRPCServer) GetTolerableOutputQueueSizeBytes(
-	ctx context.Context,
-	req *ffstream_grpc.GetTolerableOutputQueueSizeBytesRequest,
-) (*ffstream_grpc.GetTolerableOutputQueueSizeBytesReply, error) {
-	return &ffstream_grpc.GetTolerableOutputQueueSizeBytesReply{
-		Value: srv.FFStream.GetTolerableOutputQueueSizeBytes(ctx),
-	}, nil
-}
-
-func (srv *GRPCServer) SetTolerableOutputQueueSizeBytes(
-	ctx context.Context,
-	req *ffstream_grpc.SetTolerableOutputQueueSizeBytesRequest,
-) (*ffstream_grpc.SetTolerableOutputQueueSizeBytesReply, error) {
-	srv.FFStream.SetTolerableOutputQueueSizeBytes(ctx, req.GetValue())
-	return &ffstream_grpc.SetTolerableOutputQueueSizeBytesReply{}, nil
 }
 
 func (srv *GRPCServer) GetPipelines(

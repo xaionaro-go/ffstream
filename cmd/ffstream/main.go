@@ -111,7 +111,7 @@ func main() {
 			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
 		}
 
-		err := s.AddOutputTemplate(ctx, ffstream.OutputTemplate{
+		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
 			URLTemplate:          outputParams.URL,
 			Options:              outputOptions,
 			RetryOutputOnFailure: flags.RetryOutputOnFailure,

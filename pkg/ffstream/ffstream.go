@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"sync/atomic"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
@@ -23,17 +22,13 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
-	"github.com/xaionaro-go/xsync"
 )
 
 type FFStream struct {
 	NodeInput       *node.Node[*processor.FromKernel[*kernel.Input]]
-	OutputTemplates []OutputTemplate
+	OutputTemplates []SenderTemplate
 
 	StreamMux *streammux.StreamMux[struct{}]
-
-	TolerableOutputQueueSizeBytes atomic.Uint64
-	CurrentOutputBufferSize       xsync.Map[int, uint64]
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
@@ -74,7 +69,7 @@ func (s *FFStream) AddInput(
 
 func (s *FFStream) AddOutputTemplate(
 	ctx context.Context,
-	outputTemplate OutputTemplate,
+	outputTemplate SenderTemplate,
 ) (_err error) {
 	logger.Debugf(ctx, "AddOutputTemplate(ctx, %#+v)", outputTemplate)
 	defer func() { logger.Debugf(ctx, "/AddOutputTemplate(ctx, %#+v): %v", outputTemplate, _err) }()
@@ -90,24 +85,24 @@ func (s *FFStream) GetRecoderConfig(
 	return s.StreamMux.GetRecoderConfig(ctx)
 }
 
-func (s *FFStream) SetRecoderConfig(
+func (s *FFStream) SwitchOutputByProps(
 	ctx context.Context,
-	cfg streammuxtypes.RecoderConfig,
+	props streammuxtypes.SenderProps,
 ) (_err error) {
-	logger.Debugf(ctx, "SetRecoderConfig(ctx, %#+v)", cfg)
+	logger.Debugf(ctx, "ModifyOutput(ctx, %#+v)", props)
 	defer func() {
-		logger.Debugf(ctx, "/SetRecoderConfig(ctx, %#+v): %v", cfg, _err)
+		logger.Debugf(ctx, "/ModifyOutput(ctx, %#+v): %v", props, _err)
 	}()
 	if s.StreamMux == nil {
-		return fmt.Errorf("it is allowed to use SetRecoderConfig only after Start is invoked")
+		return fmt.Errorf("it is allowed to use ModifyOutput only after Start is invoked")
 	}
-	if len(cfg.Output.VideoTrackConfigs) > 0 {
-		videoCfg := &cfg.Output.VideoTrackConfigs[0]
+	if len(props.Output.VideoTrackConfigs) > 0 {
+		videoCfg := &props.Output.VideoTrackConfigs[0]
 		if videoCfg.CodecName != codectypes.Name(codec.NameCopy) && videoCfg.Resolution == (codec.Resolution{}) {
 			return fmt.Errorf("resolution must be set for video codec %q", videoCfg.CodecName)
 		}
 	}
-	return s.StreamMux.SetRecoderConfig(ctx, cfg)
+	return s.StreamMux.SwitchToOutputByProps(ctx, props)
 }
 
 func (s *FFStream) GetStats(
@@ -132,8 +127,8 @@ func (s *FFStream) GetStats(
 	if s.StreamMux != nil {
 		for _, output := range s.StreamMux.Outputs {
 			outputCounters := avpgoconv.NodeCountersToGRPC(
-				output.OutputNode.GetCountersPtr(),
-				output.OutputNode.GetProcessor().CountersPtr(),
+				output.SendingNode.GetCountersPtr(),
+				output.SendingNode.GetProcessor().CountersPtr(),
 			)
 			r.NodeCounters.Processed = goconv.AddNodeCountersSection(r.NodeCounters.Processed, outputCounters.Processed)
 			r.NodeCounters.Missed = goconv.AddNodeCountersSection(r.NodeCounters.Missed, outputCounters.Missed)
@@ -148,19 +143,6 @@ func (s *FFStream) GetAllStats(
 	ctx context.Context,
 ) map[string]avptypes.Statistics {
 	return s.StreamMux.GetAllStats(ctx)
-}
-
-func (s *FFStream) SetTolerableOutputQueueSizeBytes(
-	ctx context.Context,
-	newValue uint64,
-) {
-	s.TolerableOutputQueueSizeBytes.Store(newValue)
-}
-
-func (s *FFStream) GetTolerableOutputQueueSizeBytes(
-	ctx context.Context,
-) uint64 {
-	return s.TolerableOutputQueueSizeBytes.Load()
 }
 
 func (s *FFStream) Start(
@@ -195,24 +177,27 @@ func (s *FFStream) Start(
 		ctx,
 		muxMode,
 		autoBitRate,
-		s.asOutputFactory(),
+		s.asSenderFactory(),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
 	s.NodeInput.AddPushPacketsTo(s.StreamMux)
 
-	if err := s.SetRecoderConfig(ctx, recoderConfig); err != nil {
+	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
+		RecoderConfig:   recoderConfig,
+		SenderNodeProps: streammuxtypes.SenderNodeProps{},
+	}); err != nil {
 		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
 	}
 
 	if autoBitRate != nil {
-		outputKey := streammux.OutputKeyFromRecoderConfig(ctx, &recoderConfig)
+		outputKey := streammux.PartialOutputKeyFromRecoderConfig(ctx, &recoderConfig)
 		var wg sync.WaitGroup
 		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
 			outputKey.Resolution = output.Resolution
 			wg.Add(1)
-			go func(output streammuxtypes.OutputKey) {
+			go func(output streammuxtypes.SenderKey) {
 				defer wg.Done()
 				if _, err := s.StreamMux.GetOrInitOutput(ctx, outputKey); err != nil {
 					logger.Errorf(ctx, "unable to init output for resolution %#+v: %w", output.Resolution, err)
@@ -223,7 +208,7 @@ func (s *FFStream) Start(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if _, err := s.StreamMux.GetOrInitOutput(ctx, streammuxtypes.OutputKey{
+				if _, err := s.StreamMux.GetOrInitOutput(ctx, streammuxtypes.SenderKey{
 					AudioCodec: codectypes.NameCopy,
 					VideoCodec: codectypes.NameCopy,
 				}); err != nil {

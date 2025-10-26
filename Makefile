@@ -70,6 +70,7 @@ bin/ffstream-android-arm64: dockerbuilder-android-arm64
 	@if git diff-files --quiet; then \
 		git branch -D v0-termux; \
 		git branch v0-termux; \
+		rm -f /home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb; \
 		docker exec $(DOCKER_CONTAINER_NAME) make ENABLE_VLC="$(ENABLE_VLC)" ENABLE_LIBAV="$(ENABLE_LIBAV)" ENABLE_DEBUG_TRACE="$(ENABLE_DEBUG_TRACE)" -C /project ffstream-android-arm64-in-docker; \
 		docker cp $(DOCKER_CONTAINER_NAME):/home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb bin/ffstream-android-termux-arm64.deb; \
 	else \
@@ -96,6 +97,7 @@ ffstream-android-arm64-in-docker: /home/builder/go/bin/pkg-config-wrapper
 		bash -x ./build-package.sh ffstream
 
 ffstream-android-arm64-in-termux: build
+	git log -1
 	go mod tidy
 	chmod -R +w /home/builder/.termux-build/ffstream /home/builder/.termux-build/_cache/go* ~/go/pkg/mod/golang.org
 	for F in ~/.termux-build/ffstream/build/pkg/mod/golang.org/toolchain@v0.0.1-go*.linux-amd64/src/runtime/cgo/cgo.go ~/.termux-build/_cache/go*/src/runtime/cgo/cgo.go ~/go/pkg/mod/golang.org/toolchain@v0.0.1-*.linux-amd64/src/runtime/cgo/cgo.go; do \
@@ -116,3 +118,4 @@ ffstream-android-arm64-in-termux: build
 	PATH="${PATH}:${HOME}/go/bin" \
 	GOFLAGS="$(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags=$(shell echo ${LINKER_FLAGS_ANDROID} | tr " " ",")" \
 	go build -x -o bin/ffstream-android-arm64 ./cmd/ffstream
+	ls -ldh bin/ffstream-android-arm64
