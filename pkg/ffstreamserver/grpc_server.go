@@ -159,3 +159,17 @@ func (srv *GRPCServer) SetFPSFraction(
 	}
 	return &ffstream_grpc.SetFPSFractionReply{}, nil
 }
+
+func (srv *GRPCServer) GetBitRates(
+	ctx context.Context,
+	req *ffstream_grpc.GetBitRatesRequest,
+) (*ffstream_grpc.GetBitRatesReply, error) {
+	bitRates, err := srv.FFStream.GetBitRates(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get bit rates: %v", err)
+	}
+
+	return &ffstream_grpc.GetBitRatesReply{
+		BitRates: goconv.BitRatesToGRPC(bitRates),
+	}, nil
+}

@@ -61,6 +61,12 @@ var (
 		Run:  statsEncoder,
 	}
 
+	StatsBitRates = &cobra.Command{
+		Use:  "bitrates",
+		Args: cobra.ExactArgs(0),
+		Run:  statsBitRates,
+	}
+
 	SRT = &cobra.Command{
 		Use: "srt",
 	}
@@ -141,6 +147,7 @@ var (
 func init() {
 	Root.AddCommand(Stats)
 	Stats.AddCommand(StatsEncoder)
+	Stats.AddCommand(StatsBitRates)
 
 	Root.AddCommand(Encoder)
 	Encoder.AddCommand(EncoderConfig)
@@ -194,6 +201,20 @@ func statsEncoder(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), stats)
+}
+
+func statsBitRates(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	bitRates, err := client.GetBitRates(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), bitRates)
 }
 
 // encoderFPSFractionGet calls the server and prints "num den\n"

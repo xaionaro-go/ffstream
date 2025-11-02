@@ -20,6 +20,7 @@ service FFStream {
   rpc SetAutoBitRateCalculator (SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
   rpc GetFPSFraction (GetFPSFractionRequest) returns (GetFPSFractionReply) {}
   rpc SetFPSFraction (SetFPSFractionRequest) returns (SetFPSFractionReply) {}
+  rpc GetBitRates (GetBitRatesRequest) returns (GetBitRatesReply) {}
 }
 
 enum LoggingLevel {
@@ -223,3 +224,20 @@ message SetFPSFractionRequest {
     uint32 den = 2;
 }
 message SetFPSFractionReply {}
+
+message BitRateInfo {
+  uint64 audio = 1;
+  uint64 video = 2;
+  uint64 other = 3;
+}
+
+message BitRates {
+  BitRateInfo inputBitRate = 1;
+  BitRateInfo encodedBitRate = 2;
+  BitRateInfo outputBitRate = 3;
+}
+
+message GetBitRatesRequest {}
+message GetBitRatesReply {
+  BitRates bitRates = 1;
+}

@@ -275,3 +275,21 @@ func (c *Client) SetFPSFraction(
 
 	return nil
 }
+
+func (c *Client) GetBitRates(
+	ctx context.Context,
+) (*streammuxtypes.BitRates, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetBitRates(ctx, &ffstream_grpc.GetBitRatesRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	bitRates := goconv.BitRatesFromGRPC(resp.GetBitRates())
+	return bitRates, nil
+}

@@ -150,7 +150,7 @@ func main() {
 	err = s.Start(ctx, recoderConfig, flags.MuxMode, flags.AutoBitRate)
 	assertNoError(ctx, err)
 
-	if logger.FromCtx(ctx).Level() >= logger.LevelDebug {
+	if logger.FromCtx(ctx).Level() >= logger.LevelTrace {
 		observability.Go(ctx, func(ctx context.Context) {
 			t := time.NewTicker(time.Second)
 			defer t.Stop()
@@ -165,7 +165,7 @@ func main() {
 				if err != nil {
 					logger.Errorf(ctx, "unable to JSON-ize the statistics: %v", err)
 				}
-				logger.Debugf(ctx, "%s", statsBytes)
+				logger.Tracef(ctx, "%s", statsBytes)
 			}
 		})
 	}

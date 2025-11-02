@@ -34,6 +34,7 @@ const (
 	FFStream_SetAutoBitRateCalculator_FullMethodName = "/ffstream_grpc.FFStream/SetAutoBitRateCalculator"
 	FFStream_GetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/GetFPSFraction"
 	FFStream_SetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/SetFPSFraction"
+	FFStream_GetBitRates_FullMethodName              = "/ffstream_grpc.FFStream/GetBitRates"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -55,6 +56,7 @@ type FFStreamClient interface {
 	SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error)
 	GetFPSFraction(ctx context.Context, in *GetFPSFractionRequest, opts ...grpc.CallOption) (*GetFPSFractionReply, error)
 	SetFPSFraction(ctx context.Context, in *SetFPSFractionRequest, opts ...grpc.CallOption) (*SetFPSFractionReply, error)
+	GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error)
 }
 
 type fFStreamClient struct {
@@ -238,6 +240,16 @@ func (c *fFStreamClient) SetFPSFraction(ctx context.Context, in *SetFPSFractionR
 	return out, nil
 }
 
+func (c *fFStreamClient) GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBitRatesReply)
+	err := c.cc.Invoke(ctx, FFStream_GetBitRates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -257,6 +269,7 @@ type FFStreamServer interface {
 	SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error)
 	GetFPSFraction(context.Context, *GetFPSFractionRequest) (*GetFPSFractionReply, error)
 	SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error)
+	GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -308,6 +321,9 @@ func (UnimplementedFFStreamServer) GetFPSFraction(context.Context, *GetFPSFracti
 }
 func (UnimplementedFFStreamServer) SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetFPSFraction not implemented")
+}
+func (UnimplementedFFStreamServer) GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBitRates not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -595,6 +611,24 @@ func _FFStream_SetFPSFraction_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetBitRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBitRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetBitRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetBitRates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetBitRates(ctx, req.(*GetBitRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -657,6 +691,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetFPSFraction",
 			Handler:    _FFStream_SetFPSFraction_Handler,
+		},
+		{
+			MethodName: "GetBitRates",
+			Handler:    _FFStream_GetBitRates_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

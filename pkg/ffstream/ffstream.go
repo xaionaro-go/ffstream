@@ -332,3 +332,22 @@ func (s *FFStream) SetFPSFraction(
 	s.StreamMux.SetFPSFraction(ctx, num, den)
 	return nil
 }
+
+func (s *FFStream) GetBitRates(
+	ctx context.Context,
+) (_ret *streammuxtypes.BitRates, err error) {
+	if s == nil {
+		return nil, fmt.Errorf("ffstream is nil")
+	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return nil, fmt.Errorf("it is allowed to use GetBitRates only after Start is invoked")
+	}
+
+	bitRates, err := s.StreamMux.GetBitRates(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get bit rates: %w", err)
+	}
+	return bitRates, nil
+}
