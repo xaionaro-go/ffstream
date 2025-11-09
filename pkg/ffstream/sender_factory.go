@@ -50,7 +50,7 @@ func (s *senderFactory) asFFStream() *FFStream {
 func (s *senderFactory) NewSender(
 	ctx context.Context,
 	outputKey streammux.SenderKey,
-) (node.Abstract, streammuxtypes.SenderConfig, error) {
+) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
 	if len(s.OutputTemplates) != 1 {
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
 	}
@@ -77,7 +77,7 @@ func (s *senderFactory) newOutput(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (node.Abstract, streammuxtypes.SenderConfig, error) {
+) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
 		CustomOptions:  outputTemplate.Options,
 		SendBufferSize: bufSize,
@@ -86,7 +86,7 @@ func (s *senderFactory) newOutput(
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
 
-	outputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
+	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
 	return outputNode, streammuxtypes.SenderConfig{}, nil
 }
 
@@ -95,7 +95,7 @@ func (s *senderFactory) newOutputWithRetry(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (node.Abstract, streammuxtypes.SenderConfig, error) {
+) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
 	outputKernel := kernel.NewRetry(
 		ctx,
 		func(ctx context.Context) (*kernel.Output, error) {
@@ -118,6 +118,6 @@ func (s *senderFactory) newOutputWithRetry(
 		},
 	)
 
-	retryOutputNode := node.NewFromKernel(ctx, outputKernel, processor.DefaultOptionsOutput()...)
+	retryOutputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
 	return retryOutputNode, streammuxtypes.SenderConfig{}, nil
 }
