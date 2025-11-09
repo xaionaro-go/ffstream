@@ -36,6 +36,9 @@ func main() {
 
 	logger.Debugf(ctx, "flags == %#+v", flags)
 
+	platformInit()
+	logger.Debugf(ctx, "platform initialized")
+
 	s := ffstream.New(ctx)
 
 	if flags.ListenControlSocket != "" {

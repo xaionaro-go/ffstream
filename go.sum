@@ -172,6 +172,8 @@ github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d h1:++uR850Cqo
 github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d/go.mod h1:kjLo1LasgdDJqbTGD5bbEM+D6RiZSbf5ZT8yiPFF1BA=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 h1:FZn9+TN3uHhohfpanWkR9lFNHApizznZbML6XjvEgTU=
 github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8/go.mod h1:2W2Kp/HJFXcFBppQ4YytgDy/ydFL3hGc23xSB1U/Luc=
+github.com/xaionaro-go/avpipeline v0.0.0-20251103024353-56f5eb90fa6e h1:ZUri4guIgItq7ryBNBaxnkR7J+9l2WKfDQkn1u/tSmw=
+github.com/xaionaro-go/avpipeline v0.0.0-20251103024353-56f5eb90fa6e/go.mod h1:TiLj0o11F3HnNXC8MraetW1/MIM3x0ROUrruxBpeSuw=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7TlNavGKzAgCf598zWRfZCSpi1HTKDbjbwg=
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=
@@ -180,8 +182,8 @@ github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9 h1:z5K1pa9cJZ2o
 github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9/go.mod h1:yH5w7hdIyhbR4p0WfABH9fLIIK2ZwPd5CKk2K2ND/vo=
 github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f h1:mMrVrYtH9MyCUzBwPvuEntvqdCJ0zifCfqV6bHU6z1M=
 github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f/go.mod h1:aszOZHoPPSgKwdbJUgonps3MSODqctkNhwQDDwlw0Eg=
-github.com/xaionaro-go/ndk v0.0.0-20250420195304-361bb98583bf h1:0FaC9qSWDXeKiZbfNI2agR7Vjait42RVsVQJ0AkNE7g=
-github.com/xaionaro-go/ndk v0.0.0-20250420195304-361bb98583bf/go.mod h1:W8O/bfrWU9qp2okQxMGyXvEbtC79wnTtJV2Y7K3oUPQ=
+github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264 h1:8o+V7b9exSLvOTw3ewyTwC8qpLb95Iyd7r5MsOX3icE=
+github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264/go.mod h1:W8O/bfrWU9qp2okQxMGyXvEbtC79wnTtJV2Y7K3oUPQ=
 github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c h1:2CIIxTRox9auImHyfbfrqSyrvPaWrw5w2Yw5TkOioZw=
 github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c/go.mod h1:vRcA12NWsR0IrS75eqnPBs5aVfCYmJy4bR+6DbJpBCg=
 github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4 h1:dlsJ1l9WI+LTpB5z4f7FCLLrxJ7uV4tj9jWNqpibhA0=

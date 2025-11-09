@@ -6,8 +6,6 @@ replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.
 
 replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20250921154926-f1a150c6bf00
 
-replace github.com/xaionaro-go/avpipeline => /home/builder/avpipeline
-
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
 	github.com/asticode/go-astiav v0.36.0
@@ -80,7 +78,7 @@ require (
 	github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
-	github.com/xaionaro-go/ndk v0.0.0-20250420195304-361bb98583bf // indirect
+	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
 	github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c // indirect
 	github.com/xaionaro-go/polyjson v0.0.0-20250825191950-a2ce35ee07f0
 	github.com/xaionaro-go/proxy v0.0.0-20250525144747-579f5a891c15 // indirect
