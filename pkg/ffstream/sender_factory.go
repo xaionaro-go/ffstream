@@ -47,6 +47,11 @@ func (s *senderFactory) asFFStream() *FFStream {
 	return (*FFStream)(s)
 }
 
+type SendingNode interface {
+	streammux.SendingNode
+	streammux.SetDropOnCloser
+}
+
 func (s *senderFactory) NewSender(
 	ctx context.Context,
 	outputKey streammux.SenderKey,
@@ -77,7 +82,7 @@ func (s *senderFactory) newOutput(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
+) (SendingNode, streammuxtypes.SenderConfig, error) {
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
 		CustomOptions:  outputTemplate.Options,
 		SendBufferSize: bufSize,
@@ -87,7 +92,7 @@ func (s *senderFactory) newOutput(
 	}
 
 	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return outputNode, streammuxtypes.SenderConfig{}, nil
+	return nodeSetDropOnCloserWrapper{outputNode}, streammuxtypes.SenderConfig{}, nil
 }
 
 func (s *senderFactory) newOutputWithRetry(
@@ -95,7 +100,7 @@ func (s *senderFactory) newOutputWithRetry(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
+) (SendingNode, streammuxtypes.SenderConfig, error) {
 	outputKernel := kernel.NewRetry(
 		ctx,
 		func(ctx context.Context) (*kernel.Output, error) {
@@ -119,5 +124,5 @@ func (s *senderFactory) newOutputWithRetry(
 	)
 
 	retryOutputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
-	return retryOutputNode, streammuxtypes.SenderConfig{}, nil
+	return nodeWithRetrySetDropOnCloserWrapper{retryOutputNode}, streammuxtypes.SenderConfig{}, nil
 }
