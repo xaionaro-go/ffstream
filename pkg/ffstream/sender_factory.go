@@ -28,16 +28,27 @@ func (t *SenderTemplate) GetURL(
 	outputKey streammux.SenderKey,
 ) string {
 	url := t.URLTemplate
+	var audioSampleRate, videoWidth, videoHeight string
+	if outputKey.AudioSampleRate != 0 {
+		audioSampleRate = fmt.Sprintf("%d", outputKey.AudioSampleRate)
+	}
+	if outputKey.VideoResolution.Width != 0 {
+		videoWidth = fmt.Sprintf("%d", outputKey.VideoResolution.Width)
+	}
+	if outputKey.VideoResolution.Height != 0 {
+		videoHeight = fmt.Sprintf("%d", outputKey.VideoResolution.Height)
+	}
 	url = strings.ReplaceAll(url, "${a:0:codec}", string(codec.Name(outputKey.AudioCodec).Canonicalize(ctx, true)))
+	url = strings.ReplaceAll(url, "${a:0:rate}", audioSampleRate)
 	url = strings.ReplaceAll(url, "${v:0:codec}", string(codec.Name(outputKey.VideoCodec).Canonicalize(ctx, true)))
-	url = strings.ReplaceAll(url, "${v:0:width}", fmt.Sprintf("%d", outputKey.Resolution.Width))
-	url = strings.ReplaceAll(url, "${v:0:height}", fmt.Sprintf("%d", outputKey.Resolution.Height))
+	url = strings.ReplaceAll(url, "${v:0:width}", videoWidth)
+	url = strings.ReplaceAll(url, "${v:0:height}", videoHeight)
 	return url
 }
 
 type senderFactory FFStream
 
-var _ streammux.SenderFactory = (*senderFactory)(nil)
+var _ streammux.SenderFactory[CustomData] = (*senderFactory)(nil)
 
 func (s *FFStream) asSenderFactory() *senderFactory {
 	return (*senderFactory)(s)
@@ -48,24 +59,24 @@ func (s *senderFactory) asFFStream() *FFStream {
 }
 
 type SendingNode interface {
-	streammux.SendingNode
+	streammux.SendingNode[CustomData]
 	streammux.SetDropOnCloser
 }
 
 func (s *senderFactory) NewSender(
 	ctx context.Context,
 	outputKey streammux.SenderKey,
-) (streammux.SendingNode, streammuxtypes.SenderConfig, error) {
+) (streammux.SendingNode[CustomData], streammuxtypes.SenderConfig, error) {
 	if len(s.OutputTemplates) != 1 {
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
 	}
 	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
-	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Find(outputKey.Resolution)
+	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Find(outputKey.VideoResolution)
 	var sendBufSize uint
 	if resCfg == nil {
-		if outputKey.Resolution != (codec.Resolution{}) {
-			logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.Resolution)
+		if outputKey.VideoResolution != (codec.Resolution{}) {
+			logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.VideoResolution)
 		}
 		resCfg = s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Best()
 	}
@@ -91,7 +102,7 @@ func (s *senderFactory) newOutput(
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
 
-	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
+	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData[CustomData]](ctx, outputKernel, processor.DefaultOptionsOutput()...)
 	return nodeSetDropOnCloserWrapper{outputNode}, streammuxtypes.SenderConfig{}, nil
 }
 
@@ -123,6 +134,8 @@ func (s *senderFactory) newOutputWithRetry(
 		},
 	)
 
-	retryOutputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData](ctx, outputKernel, processor.DefaultOptionsOutput()...)
+	retryOutputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData[CustomData]](
+		ctx, outputKernel, processor.DefaultOptionsOutput()...,
+	)
 	return nodeWithRetrySetDropOnCloserWrapper{retryOutputNode}, streammuxtypes.SenderConfig{}, nil
 }

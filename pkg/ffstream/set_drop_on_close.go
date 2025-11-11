@@ -13,7 +13,7 @@ import (
 )
 
 type nodeSetDropOnCloserWrapper struct {
-	*node.NodeWithCustomData[streammux.OutputCustomData, *processor.FromKernel[*kernel.Output]]
+	*node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Output]]
 }
 
 var _ SendingNode = (*nodeSetDropOnCloserWrapper)(nil)
@@ -32,7 +32,7 @@ func (n nodeSetDropOnCloserWrapper) SetDropOnClose(
 }
 
 type nodeWithRetrySetDropOnCloserWrapper struct {
-	*node.NodeWithCustomData[streammux.OutputCustomData, *processor.FromKernel[*kernel.Retry[*kernel.Output]]]
+	*node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Retry[*kernel.Output]]]
 }
 
 var _ SendingNode = (*nodeWithRetrySetDropOnCloserWrapper)(nil)

@@ -22,3 +22,10 @@ func fatal(
 ) {
 	logger.Fatalf(ctx, format, args...)
 }
+
+func must[T any](value T, err error) T {
+	if err != nil {
+		logger.Fatalf(context.Background(), "%v", err)
+	}
+	return value
+}

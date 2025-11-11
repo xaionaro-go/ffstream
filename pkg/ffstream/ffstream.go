@@ -28,7 +28,7 @@ type FFStream struct {
 	NodeInput       *node.Node[*processor.FromKernel[*kernel.Input]]
 	OutputTemplates []SenderTemplate
 
-	StreamMux *streammux.StreamMux[struct{}]
+	StreamMux *streammux.StreamMux[CustomData]
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
@@ -96,6 +96,12 @@ func (s *FFStream) SwitchOutputByProps(
 	if s.StreamMux == nil {
 		return fmt.Errorf("it is allowed to use ModifyOutput only after Start is invoked")
 	}
+	if len(props.Output.AudioTrackConfigs) > 0 {
+		audioCfg := &props.Output.AudioTrackConfigs[0]
+		if audioCfg.CodecName != codectypes.Name(codec.NameCopy) && audioCfg.SampleRate == 0 {
+			return fmt.Errorf("sample rate must be set for audio codec %q", audioCfg.CodecName)
+		}
+	}
 	if len(props.Output.VideoTrackConfigs) > 0 {
 		videoCfg := &props.Output.VideoTrackConfigs[0]
 		if videoCfg.CodecName != codectypes.Name(codec.NameCopy) && videoCfg.Resolution == (codec.Resolution{}) {
@@ -149,7 +155,7 @@ func (s *FFStream) Start(
 	ctx context.Context,
 	recoderConfig streammuxtypes.RecoderConfig,
 	muxMode streammuxtypes.MuxMode,
-	autoBitRate *streammuxtypes.AutoBitRateConfig,
+	autoBitRateVideo *streammuxtypes.AutoBitRateVideoConfig,
 ) (_err error) {
 	logger.Debugf(ctx, "Start")
 	defer func() { logger.Debugf(ctx, "/Start: %v", _err) }()
@@ -173,10 +179,10 @@ func (s *FFStream) Start(
 	s.addCancelFnLocked(cancelFn)
 
 	var err error
-	s.StreamMux, err = streammux.New(
+	s.StreamMux, err = streammux.NewWithCustomData(
 		ctx,
 		muxMode,
-		autoBitRate,
+		autoBitRateVideo,
 		s.asSenderFactory(),
 	)
 	if err != nil {
@@ -191,28 +197,48 @@ func (s *FFStream) Start(
 		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
 	}
 
-	if autoBitRate != nil {
-		outputKey := streammux.PartialOutputKeyFromRecoderConfig(ctx, &recoderConfig)
+	if autoBitRateVideo != nil {
+		senderKey := streammux.PartialSenderKeyFromRecoderConfig(ctx, &recoderConfig)
 		var wg sync.WaitGroup
 		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
-			outputKey.Resolution = output.Resolution
+			senderKey.VideoResolution = output.Resolution
 			wg.Add(1)
 			go func(output streammuxtypes.SenderKey) {
 				defer wg.Done()
-				if _, err := s.StreamMux.GetOrInitOutput(ctx, outputKey); err != nil {
-					logger.Errorf(ctx, "unable to init output for resolution %#+v: %w", output.Resolution, err)
+				switch s.StreamMux.MuxMode {
+				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+					if _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
+						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", output.VideoResolution, err)
+					}
+				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+						VideoCodec:      senderKey.VideoCodec,
+						VideoResolution: senderKey.VideoResolution,
+					}); err != nil {
+						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", output.VideoResolution, err)
+					}
 				}
-			}(outputKey)
+			}(senderKey)
 		}
-		if autoBitRate.AutoByPass {
+		if autoBitRateVideo.AutoByPass {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if _, err := s.StreamMux.GetOrInitOutput(ctx, streammuxtypes.SenderKey{
-					AudioCodec: codectypes.NameCopy,
-					VideoCodec: codectypes.NameCopy,
-				}); err != nil {
-					logger.Errorf(ctx, "unable to init output for the bypass: %w", err)
+				switch s.StreamMux.MuxMode {
+				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+						AudioCodec:      senderKey.AudioCodec,
+						AudioSampleRate: senderKey.AudioSampleRate,
+						VideoCodec:      codectypes.NameCopy,
+					}); err != nil {
+						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
+					}
+				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+						VideoCodec: codectypes.NameCopy,
+					}); err != nil {
+						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
+					}
 				}
 			}()
 		}

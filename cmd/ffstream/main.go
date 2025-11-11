@@ -9,6 +9,7 @@ import (
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	audio "github.com/xaionaro-go/audio/pkg/audio/types"
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
@@ -63,6 +64,7 @@ func main() {
 	}
 
 	var resolution codec.Resolution
+	var audioSampleRate audio.SampleRate
 
 	var encoderVideoOptions avptypes.DictionaryItems
 	encoderVideoOptions = append(encoderVideoOptions,
@@ -83,6 +85,24 @@ func main() {
 			_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
 			assertNoError(ctx, err)
 			logger.Debugf(ctx, "parsed resolution: %dx%d", resolution.Width, resolution.Height)
+		}
+	}
+
+	var encoderAudioOptions avptypes.DictionaryItems
+	encoderAudioOptions = append(encoderAudioOptions,
+		convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options)...,
+	)
+	encoderAudioOptions = encoderAudioOptions.Deduplicate()
+
+	for idx, v := range encoderAudioOptions {
+		logger.Tracef(ctx, "encoderAudioOptions[%d]: %s=%s", idx, v.Key, v.Value)
+		if len(v.Key) == 0 {
+			logger.Fatalf(ctx, "unexpected empty output option key with value %q", v.Value)
+		}
+		switch v.Key {
+		case "ar":
+			must(fmt.Sscanf(v.Value, "%d", &audioSampleRate))
+			logger.Debugf(ctx, "parsed audio sample rate: %d", audioSampleRate)
 		}
 	}
 
@@ -146,6 +166,7 @@ func main() {
 				CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
 				AverageBitRate: flags.AudioEncoder.BitRate,
 				CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
+				SampleRate:     audioSampleRate,
 			}},
 		},
 	}

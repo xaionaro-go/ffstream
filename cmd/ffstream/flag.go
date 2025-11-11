@@ -28,7 +28,7 @@ type Flags struct {
 	VideoEncoder          Encoder
 	AudioEncoder          Encoder
 	MuxMode               streammuxtypes.MuxMode
-	AutoBitRate           *streammuxtypes.AutoBitRateConfig
+	AutoBitRate           *streammuxtypes.AutoBitRateVideoConfig
 	RetryOutputOnFailure  bool
 	Outputs               []Resource
 }
