@@ -20,10 +20,7 @@ func (s *FFStream) WithSRTOutput(
 	callback func(*threadsafe.Socket) error,
 ) error {
 	output, err := xsync.DoR2(ctx, &s.StreamMux.Locker, func() (*streammux.Output[CustomData], error) {
-		if outputID < 0 || outputID >= len(s.StreamMux.Outputs) {
-			return nil, fmt.Errorf("outputID %d is out of range [0..%d)", outputID, len(s.StreamMux.Outputs))
-		}
-		output := s.StreamMux.Outputs[outputID]
+		output, _ := s.StreamMux.Outputs.Load(streammux.OutputID(outputID))
 		if output == nil {
 			return nil, fmt.Errorf("output %d is not initialized", outputID)
 		}

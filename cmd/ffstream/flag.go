@@ -52,6 +52,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	encoderVideoFlag := flag.AddParameter(p, "c:v", true, ptr(flag.String("")))
 	encoderAudioFlag := flag.AddParameter(p, "c:a", true, ptr(flag.String("")))
 	bitrateVideoFlag := flag.AddParameter(p, "b:v", true, ptr(flag.Uint64(0)))
+	bitrateAudioFlag := flag.AddParameter(p, "b:a", true, ptr(flag.Uint64(0)))
 	listenControlSocket := flag.AddParameter(p, "listen_control", false, ptr(flag.String("")))
 	listenNetPprof := flag.AddParameter(p, "listen_net_pprof", false, ptr(flag.String("")))
 	loggerLevel := flag.AddParameter(p, "v", false, ptr(flag.LogLevel(logger.LevelInfo)))
@@ -199,6 +200,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	if v := encoderAudioFlag.Value(); v != "" {
 		flags.AudioEncoder = Encoder{
 			Codec:   codec.Name(v),
+			BitRate: bitrateAudioFlag.Value(),
 			Options: encoderAudioFlag.CollectedUnknownOptions[0],
 		}
 	}

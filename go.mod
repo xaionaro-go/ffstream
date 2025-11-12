@@ -19,7 +19,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20250426140416-6a9b3f1c8737
-	github.com/xaionaro-go/avpipeline v0.0.0-20251112020900-a4d9ade469fc
+	github.com/xaionaro-go/avpipeline v0.0.0-20251113233301-5692757ee2a3
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9
 	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4

@@ -131,7 +131,7 @@ func (s *FFStream) GetStats(
 		r.NodeCounters.Received = inputCounters.Received
 	}
 	if s.StreamMux != nil {
-		for _, output := range s.StreamMux.Outputs {
+		s.StreamMux.Outputs.Range(func(_ streammux.OutputID, output *streammux.Output[CustomData]) bool {
 			outputCounters := avpgoconv.NodeCountersToGRPC(
 				output.SendingNode.GetCountersPtr(),
 				output.SendingNode.GetProcessor().CountersPtr(),
@@ -140,7 +140,8 @@ func (s *FFStream) GetStats(
 			r.NodeCounters.Missed = goconv.AddNodeCountersSection(r.NodeCounters.Missed, outputCounters.Missed)
 			r.NodeCounters.Generated = goconv.AddNodeCountersSection(r.NodeCounters.Generated, outputCounters.Generated)
 			r.NodeCounters.Sent = goconv.AddNodeCountersSection(r.NodeCounters.Sent, outputCounters.Sent)
-		}
+			return true
+		})
 	}
 	return r
 }
@@ -207,11 +208,11 @@ func (s *FFStream) Start(
 				defer wg.Done()
 				switch s.StreamMux.MuxMode {
 				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
-					if _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
+					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
 						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", output.VideoResolution, err)
 					}
 				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
-					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
 						VideoCodec:      senderKey.VideoCodec,
 						VideoResolution: senderKey.VideoResolution,
 					}); err != nil {
@@ -226,7 +227,7 @@ func (s *FFStream) Start(
 				defer wg.Done()
 				switch s.StreamMux.MuxMode {
 				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
-					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
 						AudioCodec:      senderKey.AudioCodec,
 						AudioSampleRate: senderKey.AudioSampleRate,
 						VideoCodec:      codectypes.NameCopy,
@@ -234,7 +235,7 @@ func (s *FFStream) Start(
 						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
 					}
 				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
-					if _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
 						VideoCodec: codectypes.NameCopy,
 					}); err != nil {
 						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
