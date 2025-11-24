@@ -9,9 +9,11 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -292,4 +294,56 @@ func (c *Client) GetBitRates(
 
 	bitRates := goconv.BitRatesFromGRPC(resp.GetBitRates())
 	return bitRates, nil
+}
+
+func (c *Client) GRPCClient(
+	ctx context.Context,
+) (ffstream_grpc.FFStreamClient, io.Closer, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, conn, nil
+}
+
+func (c *Client) GetCallWrapper() xgrpc.CallWrapperFunc {
+	return nil
+}
+
+func (c *Client) ProcessError(
+	ctx context.Context,
+	in error,
+) error {
+	return in
+}
+
+func (c *Client) Monitor(
+	ctx context.Context,
+	nodeID uint64,
+	eventType avpipeline_proto.MonitorEventType,
+	includePacketPayload bool,
+	includeFramePayload bool,
+	doDecode bool,
+) (<-chan *avpipeline_proto.MonitorEvent, error) {
+	return xgrpc.UnwrapChan(ctx,
+		c,
+		func(
+			ctx context.Context,
+			client ffstream_grpc.FFStreamClient,
+		) (ffstream_grpc.FFStream_MonitorClient, error) {
+			return client.Monitor(ctx, &avpipeline_proto.MonitorRequest{
+				NodeId:               nodeID,
+				EventType:            eventType,
+				IncludePacketPayload: includePacketPayload,
+				IncludeFramePayload:  includeFramePayload,
+				DoDecode:             doDecode,
+			})
+		},
+		func(
+			ctx context.Context,
+			ev *avpipeline_proto.MonitorEvent,
+		) *avpipeline_proto.MonitorEvent {
+			return ev
+		},
+	)
 }

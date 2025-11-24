@@ -27,7 +27,7 @@ require (
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
 	github.com/xaionaro-go/xsync v0.0.0-20250928140805-f801683b71ba
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6
-	google.golang.org/grpc v1.72.1
+	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.6
 )
 
@@ -88,15 +88,16 @@ require (
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
 	github.com/xaionaro-go/unsafetools v0.0.0-20241024014258-a46e1ce3763e // indirect
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c // indirect
+	github.com/xaionaro-go/xgrpc v0.0.0-20251102160837-04b13583739a
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	gocv.io/x/gocv v0.41.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/image v0.27.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
 	gonum.org/v1/plot v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )

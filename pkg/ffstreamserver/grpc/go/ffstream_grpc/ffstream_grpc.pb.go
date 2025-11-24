@@ -8,6 +8,7 @@ package ffstream_grpc
 
 import (
 	context "context"
+	avpipeline "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -35,6 +36,7 @@ const (
 	FFStream_GetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/GetFPSFraction"
 	FFStream_SetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/SetFPSFraction"
 	FFStream_GetBitRates_FullMethodName              = "/ffstream_grpc.FFStream/GetBitRates"
+	FFStream_Monitor_FullMethodName                  = "/ffstream_grpc.FFStream/Monitor"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -57,6 +59,7 @@ type FFStreamClient interface {
 	GetFPSFraction(ctx context.Context, in *GetFPSFractionRequest, opts ...grpc.CallOption) (*GetFPSFractionReply, error)
 	SetFPSFraction(ctx context.Context, in *SetFPSFractionRequest, opts ...grpc.CallOption) (*SetFPSFractionReply, error)
 	GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error)
+	Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error)
 }
 
 type fFStreamClient struct {
@@ -250,6 +253,39 @@ func (c *fFStreamClient) GetBitRates(ctx context.Context, in *GetBitRatesRequest
 	return out, nil
 }
 
+func (c *fFStreamClient) Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &FFStream_ServiceDesc.Streams[1], FFStream_Monitor_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &fFStreamMonitorClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type FFStream_MonitorClient interface {
+	Recv() (*avpipeline.MonitorEvent, error)
+	grpc.ClientStream
+}
+
+type fFStreamMonitorClient struct {
+	grpc.ClientStream
+}
+
+func (x *fFStreamMonitorClient) Recv() (*avpipeline.MonitorEvent, error) {
+	m := new(avpipeline.MonitorEvent)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -270,6 +306,7 @@ type FFStreamServer interface {
 	GetFPSFraction(context.Context, *GetFPSFractionRequest) (*GetFPSFractionReply, error)
 	SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error)
 	GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error)
+	Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -324,6 +361,9 @@ func (UnimplementedFFStreamServer) SetFPSFraction(context.Context, *SetFPSFracti
 }
 func (UnimplementedFFStreamServer) GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBitRates not implemented")
+}
+func (UnimplementedFFStreamServer) Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error {
+	return status.Errorf(codes.Unimplemented, "method Monitor not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -629,6 +669,27 @@ func _FFStream_GetBitRates_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_Monitor_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(avpipeline.MonitorRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(FFStreamServer).Monitor(m, &fFStreamMonitorServer{ServerStream: stream})
+}
+
+type FFStream_MonitorServer interface {
+	Send(*avpipeline.MonitorEvent) error
+	grpc.ServerStream
+}
+
+type fFStreamMonitorServer struct {
+	grpc.ServerStream
+}
+
+func (x *fFStreamMonitorServer) Send(m *avpipeline.MonitorEvent) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -701,6 +762,11 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "WaitChan",
 			Handler:       _FFStream_WaitChan_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Monitor",
+			Handler:       _FFStream_Monitor_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -2904,7 +2904,7 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x54, 0x72, 0x61, 0x63, 0x65, 0x10, 0x07, 0x2a, 0x28,
 	0x0a, 0x0a, 0x53, 0x52, 0x54, 0x46, 0x6c, 0x61, 0x67, 0x49, 0x6e, 0x74, 0x12, 0x0d, 0x0a, 0x09,
 	0x75, 0x6e, 0x64, 0x65, 0x66, 0x69, 0x6e, 0x65, 0x64, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x4c,
-	0x61, 0x74, 0x65, 0x6e, 0x63, 0x79, 0x10, 0x01, 0x32, 0xe2, 0x0b, 0x0a, 0x08, 0x46, 0x46, 0x53,
+	0x61, 0x74, 0x65, 0x6e, 0x63, 0x79, 0x10, 0x01, 0x32, 0xa5, 0x0c, 0x0a, 0x08, 0x46, 0x46, 0x53,
 	0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x5f, 0x0a, 0x0f, 0x53, 0x65, 0x74, 0x4c, 0x6f, 0x67, 0x67,
 	0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x12, 0x25, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72,
 	0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x4c, 0x6f, 0x67, 0x67,
@@ -2998,9 +2998,13 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x69, 0x74, 0x52, 0x61,
 	0x74, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x66, 0x66, 0x73,
 	0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x42, 0x69,
-	0x74, 0x52, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x42, 0x12, 0x5a,
-	0x10, 0x67, 0x6f, 0x2f, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70,
-	0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x52, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x41, 0x0a,
+	0x07, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x12, 0x1a, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70,
+	0x65, 0x6c, 0x69, 0x6e, 0x65, 0x2e, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70, 0x65, 0x6c, 0x69, 0x6e,
+	0x65, 0x2e, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x30, 0x01,
+	0x42, 0x12, 0x5a, 0x10, 0x67, 0x6f, 0x2f, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f,
+	0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 })
 
 var (
@@ -3061,6 +3065,8 @@ var file_ffstream_proto_goTypes = []any{
 	(*avpipeline.NodeCounters)(nil),          // 40: avpipeline.NodeCounters
 	(*avpipeline.Node)(nil),                  // 41: avpipeline.Node
 	(*avpipeline.AutoBitrateCalculator)(nil), // 42: avpipeline.AutoBitrateCalculator
+	(*avpipeline.MonitorRequest)(nil),        // 43: avpipeline.MonitorRequest
+	(*avpipeline.MonitorEvent)(nil),          // 44: avpipeline.MonitorEvent
 }
 var file_ffstream_proto_depIdxs = []int32{
 	0,  // 0: ffstream_grpc.SetLoggingLevelRequest.level:type_name -> ffstream_grpc.LoggingLevel
@@ -3096,24 +3102,26 @@ var file_ffstream_proto_depIdxs = []int32{
 	32, // 30: ffstream_grpc.FFStream.GetFPSFraction:input_type -> ffstream_grpc.GetFPSFractionRequest
 	34, // 31: ffstream_grpc.FFStream.SetFPSFraction:input_type -> ffstream_grpc.SetFPSFractionRequest
 	38, // 32: ffstream_grpc.FFStream.GetBitRates:input_type -> ffstream_grpc.GetBitRatesRequest
-	3,  // 33: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
-	6,  // 34: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
-	11, // 35: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
-	13, // 36: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
-	15, // 37: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
-	17, // 38: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
-	19, // 39: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
-	21, // 40: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
-	23, // 41: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
-	25, // 42: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
-	27, // 43: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
-	29, // 44: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
-	31, // 45: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
-	33, // 46: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
-	35, // 47: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
-	39, // 48: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
-	33, // [33:49] is the sub-list for method output_type
-	17, // [17:33] is the sub-list for method input_type
+	43, // 33: ffstream_grpc.FFStream.Monitor:input_type -> avpipeline.MonitorRequest
+	3,  // 34: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
+	6,  // 35: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
+	11, // 36: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
+	13, // 37: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
+	15, // 38: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
+	17, // 39: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
+	19, // 40: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
+	21, // 41: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
+	23, // 42: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
+	25, // 43: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
+	27, // 44: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
+	29, // 45: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
+	31, // 46: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
+	33, // 47: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
+	35, // 48: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
+	39, // 49: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
+	44, // 50: ffstream_grpc.FFStream.Monitor:output_type -> avpipeline.MonitorEvent
+	34, // [34:51] is the sub-list for method output_type
+	17, // [17:34] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name

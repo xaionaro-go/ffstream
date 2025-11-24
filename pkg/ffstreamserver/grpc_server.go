@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
@@ -19,15 +20,24 @@ import (
 type GRPCServer struct {
 	ffstream_grpc.UnimplementedFFStreamServer
 	FFStream             *ffstream.FFStream
+	Observability        *belt.Belt
 	locker               sync.Mutex
 	stopRecodingFunc     context.CancelFunc
 	initialRecoderConfig streammuxtypes.RecoderConfig
 }
 
-func NewGRPCServer(ffStream *ffstream.FFStream) *GRPCServer {
+func NewGRPCServer(
+	ctx context.Context,
+	ffStream *ffstream.FFStream,
+) *GRPCServer {
 	return &GRPCServer{
-		FFStream: ffStream,
+		Observability: belt.CtxBelt(ctx),
+		FFStream:      ffStream,
 	}
+}
+
+func (srv *GRPCServer) ctx(ctx context.Context) context.Context {
+	return belt.CtxWithBelt(ctx, srv.Observability)
 }
 
 func (srv *GRPCServer) SetLoggingLevel(
@@ -41,6 +51,7 @@ func (srv *GRPCServer) GetCurrentOutput(
 	ctx context.Context,
 	req *ffstream_grpc.GetCurrentOutputRequest,
 ) (*ffstream_grpc.GetCurrentOutputReply, error) {
+	ctx = srv.ctx(ctx)
 	cfg := srv.FFStream.GetRecoderConfig(ctx)
 	return &ffstream_grpc.GetCurrentOutputReply{
 		Config: goconv.RecoderConfigToGRPC(cfg),
@@ -51,6 +62,7 @@ func (srv *GRPCServer) GetStats(
 	ctx context.Context,
 	req *ffstream_grpc.GetStatsRequest,
 ) (*ffstream_grpc.GetStatsReply, error) {
+	ctx = srv.ctx(ctx)
 	stats := srv.FFStream.GetStats(ctx)
 	if stats == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the statistics")
@@ -63,7 +75,7 @@ func (srv *GRPCServer) WaitChan(
 	req *ffstream_grpc.WaitRequest,
 	reqSrv ffstream_grpc.FFStream_WaitChanServer,
 ) error {
-	ctx := reqSrv.Context()
+	ctx := srv.ctx(reqSrv.Context())
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 	err := srv.FFStream.Wait(ctx)
@@ -77,6 +89,7 @@ func (srv *GRPCServer) End(
 	ctx context.Context,
 	req *ffstream_grpc.EndRequest,
 ) (*ffstream_grpc.EndReply, error) {
+	ctx = srv.ctx(ctx)
 	srv.locker.Lock()
 	defer srv.locker.Unlock()
 	if srv.stopRecodingFunc == nil {
@@ -91,6 +104,7 @@ func (srv *GRPCServer) GetPipelines(
 	ctx context.Context,
 	req *ffstream_grpc.GetPipelinesRequest,
 ) (*ffstream_grpc.GetPipelinesResponse, error) {
+	ctx = srv.ctx(ctx)
 	nodeInput := avpgoconv.NodeToGRPC(ctx, srv.FFStream.NodeInput)
 	return &ffstream_grpc.GetPipelinesResponse{
 		Nodes: []*avpipeline_grpc.Node{nodeInput},
@@ -101,6 +115,7 @@ func (srv *GRPCServer) GetAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.GetAutoBitRateCalculatorRequest,
 ) (_ret *ffstream_grpc.GetAutoBitRateCalculatorReply, _err error) {
+	ctx = srv.ctx(ctx)
 	logger.Tracef(ctx, "GetAutoBitRateCalculator(ctx, %#+v)", req)
 	defer func() { logger.Tracef(ctx, "/GetAutoBitRateCalculator(ctx, %#+v): %v %v", req, _ret, _err) }()
 	calc := srv.FFStream.GetAutoBitRateCalculator(ctx)
@@ -120,6 +135,7 @@ func (srv *GRPCServer) SetAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.SetAutoBitRateCalculatorRequest,
 ) (_ret *ffstream_grpc.SetAutoBitRateCalculatorReply, _err error) {
+	ctx = srv.ctx(ctx)
 	logger.Tracef(ctx, "SetAutoBitRateCalculator(ctx, %#+v): %s", req.GetCalculator().GetAutoBitrateCalculator(), try(json.Marshal(req.GetCalculator().GetAutoBitrateCalculator())))
 	defer func() {
 		logger.Tracef(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v %v", req.GetCalculator().GetAutoBitrateCalculator(), _ret, _err)
@@ -139,6 +155,7 @@ func (srv *GRPCServer) GetFPSFraction(
 	ctx context.Context,
 	req *ffstream_grpc.GetFPSFractionRequest,
 ) (*ffstream_grpc.GetFPSFractionReply, error) {
+	ctx = srv.ctx(ctx)
 	num, den, err := srv.FFStream.GetFPSFraction(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get FPS divider: %v", err)
@@ -153,6 +170,7 @@ func (srv *GRPCServer) SetFPSFraction(
 	ctx context.Context,
 	req *ffstream_grpc.SetFPSFractionRequest,
 ) (*ffstream_grpc.SetFPSFractionReply, error) {
+	ctx = srv.ctx(ctx)
 	err := srv.FFStream.SetFPSFraction(ctx, req.GetNum(), req.GetDen())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to set FPS divider: %v", err)
@@ -164,6 +182,7 @@ func (srv *GRPCServer) GetBitRates(
 	ctx context.Context,
 	req *ffstream_grpc.GetBitRatesRequest,
 ) (*ffstream_grpc.GetBitRatesReply, error) {
+	ctx = srv.ctx(ctx)
 	bitRates, err := srv.FFStream.GetBitRates(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get bit rates: %v", err)

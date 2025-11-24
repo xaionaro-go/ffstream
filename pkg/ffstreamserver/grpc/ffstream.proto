@@ -21,6 +21,7 @@ service FFStream {
   rpc GetFPSFraction (GetFPSFractionRequest) returns (GetFPSFractionReply) {}
   rpc SetFPSFraction (SetFPSFractionRequest) returns (SetFPSFractionReply) {}
   rpc GetBitRates (GetBitRatesRequest) returns (GetBitRatesReply) {}
+  rpc Monitor(avpipeline.MonitorRequest) returns (stream avpipeline.MonitorEvent);
 }
 
 enum LoggingLevel {

@@ -43,7 +43,7 @@ func (s *FFStreamServer) ServeContext(
 			grpc_recovery.StreamServerInterceptor(opts...),
 		),
 	)
-	ffstreamGRPC := NewGRPCServer(s.ffStream)
+	ffstreamGRPC := NewGRPCServer(ctx, s.ffStream)
 	ffstream_grpc.RegisterFFStreamServer(grpcServer, ffstreamGRPC)
 
 	ctx, cancelFn := context.WithCancel(ctx)
