@@ -57,7 +57,8 @@ func main() {
 		opts := convertUnknownOptionsToAVPCustomOptions(input.Options)
 		logger.Debugf(ctx, "input %s opts: %v", input.URL, opts)
 		input, err := kernel.NewInputFromURL(ctx, input.URL, secret.New(""), kernel.InputConfig{
-			CustomOptions: opts,
+			CustomOptions:       opts,
+			CorrectZeroDuration: true,
 		})
 		assertNoError(ctx, err)
 		s.AddInput(ctx, input)
