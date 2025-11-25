@@ -1,13 +1,9 @@
 
 ENABLE_VLC?=false
-ENABLE_LIBAV?=true
 ENABLE_LIBSRT?=false
 ENABLE_DEBUG_TRACE?=false
 
-GOTAGS:=
-ifeq ($(ENABLE_LIBAV), true)
-	GOTAGS:=$(GOTAGS),with_libav,patched_libav
-endif
+GOTAGS:=$(GOTAGS),with_libav,ffmpeg7
 ifeq ($(ENABLE_LIBSRT), true)
 	GOTAGS:=$(GOTAGS),with_libsrt
 endif
@@ -71,7 +67,7 @@ bin/ffstream-android-arm64: dockerbuilder-android-arm64
 		git branch -D v0-termux; \
 		git branch v0-termux; \
 		rm -f /home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb; \
-		docker exec $(DOCKER_CONTAINER_NAME) make ENABLE_VLC="$(ENABLE_VLC)" ENABLE_LIBAV="$(ENABLE_LIBAV)" ENABLE_DEBUG_TRACE="$(ENABLE_DEBUG_TRACE)" -C /project ffstream-android-arm64-in-docker; \
+		docker exec $(DOCKER_CONTAINER_NAME) make ENABLE_VLC="$(ENABLE_VLC)" ENABLE_DEBUG_TRACE="$(ENABLE_DEBUG_TRACE)" -C /project ffstream-android-arm64-in-docker; \
 		docker cp $(DOCKER_CONTAINER_NAME):/home/builder/termux-packages/output/ffstream_0-termux-1_aarch64.deb bin/ffstream-android-termux-arm64.deb; \
 	else \
 		echo "ERROR: there are uncommitted changes, please either stash them or commit" >&2; \
