@@ -17,7 +17,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/indicator"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
-	"github.com/xaionaro-go/avpipeline/protobuf/goconv"
+	"github.com/xaionaro-go/avpipeline/protobuf/goconv/libav"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/polyjson"
@@ -381,7 +381,7 @@ func monitor(cmd *cobra.Command, args []string) {
 	for ev := range eventsCh {
 		switch format {
 		case "plaintext":
-			timeBase := goconv.RationalFromProtobuf(ev.Stream.GetTimeBase())
+			timeBase := libav.RationalFromProtobuf(ev.Stream.GetTimeBase())
 			if ev.Packet != nil && len(ev.Frames) == 0 {
 				pkt := ev.Packet
 				fmt.Printf(eventFormatString,
@@ -424,6 +424,6 @@ func monitor(cmd *cobra.Command, args []string) {
 	}
 }
 
-func avconvDuration(pts int64, timeBase *goconv.Rational) time.Duration {
+func avconvDuration(pts int64, timeBase *libav.Rational) time.Duration {
 	return time.Duration(int64(time.Second) * pts * timeBase.N / timeBase.D)
 }

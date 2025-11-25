@@ -34,10 +34,10 @@ bin/ffstream-linux-arm64: build
 	CGO_ENABLED=1 ASAN_OPTIONS=protect_shadow_gap=0 GOOS=linux GOARCH=arm64 go build $(GOBUILD_FLAGS) -o bin/ffstream-linux-arm64 ./cmd/ffstream
 
 bin/ffstreamctl-linux-amd64: build
-	CGO_ENABLED=false GOOS=linux GOARCH=amd64 go build $(GOBUILD_FLAGS) -o bin/ffstreamctl-linux-amd64 ./cmd/ffstreamctl
+	CGO_ENABLED=false GOOS=linux GOARCH=amd64 go build -o bin/ffstreamctl-linux-amd64 ./cmd/ffstreamctl
 
 bin/ffstreamctl-linux-arm64: build
-	CGO_ENABLED=false GOOS=linux GOARCH=arm64 go build $(GOBUILD_FLAGS) -o bin/ffstreamctl-linux-arm64 ./cmd/ffstreamctl
+	CGO_ENABLED=false GOOS=linux GOARCH=arm64 go build -o bin/ffstreamctl-linux-arm64 ./cmd/ffstreamctl
 
 DOCKER_IMAGE?=xaionaro2/streampanel-android-builder
 DOCKER_CONTAINER_NAME?=ffstream-android-builder

@@ -17,7 +17,7 @@ import (
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
-	avpgoconv "github.com/xaionaro-go/avpipeline/protobuf/goconv"
+	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
@@ -127,12 +127,12 @@ func (s *FFStream) GetStats(
 		},
 	}
 	if s.NodeInput != nil {
-		inputCounters := avpgoconv.NodeCountersToGRPC(s.NodeInput.GetCountersPtr(), s.NodeInput.GetProcessor().CountersPtr())
+		inputCounters := goconvavp.NodeCountersToGRPC(s.NodeInput.GetCountersPtr(), s.NodeInput.GetProcessor().CountersPtr())
 		r.NodeCounters.Received = inputCounters.Received
 	}
 	if s.StreamMux != nil {
 		s.StreamMux.Outputs.Range(func(_ streammux.OutputID, output *streammux.Output[CustomData]) bool {
-			outputCounters := avpgoconv.NodeCountersToGRPC(
+			outputCounters := goconvavp.NodeCountersToGRPC(
 				output.SendingNode.GetCountersPtr(),
 				output.SendingNode.GetProcessor().CountersPtr(),
 			)

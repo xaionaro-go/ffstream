@@ -9,7 +9,7 @@ import (
 	"github.com/facebookincubator/go-belt/tool/logger"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
-	avpgoconv "github.com/xaionaro-go/avpipeline/protobuf/goconv"
+	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
@@ -105,7 +105,7 @@ func (srv *GRPCServer) GetPipelines(
 	req *ffstream_grpc.GetPipelinesRequest,
 ) (*ffstream_grpc.GetPipelinesResponse, error) {
 	ctx = srv.ctx(ctx)
-	nodeInput := avpgoconv.NodeToGRPC(ctx, srv.FFStream.NodeInput)
+	nodeInput := goconvavp.NodeToGRPC(ctx, srv.FFStream.NodeInput)
 	return &ffstream_grpc.GetPipelinesResponse{
 		Nodes: []*avpipeline_grpc.Node{nodeInput},
 	}, nil
