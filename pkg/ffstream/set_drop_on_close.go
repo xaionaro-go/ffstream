@@ -12,11 +12,13 @@ import (
 	"github.com/xaionaro-go/xsync"
 )
 
+type SendingNode = node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Output]]
+
 type nodeSetDropOnCloserWrapper struct {
-	*node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Output]]
+	*SendingNode
 }
 
-var _ SendingNode = (*nodeSetDropOnCloserWrapper)(nil)
+var _ SendingNodeAbstract = (*nodeSetDropOnCloserWrapper)(nil)
 
 func (n nodeSetDropOnCloserWrapper) SetDropOnClose(
 	ctx context.Context,
@@ -31,11 +33,29 @@ func (n nodeSetDropOnCloserWrapper) SetDropOnClose(
 	return n.Processor.Kernel.UnsafeSetLinger(ctx, onOff, 0)
 }
 
-type nodeWithRetrySetDropOnCloserWrapper struct {
-	*node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Retry[*kernel.Output]]]
+func (n nodeSetDropOnCloserWrapper) String() string {
+	return fmt.Sprintf("SetDropOnCloserWrapper(%s)", n.OriginalNode())
 }
 
-var _ SendingNode = (*nodeWithRetrySetDropOnCloserWrapper)(nil)
+func (n nodeSetDropOnCloserWrapper) OriginalNode() *SendingNode {
+	return n.SendingNode
+}
+
+func (n nodeSetDropOnCloserWrapper) OriginalNodeAbstract() node.Abstract {
+	r := n.OriginalNode()
+	if r == nil {
+		return nil
+	}
+	return r
+}
+
+type SendingNodeWithRetry = node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Retry[*kernel.Output]]]
+
+type nodeWithRetrySetDropOnCloserWrapper struct {
+	*SendingNodeWithRetry
+}
+
+var _ SendingNodeAbstract = (*nodeWithRetrySetDropOnCloserWrapper)(nil)
 
 func (n nodeWithRetrySetDropOnCloserWrapper) SetDropOnClose(
 	ctx context.Context,
@@ -59,4 +79,20 @@ func (n nodeWithRetrySetDropOnCloserWrapper) SetDropOnClose(
 		}
 		return nil
 	})
+}
+
+func (n nodeWithRetrySetDropOnCloserWrapper) String() string {
+	return fmt.Sprintf("SetDropOnCloserWrapper(%s)", n.OriginalNode())
+}
+
+func (n nodeWithRetrySetDropOnCloserWrapper) OriginalNode() *SendingNodeWithRetry {
+	return n.SendingNodeWithRetry
+}
+
+func (n nodeWithRetrySetDropOnCloserWrapper) OriginalNodeAbstract() node.Abstract {
+	r := n.OriginalNode()
+	if r == nil {
+		return nil
+	}
+	return r
 }
