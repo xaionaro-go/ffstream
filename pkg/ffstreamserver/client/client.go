@@ -347,3 +347,21 @@ func (c *Client) Monitor(
 		},
 	)
 }
+
+func (c *Client) GetLatencies(
+	ctx context.Context,
+) (*streammuxtypes.Latencies, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetLatencies(ctx, &ffstream_grpc.GetLatenciesRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	latencies := goconv.LatenciesFromGRPC(resp.GetLatencies())
+	return latencies, nil
+}

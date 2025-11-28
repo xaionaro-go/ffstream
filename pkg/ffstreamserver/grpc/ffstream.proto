@@ -15,12 +15,13 @@ service FFStream {
   rpc SetSRTFlagInt(SetSRTFlagIntRequest) returns (SetSRTFlagIntReply) {}
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
-  rpc GetPipelines (GetPipelinesRequest) returns (GetPipelinesResponse);
-  rpc GetAutoBitRateCalculator (GetAutoBitRateCalculatorRequest) returns (GetAutoBitRateCalculatorReply) {}
-  rpc SetAutoBitRateCalculator (SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
-  rpc GetFPSFraction (GetFPSFractionRequest) returns (GetFPSFractionReply) {}
-  rpc SetFPSFraction (SetFPSFractionRequest) returns (SetFPSFractionReply) {}
-  rpc GetBitRates (GetBitRatesRequest) returns (GetBitRatesReply) {}
+  rpc GetPipelines(GetPipelinesRequest) returns (GetPipelinesResponse);
+  rpc GetAutoBitRateCalculator(GetAutoBitRateCalculatorRequest) returns (GetAutoBitRateCalculatorReply) {}
+  rpc SetAutoBitRateCalculator(SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
+  rpc GetFPSFraction(GetFPSFractionRequest) returns (GetFPSFractionReply) {}
+  rpc SetFPSFraction(SetFPSFractionRequest) returns (SetFPSFractionReply) {}
+  rpc GetBitRates(GetBitRatesRequest) returns (GetBitRatesReply) {}
+  rpc GetLatencies(GetLatenciesRequest) returns (GetLatenciesReply) {}
   rpc Monitor(avpipeline.MonitorRequest) returns (stream avpipeline.MonitorEvent);
 }
 
@@ -241,4 +242,21 @@ message BitRates {
 message GetBitRatesRequest {}
 message GetBitRatesReply {
   BitRates bitRates = 1;
+}
+
+message GetLatenciesRequest {}
+message GetLatenciesReply {
+  Latencies latencies = 1;
+}
+
+message Latencies {
+  TrackLatencies audio = 1;
+  TrackLatencies video = 2;
+}
+
+message TrackLatencies {
+  uint64 preEncodingU = 1;
+  uint64 recodingU = 2;
+  uint64 recodedPreSendU = 3;
+  uint64 sendingU = 4;
 }

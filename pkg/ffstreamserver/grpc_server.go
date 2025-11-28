@@ -192,3 +192,18 @@ func (srv *GRPCServer) GetBitRates(
 		BitRates: goconv.BitRatesToGRPC(bitRates),
 	}, nil
 }
+
+func (srv *GRPCServer) GetLatencies(
+	ctx context.Context,
+	req *ffstream_grpc.GetLatenciesRequest,
+) (*ffstream_grpc.GetLatenciesReply, error) {
+	ctx = srv.ctx(ctx)
+	latencies, err := srv.FFStream.GetLatencies(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get latencies: %v", err)
+	}
+
+	return &ffstream_grpc.GetLatenciesReply{
+		Latencies: goconv.LatenciesToGRPC(latencies),
+	}, nil
+}

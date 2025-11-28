@@ -333,7 +333,9 @@ func (s *FFStream) GetFPSFraction(
 	if s.StreamMux == nil {
 		return 0, 1, fmt.Errorf("it is allowed to use GetFPSFraction only after Start is invoked")
 	}
-	num, den = s.StreamMux.GetFPSFraction(ctx)
+	fps := s.StreamMux.GetFPSFraction(ctx)
+	num = uint32(fps.Num)
+	den = uint32(fps.Den)
 	return num, den, nil
 }
 
@@ -377,4 +379,23 @@ func (s *FFStream) GetBitRates(
 		return nil, fmt.Errorf("unable to get bit rates: %w", err)
 	}
 	return bitRates, nil
+}
+
+func (s *FFStream) GetLatencies(
+	ctx context.Context,
+) (_ret *streammuxtypes.Latencies, err error) {
+	if s == nil {
+		return nil, fmt.Errorf("ffstream is nil")
+	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return nil, fmt.Errorf("it is allowed to use GetLatencies only after Start is invoked")
+	}
+
+	latencies, err := s.StreamMux.GetLatencies(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get latencies: %w", err)
+	}
+	return latencies, nil
 }

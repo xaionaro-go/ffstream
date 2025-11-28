@@ -36,6 +36,7 @@ const (
 	FFStream_GetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/GetFPSFraction"
 	FFStream_SetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/SetFPSFraction"
 	FFStream_GetBitRates_FullMethodName              = "/ffstream_grpc.FFStream/GetBitRates"
+	FFStream_GetLatencies_FullMethodName             = "/ffstream_grpc.FFStream/GetLatencies"
 	FFStream_Monitor_FullMethodName                  = "/ffstream_grpc.FFStream/Monitor"
 )
 
@@ -59,6 +60,7 @@ type FFStreamClient interface {
 	GetFPSFraction(ctx context.Context, in *GetFPSFractionRequest, opts ...grpc.CallOption) (*GetFPSFractionReply, error)
 	SetFPSFraction(ctx context.Context, in *SetFPSFractionRequest, opts ...grpc.CallOption) (*SetFPSFractionReply, error)
 	GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error)
+	GetLatencies(ctx context.Context, in *GetLatenciesRequest, opts ...grpc.CallOption) (*GetLatenciesReply, error)
 	Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error)
 }
 
@@ -253,6 +255,16 @@ func (c *fFStreamClient) GetBitRates(ctx context.Context, in *GetBitRatesRequest
 	return out, nil
 }
 
+func (c *fFStreamClient) GetLatencies(ctx context.Context, in *GetLatenciesRequest, opts ...grpc.CallOption) (*GetLatenciesReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLatenciesReply)
+	err := c.cc.Invoke(ctx, FFStream_GetLatencies_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fFStreamClient) Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &FFStream_ServiceDesc.Streams[1], FFStream_Monitor_FullMethodName, cOpts...)
@@ -306,6 +318,7 @@ type FFStreamServer interface {
 	GetFPSFraction(context.Context, *GetFPSFractionRequest) (*GetFPSFractionReply, error)
 	SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error)
 	GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error)
+	GetLatencies(context.Context, *GetLatenciesRequest) (*GetLatenciesReply, error)
 	Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error
 	mustEmbedUnimplementedFFStreamServer()
 }
@@ -361,6 +374,9 @@ func (UnimplementedFFStreamServer) SetFPSFraction(context.Context, *SetFPSFracti
 }
 func (UnimplementedFFStreamServer) GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBitRates not implemented")
+}
+func (UnimplementedFFStreamServer) GetLatencies(context.Context, *GetLatenciesRequest) (*GetLatenciesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLatencies not implemented")
 }
 func (UnimplementedFFStreamServer) Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error {
 	return status.Errorf(codes.Unimplemented, "method Monitor not implemented")
@@ -669,6 +685,24 @@ func _FFStream_GetBitRates_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetLatencies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLatenciesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetLatencies(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetLatencies_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetLatencies(ctx, req.(*GetLatenciesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FFStream_Monitor_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(avpipeline.MonitorRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -756,6 +790,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBitRates",
 			Handler:    _FFStream_GetBitRates_Handler,
+		},
+		{
+			MethodName: "GetLatencies",
+			Handler:    _FFStream_GetLatencies_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
