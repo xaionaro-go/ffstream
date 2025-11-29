@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
@@ -15,6 +17,7 @@ import (
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/xgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -29,11 +32,34 @@ func New(target string) *Client {
 	return &Client{Target: target}
 }
 
-func (c *Client) grpcClient() (ffstream_grpc.FFStreamClient, *grpc.ClientConn, error) {
-	conn, err := grpc.NewClient(
-		c.Target,
+func (c *Client) getGPRCDialParams() (target string, opts []grpc.DialOption) {
+	target = c.Target
+	opts = []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	}
+
+	parts := strings.SplitN(c.Target, ":", 2)
+	if len(parts) < 2 {
+		return
+	}
+
+	switch parts[0] {
+	case "tcp+ssl":
+		opts = []grpc.DialOption{
+			grpc.WithTransportCredentials(
+				credentials.NewTLS(&tls.Config{
+					InsecureSkipVerify: true,
+				}),
+			),
+		}
+		target = parts[1]
+	}
+	return
+}
+
+func (c *Client) grpcClient() (ffstream_grpc.FFStreamClient, *grpc.ClientConn, error) {
+	target, opts := c.getGPRCDialParams()
+	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to initialize a gRPC client: %w", err)
 	}

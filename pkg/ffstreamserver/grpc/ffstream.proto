@@ -255,7 +255,7 @@ message Latencies {
 }
 
 message TrackLatencies {
-  uint64 preEncodingU = 1;
+  uint64 preRecodingU = 1;
   uint64 recodingU = 2;
   uint64 recodedPreSendU = 3;
   uint64 sendingU = 4;
