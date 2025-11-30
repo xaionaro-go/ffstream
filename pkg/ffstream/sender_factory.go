@@ -101,6 +101,7 @@ func (s *senderFactory) newOutput(
 	if err != nil {
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
+	outputKernel.Filter = s.OutputQualityMeasurer
 
 	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData[CustomData]](ctx, outputKernel, processor.DefaultOptionsOutput()...)
 	return nodeSetDropOnCloserWrapper{outputNode}, streammuxtypes.SenderConfig{}, nil
@@ -122,6 +123,7 @@ func (s *senderFactory) newOutputWithRetry(
 			if err != nil {
 				return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 			}
+			outputKernel.Filter = s.OutputQualityMeasurer
 			return outputKernel, nil
 		},
 		func(ctx context.Context, k *kernel.Output) error {

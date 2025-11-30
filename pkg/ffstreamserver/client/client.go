@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/packet/condition/extra/quality"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
@@ -390,4 +391,44 @@ func (c *Client) GetLatencies(
 
 	latencies := goconv.LatenciesFromGRPC(resp.GetLatencies())
 	return latencies, nil
+}
+
+func (c *Client) GetInputQuality(
+	ctx context.Context,
+) (*quality.QualityAggregated, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetInputQuality(ctx, &ffstream_grpc.GetInputQualityRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	return &quality.QualityAggregated{
+		Audio: goconv.StreamQualityFromGRPC(resp.GetAudio()),
+		Video: goconv.StreamQualityFromGRPC(resp.GetVideo()),
+	}, nil
+}
+
+func (c *Client) GetOutputQuality(
+	ctx context.Context,
+) (*quality.QualityAggregated, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetOutputQuality(ctx, &ffstream_grpc.GetOutputQualityRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	return &quality.QualityAggregated{
+		Audio: goconv.StreamQualityFromGRPC(resp.GetAudio()),
+		Video: goconv.StreamQualityFromGRPC(resp.GetVideo()),
+	}, nil
 }

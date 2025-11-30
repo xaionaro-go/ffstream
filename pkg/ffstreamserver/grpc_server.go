@@ -207,3 +207,33 @@ func (srv *GRPCServer) GetLatencies(
 		Latencies: goconv.LatenciesToGRPC(latencies),
 	}, nil
 }
+
+func (srv *GRPCServer) GetInputQuality(
+	ctx context.Context,
+	req *ffstream_grpc.GetInputQualityRequest,
+) (*ffstream_grpc.GetInputQualityReply, error) {
+	ctx = srv.ctx(ctx)
+	inputQuality, err := srv.FFStream.GetInputQuality(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get input quality measurements: %v", err)
+	}
+	return &ffstream_grpc.GetInputQualityReply{
+		Audio: goconv.StreamQualityToGRPC(inputQuality.Audio),
+		Video: goconv.StreamQualityToGRPC(inputQuality.Video),
+	}, nil
+}
+
+func (srv *GRPCServer) GetOutputQuality(
+	ctx context.Context,
+	req *ffstream_grpc.GetOutputQualityRequest,
+) (*ffstream_grpc.GetOutputQualityReply, error) {
+	ctx = srv.ctx(ctx)
+	outputQuality, err := srv.FFStream.GetOutputQuality(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get output quality measurements: %v", err)
+	}
+	return &ffstream_grpc.GetOutputQualityReply{
+		Audio: goconv.StreamQualityToGRPC(outputQuality.Audio),
+		Video: goconv.StreamQualityToGRPC(outputQuality.Video),
+	}, nil
+}

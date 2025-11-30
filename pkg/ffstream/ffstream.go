@@ -13,6 +13,9 @@ import (
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
+	"github.com/xaionaro-go/avpipeline/packet/condition/extra"
+	"github.com/xaionaro-go/avpipeline/packet/condition/extra/quality"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
@@ -30,12 +33,18 @@ type FFStream struct {
 
 	StreamMux *streammux.StreamMux[CustomData]
 
+	InputQualityMeasurer  *quality.Measurements
+	OutputQualityMeasurer *extra.QualityT
+
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
 }
 
 func New(ctx context.Context) *FFStream {
-	s := &FFStream{}
+	s := &FFStream{
+		InputQualityMeasurer:  quality.NewMeasurements(),
+		OutputQualityMeasurer: extra.NewQuality(),
+	}
 	return s
 }
 
@@ -189,7 +198,7 @@ func (s *FFStream) Start(
 	if err != nil {
 		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
-	s.NodeInput.AddPushPacketsTo(ctx, s.StreamMux)
+	s.NodeInput.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		RecoderConfig:   recoderConfig,
@@ -398,4 +407,32 @@ func (s *FFStream) GetLatencies(
 		return nil, fmt.Errorf("unable to get latencies: %w", err)
 	}
 	return latencies, nil
+}
+
+func (s *FFStream) onInputPacket(
+	ctx context.Context,
+	packet packetfiltercondition.Input,
+) bool {
+	s.InputQualityMeasurer.ObservePacket(ctx, packet.Input)
+	return true
+}
+
+func (s *FFStream) GetInputQuality(
+	ctx context.Context,
+) (_ret *quality.QualityAggregated, err error) {
+	r, err := s.InputQualityMeasurer.GetQuality(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting input quality: %w", err)
+	}
+	return r.Aggregate(), nil
+}
+
+func (s *FFStream) GetOutputQuality(
+	ctx context.Context,
+) (_ret *quality.QualityAggregated, err error) {
+	r, err := s.OutputQualityMeasurer.Measurements.GetQuality(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting output quality: %w", err)
+	}
+	return r.Aggregate(), nil
 }

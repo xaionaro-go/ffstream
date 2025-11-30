@@ -77,6 +77,18 @@ var (
 		Run:  statsLatencies,
 	}
 
+	StatsInputQuality = &cobra.Command{
+		Use:  "input_quality",
+		Args: cobra.ExactArgs(0),
+		Run:  statsInputQuality,
+	}
+
+	StatsOutputQuality = &cobra.Command{
+		Use:  "output_quality",
+		Args: cobra.ExactArgs(0),
+		Run:  statsOutputQuality,
+	}
+
 	SRT = &cobra.Command{
 		Use: "srt",
 	}
@@ -165,6 +177,8 @@ func init() {
 	Stats.AddCommand(StatsEncoder)
 	Stats.AddCommand(StatsBitRates)
 	Stats.AddCommand(StatsLatencies)
+	Stats.AddCommand(StatsInputQuality)
+	Stats.AddCommand(StatsOutputQuality)
 
 	Root.AddCommand(Encoder)
 	Encoder.AddCommand(EncoderConfig)
@@ -252,6 +266,34 @@ func statsLatencies(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), latencies)
+}
+
+func statsInputQuality(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	inputQuality, err := client.GetInputQuality(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), inputQuality)
+}
+
+func statsOutputQuality(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	outputQuality, err := client.GetOutputQuality(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), outputQuality)
 }
 
 // encoderFPSFractionGet calls the server and prints "num den\n"

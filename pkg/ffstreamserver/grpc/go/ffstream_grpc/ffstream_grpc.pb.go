@@ -37,6 +37,8 @@ const (
 	FFStream_SetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/SetFPSFraction"
 	FFStream_GetBitRates_FullMethodName              = "/ffstream_grpc.FFStream/GetBitRates"
 	FFStream_GetLatencies_FullMethodName             = "/ffstream_grpc.FFStream/GetLatencies"
+	FFStream_GetInputQuality_FullMethodName          = "/ffstream_grpc.FFStream/GetInputQuality"
+	FFStream_GetOutputQuality_FullMethodName         = "/ffstream_grpc.FFStream/GetOutputQuality"
 	FFStream_Monitor_FullMethodName                  = "/ffstream_grpc.FFStream/Monitor"
 )
 
@@ -61,6 +63,8 @@ type FFStreamClient interface {
 	SetFPSFraction(ctx context.Context, in *SetFPSFractionRequest, opts ...grpc.CallOption) (*SetFPSFractionReply, error)
 	GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error)
 	GetLatencies(ctx context.Context, in *GetLatenciesRequest, opts ...grpc.CallOption) (*GetLatenciesReply, error)
+	GetInputQuality(ctx context.Context, in *GetInputQualityRequest, opts ...grpc.CallOption) (*GetInputQualityReply, error)
+	GetOutputQuality(ctx context.Context, in *GetOutputQualityRequest, opts ...grpc.CallOption) (*GetOutputQualityReply, error)
 	Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error)
 }
 
@@ -265,6 +269,26 @@ func (c *fFStreamClient) GetLatencies(ctx context.Context, in *GetLatenciesReque
 	return out, nil
 }
 
+func (c *fFStreamClient) GetInputQuality(ctx context.Context, in *GetInputQualityRequest, opts ...grpc.CallOption) (*GetInputQualityReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetInputQualityReply)
+	err := c.cc.Invoke(ctx, FFStream_GetInputQuality_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) GetOutputQuality(ctx context.Context, in *GetOutputQualityRequest, opts ...grpc.CallOption) (*GetOutputQualityReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOutputQualityReply)
+	err := c.cc.Invoke(ctx, FFStream_GetOutputQuality_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fFStreamClient) Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &FFStream_ServiceDesc.Streams[1], FFStream_Monitor_FullMethodName, cOpts...)
@@ -319,6 +343,8 @@ type FFStreamServer interface {
 	SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error)
 	GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error)
 	GetLatencies(context.Context, *GetLatenciesRequest) (*GetLatenciesReply, error)
+	GetInputQuality(context.Context, *GetInputQualityRequest) (*GetInputQualityReply, error)
+	GetOutputQuality(context.Context, *GetOutputQualityRequest) (*GetOutputQualityReply, error)
 	Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error
 	mustEmbedUnimplementedFFStreamServer()
 }
@@ -377,6 +403,12 @@ func (UnimplementedFFStreamServer) GetBitRates(context.Context, *GetBitRatesRequ
 }
 func (UnimplementedFFStreamServer) GetLatencies(context.Context, *GetLatenciesRequest) (*GetLatenciesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLatencies not implemented")
+}
+func (UnimplementedFFStreamServer) GetInputQuality(context.Context, *GetInputQualityRequest) (*GetInputQualityReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInputQuality not implemented")
+}
+func (UnimplementedFFStreamServer) GetOutputQuality(context.Context, *GetOutputQualityRequest) (*GetOutputQualityReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOutputQuality not implemented")
 }
 func (UnimplementedFFStreamServer) Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error {
 	return status.Errorf(codes.Unimplemented, "method Monitor not implemented")
@@ -703,6 +735,42 @@ func _FFStream_GetLatencies_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_GetInputQuality_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInputQualityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetInputQuality(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetInputQuality_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetInputQuality(ctx, req.(*GetInputQualityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_GetOutputQuality_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOutputQualityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetOutputQuality(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetOutputQuality_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetOutputQuality(ctx, req.(*GetOutputQualityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FFStream_Monitor_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(avpipeline.MonitorRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -794,6 +862,14 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLatencies",
 			Handler:    _FFStream_GetLatencies_Handler,
+		},
+		{
+			MethodName: "GetInputQuality",
+			Handler:    _FFStream_GetInputQuality_Handler,
+		},
+		{
+			MethodName: "GetOutputQuality",
+			Handler:    _FFStream_GetOutputQuality_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

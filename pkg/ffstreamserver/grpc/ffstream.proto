@@ -22,6 +22,8 @@ service FFStream {
   rpc SetFPSFraction(SetFPSFractionRequest) returns (SetFPSFractionReply) {}
   rpc GetBitRates(GetBitRatesRequest) returns (GetBitRatesReply) {}
   rpc GetLatencies(GetLatenciesRequest) returns (GetLatenciesReply) {}
+  rpc GetInputQuality(GetInputQualityRequest) returns (GetInputQualityReply) {}
+  rpc GetOutputQuality(GetOutputQualityRequest) returns (GetOutputQualityReply) {}
   rpc Monitor(avpipeline.MonitorRequest) returns (stream avpipeline.MonitorEvent);
 }
 
@@ -259,4 +261,23 @@ message TrackLatencies {
   uint64 recodingU = 2;
   uint64 recodedPreSendU = 3;
   uint64 sendingU = 4;
+}
+
+message GetInputQualityRequest {}
+message GetInputQualityReply {
+  StreamQuality audio = 1;
+  StreamQuality video = 2;
+}
+
+message StreamQuality {
+  double continuity = 1;
+  double overlap = 2;
+  double frameRate = 3;
+  uint64 invalidDTS = 4;
+}
+
+message GetOutputQualityRequest {}
+message GetOutputQualityReply {
+  StreamQuality audio = 1;
+  StreamQuality video = 2;
 }

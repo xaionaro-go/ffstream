@@ -2716,6 +2716,250 @@ func (x *TrackLatencies) GetSendingU() uint64 {
 	return 0
 }
 
+type GetInputQualityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInputQualityRequest) Reset() {
+	*x = GetInputQualityRequest{}
+	mi := &file_ffstream_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInputQualityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInputQualityRequest) ProtoMessage() {}
+
+func (x *GetInputQualityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInputQualityRequest.ProtoReflect.Descriptor instead.
+func (*GetInputQualityRequest) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{42}
+}
+
+type GetInputQualityReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Audio         *StreamQuality         `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
+	Video         *StreamQuality         `protobuf:"bytes,2,opt,name=video,proto3" json:"video,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInputQualityReply) Reset() {
+	*x = GetInputQualityReply{}
+	mi := &file_ffstream_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInputQualityReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInputQualityReply) ProtoMessage() {}
+
+func (x *GetInputQualityReply) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInputQualityReply.ProtoReflect.Descriptor instead.
+func (*GetInputQualityReply) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetInputQualityReply) GetAudio() *StreamQuality {
+	if x != nil {
+		return x.Audio
+	}
+	return nil
+}
+
+func (x *GetInputQualityReply) GetVideo() *StreamQuality {
+	if x != nil {
+		return x.Video
+	}
+	return nil
+}
+
+type StreamQuality struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Continuity    float64                `protobuf:"fixed64,1,opt,name=continuity,proto3" json:"continuity,omitempty"`
+	Overlap       float64                `protobuf:"fixed64,2,opt,name=overlap,proto3" json:"overlap,omitempty"`
+	FrameRate     float64                `protobuf:"fixed64,3,opt,name=frameRate,proto3" json:"frameRate,omitempty"`
+	InvalidDTS    uint64                 `protobuf:"varint,4,opt,name=invalidDTS,proto3" json:"invalidDTS,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamQuality) Reset() {
+	*x = StreamQuality{}
+	mi := &file_ffstream_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamQuality) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamQuality) ProtoMessage() {}
+
+func (x *StreamQuality) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamQuality.ProtoReflect.Descriptor instead.
+func (*StreamQuality) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *StreamQuality) GetContinuity() float64 {
+	if x != nil {
+		return x.Continuity
+	}
+	return 0
+}
+
+func (x *StreamQuality) GetOverlap() float64 {
+	if x != nil {
+		return x.Overlap
+	}
+	return 0
+}
+
+func (x *StreamQuality) GetFrameRate() float64 {
+	if x != nil {
+		return x.FrameRate
+	}
+	return 0
+}
+
+func (x *StreamQuality) GetInvalidDTS() uint64 {
+	if x != nil {
+		return x.InvalidDTS
+	}
+	return 0
+}
+
+type GetOutputQualityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutputQualityRequest) Reset() {
+	*x = GetOutputQualityRequest{}
+	mi := &file_ffstream_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutputQualityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutputQualityRequest) ProtoMessage() {}
+
+func (x *GetOutputQualityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutputQualityRequest.ProtoReflect.Descriptor instead.
+func (*GetOutputQualityRequest) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{45}
+}
+
+type GetOutputQualityReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Audio         *StreamQuality         `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
+	Video         *StreamQuality         `protobuf:"bytes,2,opt,name=video,proto3" json:"video,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutputQualityReply) Reset() {
+	*x = GetOutputQualityReply{}
+	mi := &file_ffstream_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutputQualityReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutputQualityReply) ProtoMessage() {}
+
+func (x *GetOutputQualityReply) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutputQualityReply.ProtoReflect.Descriptor instead.
+func (*GetOutputQualityReply) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetOutputQualityReply) GetAudio() *StreamQuality {
+	if x != nil {
+		return x.Audio
+	}
+	return nil
+}
+
+func (x *GetOutputQualityReply) GetVideo() *StreamQuality {
+	if x != nil {
+		return x.Video
+	}
+	return nil
+}
+
 var File_ffstream_proto protoreflect.FileDescriptor
 
 var file_ffstream_proto_rawDesc = string([]byte{
@@ -3112,7 +3356,35 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x64, 0x65, 0x64, 0x50, 0x72, 0x65, 0x53, 0x65, 0x6e, 0x64, 0x55, 0x18, 0x03, 0x20, 0x01, 0x28,
 	0x04, 0x52, 0x0f, 0x72, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x64, 0x50, 0x72, 0x65, 0x53, 0x65, 0x6e,
 	0x64, 0x55, 0x12, 0x1a, 0x0a, 0x08, 0x73, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x55, 0x18, 0x04,
-	0x20, 0x01, 0x28, 0x04, 0x52, 0x08, 0x73, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x55, 0x2a, 0xc3,
+	0x20, 0x01, 0x28, 0x04, 0x52, 0x08, 0x73, 0x65, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x55, 0x22, 0x18,
+	0x0a, 0x16, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74,
+	0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x7e, 0x0a, 0x14, 0x47, 0x65, 0x74, 0x49,
+	0x6e, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x65, 0x70, 0x6c, 0x79,
+	0x12, 0x32, 0x0a, 0x05, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x1c, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e,
+	0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x05, 0x61,
+	0x75, 0x64, 0x69, 0x6f, 0x12, 0x32, 0x0a, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67,
+	0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74,
+	0x79, 0x52, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x22, 0x87, 0x01, 0x0a, 0x0d, 0x53, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x12, 0x1e, 0x0a, 0x0a, 0x63, 0x6f,
+	0x6e, 0x74, 0x69, 0x6e, 0x75, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x0a,
+	0x63, 0x6f, 0x6e, 0x74, 0x69, 0x6e, 0x75, 0x69, 0x74, 0x79, 0x12, 0x18, 0x0a, 0x07, 0x6f, 0x76,
+	0x65, 0x72, 0x6c, 0x61, 0x70, 0x18, 0x02, 0x20, 0x01, 0x28, 0x01, 0x52, 0x07, 0x6f, 0x76, 0x65,
+	0x72, 0x6c, 0x61, 0x70, 0x12, 0x1c, 0x0a, 0x09, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x52, 0x61, 0x74,
+	0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x01, 0x52, 0x09, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x52, 0x61,
+	0x74, 0x65, 0x12, 0x1e, 0x0a, 0x0a, 0x69, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x44, 0x54, 0x53,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0a, 0x69, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x44,
+	0x54, 0x53, 0x22, 0x19, 0x0a, 0x17, 0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x51,
+	0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x7f, 0x0a,
+	0x15, 0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74,
+	0x79, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x32, 0x0a, 0x05, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x51, 0x75, 0x61, 0x6c,
+	0x69, 0x74, 0x79, 0x52, 0x05, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x12, 0x32, 0x0a, 0x05, 0x76, 0x69,
+	0x64, 0x65, 0x6f, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x66, 0x66, 0x73, 0x74,
+	0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x2a, 0xc3,
 	0x01, 0x0a, 0x0c, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x12,
 	0x14, 0x0a, 0x10, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x4e,
 	0x6f, 0x6e, 0x65, 0x10, 0x00, 0x12, 0x15, 0x0a, 0x11, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67,
@@ -3127,8 +3399,8 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x11, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x54, 0x72, 0x61,
 	0x63, 0x65, 0x10, 0x07, 0x2a, 0x28, 0x0a, 0x0a, 0x53, 0x52, 0x54, 0x46, 0x6c, 0x61, 0x67, 0x49,
 	0x6e, 0x74, 0x12, 0x0d, 0x0a, 0x09, 0x75, 0x6e, 0x64, 0x65, 0x66, 0x69, 0x6e, 0x65, 0x64, 0x10,
-	0x00, 0x12, 0x0b, 0x0a, 0x07, 0x4c, 0x61, 0x74, 0x65, 0x6e, 0x63, 0x79, 0x10, 0x01, 0x32, 0xfd,
-	0x0c, 0x0a, 0x08, 0x46, 0x46, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x5f, 0x0a, 0x0f, 0x53,
+	0x00, 0x12, 0x0b, 0x0a, 0x07, 0x4c, 0x61, 0x74, 0x65, 0x6e, 0x63, 0x79, 0x10, 0x01, 0x32, 0xc2,
+	0x0e, 0x0a, 0x08, 0x46, 0x46, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x5f, 0x0a, 0x0f, 0x53,
 	0x65, 0x74, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x12, 0x25,
 	0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x53,
 	0x65, 0x74, 0x4c, 0x6f, 0x67, 0x67, 0x69, 0x6e, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x52, 0x65,
@@ -3227,13 +3499,25 @@ var file_ffstream_proto_rawDesc = string([]byte{
 	0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x4c, 0x61, 0x74, 0x65, 0x6e, 0x63, 0x69, 0x65, 0x73,
 	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65,
 	0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x4c, 0x61, 0x74, 0x65, 0x6e,
-	0x63, 0x69, 0x65, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x41, 0x0a, 0x07, 0x4d,
-	0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x12, 0x1a, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70, 0x65, 0x6c,
-	0x69, 0x6e, 0x65, 0x2e, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x18, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x2e,
-	0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x30, 0x01, 0x42, 0x12,
-	0x5a, 0x10, 0x67, 0x6f, 0x2f, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72,
-	0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x63, 0x69, 0x65, 0x73, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x5f, 0x0a, 0x0f, 0x47,
+	0x65, 0x74, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x12, 0x25,
+	0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47,
+	0x65, 0x74, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x51, 0x75,
+	0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x62, 0x0a, 0x10,
+	0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79,
+	0x12, 0x26, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63,
+	0x2e, 0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74,
+	0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x24, 0x2e, 0x66, 0x66, 0x73, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x4f, 0x75, 0x74, 0x70,
+	0x75, 0x74, 0x51, 0x75, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00,
+	0x12, 0x41, 0x0a, 0x07, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x12, 0x1a, 0x2e, 0x61, 0x76,
+	0x70, 0x69, 0x70, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x2e, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x61, 0x76, 0x70, 0x69, 0x70, 0x65,
+	0x6c, 0x69, 0x6e, 0x65, 0x2e, 0x4d, 0x6f, 0x6e, 0x69, 0x74, 0x6f, 0x72, 0x45, 0x76, 0x65, 0x6e,
+	0x74, 0x30, 0x01, 0x42, 0x12, 0x5a, 0x10, 0x67, 0x6f, 0x2f, 0x66, 0x66, 0x73, 0x74, 0x72, 0x65,
+	0x61, 0x6d, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 })
 
 var (
@@ -3249,7 +3533,7 @@ func file_ffstream_proto_rawDescGZIP() []byte {
 }
 
 var file_ffstream_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
+var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_ffstream_proto_goTypes = []any{
 	(LoggingLevel)(0),                        // 0: ffstream_grpc.LoggingLevel
 	(SRTFlagInt)(0),                          // 1: ffstream_grpc.SRTFlagInt
@@ -3295,11 +3579,16 @@ var file_ffstream_proto_goTypes = []any{
 	(*GetLatenciesReply)(nil),                // 41: ffstream_grpc.GetLatenciesReply
 	(*Latencies)(nil),                        // 42: ffstream_grpc.Latencies
 	(*TrackLatencies)(nil),                   // 43: ffstream_grpc.TrackLatencies
-	(*avpipeline.NodeCounters)(nil),          // 44: avpipeline.NodeCounters
-	(*avpipeline.Node)(nil),                  // 45: avpipeline.Node
-	(*avpipeline.AutoBitrateCalculator)(nil), // 46: avpipeline.AutoBitrateCalculator
-	(*avpipeline.MonitorRequest)(nil),        // 47: avpipeline.MonitorRequest
-	(*avpipeline.MonitorEvent)(nil),          // 48: avpipeline.MonitorEvent
+	(*GetInputQualityRequest)(nil),           // 44: ffstream_grpc.GetInputQualityRequest
+	(*GetInputQualityReply)(nil),             // 45: ffstream_grpc.GetInputQualityReply
+	(*StreamQuality)(nil),                    // 46: ffstream_grpc.StreamQuality
+	(*GetOutputQualityRequest)(nil),          // 47: ffstream_grpc.GetOutputQualityRequest
+	(*GetOutputQualityReply)(nil),            // 48: ffstream_grpc.GetOutputQualityReply
+	(*avpipeline.NodeCounters)(nil),          // 49: avpipeline.NodeCounters
+	(*avpipeline.Node)(nil),                  // 50: avpipeline.Node
+	(*avpipeline.AutoBitrateCalculator)(nil), // 51: avpipeline.AutoBitrateCalculator
+	(*avpipeline.MonitorRequest)(nil),        // 52: avpipeline.MonitorRequest
+	(*avpipeline.MonitorEvent)(nil),          // 53: avpipeline.MonitorEvent
 }
 var file_ffstream_proto_depIdxs = []int32{
 	0,  // 0: ffstream_grpc.SetLoggingLevelRequest.level:type_name -> ffstream_grpc.LoggingLevel
@@ -3309,12 +3598,12 @@ var file_ffstream_proto_depIdxs = []int32{
 	8,  // 4: ffstream_grpc.RecoderConfig.video:type_name -> ffstream_grpc.VideoCodecConfig
 	9,  // 5: ffstream_grpc.GetCurrentOutputReply.config:type_name -> ffstream_grpc.RecoderConfig
 	9,  // 6: ffstream_grpc.SwitchOutputByPropsRequest.config:type_name -> ffstream_grpc.RecoderConfig
-	44, // 7: ffstream_grpc.GetStatsReply.nodeCounters:type_name -> avpipeline.NodeCounters
+	49, // 7: ffstream_grpc.GetStatsReply.nodeCounters:type_name -> avpipeline.NodeCounters
 	1,  // 8: ffstream_grpc.GetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
 	1,  // 9: ffstream_grpc.SetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
-	45, // 10: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
-	46, // 11: ffstream_grpc.GetAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
-	46, // 12: ffstream_grpc.SetAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	50, // 10: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
+	51, // 11: ffstream_grpc.GetAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	51, // 12: ffstream_grpc.SetAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
 	36, // 13: ffstream_grpc.BitRates.inputBitRate:type_name -> ffstream_grpc.BitRateInfo
 	36, // 14: ffstream_grpc.BitRates.encodedBitRate:type_name -> ffstream_grpc.BitRateInfo
 	36, // 15: ffstream_grpc.BitRates.outputBitRate:type_name -> ffstream_grpc.BitRateInfo
@@ -3322,47 +3611,55 @@ var file_ffstream_proto_depIdxs = []int32{
 	42, // 17: ffstream_grpc.GetLatenciesReply.latencies:type_name -> ffstream_grpc.Latencies
 	43, // 18: ffstream_grpc.Latencies.audio:type_name -> ffstream_grpc.TrackLatencies
 	43, // 19: ffstream_grpc.Latencies.video:type_name -> ffstream_grpc.TrackLatencies
-	2,  // 20: ffstream_grpc.FFStream.SetLoggingLevel:input_type -> ffstream_grpc.SetLoggingLevelRequest
-	5,  // 21: ffstream_grpc.FFStream.RemoveOutput:input_type -> ffstream_grpc.RemoveOutputRequest
-	10, // 22: ffstream_grpc.FFStream.GetCurrentOutput:input_type -> ffstream_grpc.GetCurrentOutputRequest
-	12, // 23: ffstream_grpc.FFStream.SwitchOutputByProps:input_type -> ffstream_grpc.SwitchOutputByPropsRequest
-	14, // 24: ffstream_grpc.FFStream.GetStats:input_type -> ffstream_grpc.GetStatsRequest
-	16, // 25: ffstream_grpc.FFStream.GetOutputSRTStats:input_type -> ffstream_grpc.GetOutputSRTStatsRequest
-	18, // 26: ffstream_grpc.FFStream.GetSRTFlagInt:input_type -> ffstream_grpc.GetSRTFlagIntRequest
-	20, // 27: ffstream_grpc.FFStream.SetSRTFlagInt:input_type -> ffstream_grpc.SetSRTFlagIntRequest
-	22, // 28: ffstream_grpc.FFStream.WaitChan:input_type -> ffstream_grpc.WaitRequest
-	24, // 29: ffstream_grpc.FFStream.End:input_type -> ffstream_grpc.EndRequest
-	26, // 30: ffstream_grpc.FFStream.GetPipelines:input_type -> ffstream_grpc.GetPipelinesRequest
-	28, // 31: ffstream_grpc.FFStream.GetAutoBitRateCalculator:input_type -> ffstream_grpc.GetAutoBitRateCalculatorRequest
-	30, // 32: ffstream_grpc.FFStream.SetAutoBitRateCalculator:input_type -> ffstream_grpc.SetAutoBitRateCalculatorRequest
-	32, // 33: ffstream_grpc.FFStream.GetFPSFraction:input_type -> ffstream_grpc.GetFPSFractionRequest
-	34, // 34: ffstream_grpc.FFStream.SetFPSFraction:input_type -> ffstream_grpc.SetFPSFractionRequest
-	38, // 35: ffstream_grpc.FFStream.GetBitRates:input_type -> ffstream_grpc.GetBitRatesRequest
-	40, // 36: ffstream_grpc.FFStream.GetLatencies:input_type -> ffstream_grpc.GetLatenciesRequest
-	47, // 37: ffstream_grpc.FFStream.Monitor:input_type -> avpipeline.MonitorRequest
-	3,  // 38: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
-	6,  // 39: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
-	11, // 40: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
-	13, // 41: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
-	15, // 42: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
-	17, // 43: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
-	19, // 44: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
-	21, // 45: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
-	23, // 46: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
-	25, // 47: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
-	27, // 48: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
-	29, // 49: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
-	31, // 50: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
-	33, // 51: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
-	35, // 52: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
-	39, // 53: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
-	41, // 54: ffstream_grpc.FFStream.GetLatencies:output_type -> ffstream_grpc.GetLatenciesReply
-	48, // 55: ffstream_grpc.FFStream.Monitor:output_type -> avpipeline.MonitorEvent
-	38, // [38:56] is the sub-list for method output_type
-	20, // [20:38] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	46, // 20: ffstream_grpc.GetInputQualityReply.audio:type_name -> ffstream_grpc.StreamQuality
+	46, // 21: ffstream_grpc.GetInputQualityReply.video:type_name -> ffstream_grpc.StreamQuality
+	46, // 22: ffstream_grpc.GetOutputQualityReply.audio:type_name -> ffstream_grpc.StreamQuality
+	46, // 23: ffstream_grpc.GetOutputQualityReply.video:type_name -> ffstream_grpc.StreamQuality
+	2,  // 24: ffstream_grpc.FFStream.SetLoggingLevel:input_type -> ffstream_grpc.SetLoggingLevelRequest
+	5,  // 25: ffstream_grpc.FFStream.RemoveOutput:input_type -> ffstream_grpc.RemoveOutputRequest
+	10, // 26: ffstream_grpc.FFStream.GetCurrentOutput:input_type -> ffstream_grpc.GetCurrentOutputRequest
+	12, // 27: ffstream_grpc.FFStream.SwitchOutputByProps:input_type -> ffstream_grpc.SwitchOutputByPropsRequest
+	14, // 28: ffstream_grpc.FFStream.GetStats:input_type -> ffstream_grpc.GetStatsRequest
+	16, // 29: ffstream_grpc.FFStream.GetOutputSRTStats:input_type -> ffstream_grpc.GetOutputSRTStatsRequest
+	18, // 30: ffstream_grpc.FFStream.GetSRTFlagInt:input_type -> ffstream_grpc.GetSRTFlagIntRequest
+	20, // 31: ffstream_grpc.FFStream.SetSRTFlagInt:input_type -> ffstream_grpc.SetSRTFlagIntRequest
+	22, // 32: ffstream_grpc.FFStream.WaitChan:input_type -> ffstream_grpc.WaitRequest
+	24, // 33: ffstream_grpc.FFStream.End:input_type -> ffstream_grpc.EndRequest
+	26, // 34: ffstream_grpc.FFStream.GetPipelines:input_type -> ffstream_grpc.GetPipelinesRequest
+	28, // 35: ffstream_grpc.FFStream.GetAutoBitRateCalculator:input_type -> ffstream_grpc.GetAutoBitRateCalculatorRequest
+	30, // 36: ffstream_grpc.FFStream.SetAutoBitRateCalculator:input_type -> ffstream_grpc.SetAutoBitRateCalculatorRequest
+	32, // 37: ffstream_grpc.FFStream.GetFPSFraction:input_type -> ffstream_grpc.GetFPSFractionRequest
+	34, // 38: ffstream_grpc.FFStream.SetFPSFraction:input_type -> ffstream_grpc.SetFPSFractionRequest
+	38, // 39: ffstream_grpc.FFStream.GetBitRates:input_type -> ffstream_grpc.GetBitRatesRequest
+	40, // 40: ffstream_grpc.FFStream.GetLatencies:input_type -> ffstream_grpc.GetLatenciesRequest
+	44, // 41: ffstream_grpc.FFStream.GetInputQuality:input_type -> ffstream_grpc.GetInputQualityRequest
+	47, // 42: ffstream_grpc.FFStream.GetOutputQuality:input_type -> ffstream_grpc.GetOutputQualityRequest
+	52, // 43: ffstream_grpc.FFStream.Monitor:input_type -> avpipeline.MonitorRequest
+	3,  // 44: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
+	6,  // 45: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
+	11, // 46: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
+	13, // 47: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
+	15, // 48: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
+	17, // 49: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
+	19, // 50: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
+	21, // 51: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
+	23, // 52: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
+	25, // 53: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
+	27, // 54: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
+	29, // 55: ffstream_grpc.FFStream.GetAutoBitRateCalculator:output_type -> ffstream_grpc.GetAutoBitRateCalculatorReply
+	31, // 56: ffstream_grpc.FFStream.SetAutoBitRateCalculator:output_type -> ffstream_grpc.SetAutoBitRateCalculatorReply
+	33, // 57: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
+	35, // 58: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
+	39, // 59: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
+	41, // 60: ffstream_grpc.FFStream.GetLatencies:output_type -> ffstream_grpc.GetLatenciesReply
+	45, // 61: ffstream_grpc.FFStream.GetInputQuality:output_type -> ffstream_grpc.GetInputQualityReply
+	48, // 62: ffstream_grpc.FFStream.GetOutputQuality:output_type -> ffstream_grpc.GetOutputQualityReply
+	53, // 63: ffstream_grpc.FFStream.Monitor:output_type -> avpipeline.MonitorEvent
+	44, // [44:64] is the sub-list for method output_type
+	24, // [24:44] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_ffstream_proto_init() }
@@ -3376,7 +3673,7 @@ func file_ffstream_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ffstream_proto_rawDesc), len(file_ffstream_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   42,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
