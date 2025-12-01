@@ -13,6 +13,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra/quality"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
+	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
@@ -229,7 +230,7 @@ func (c *Client) GetAutoBitRateCalculator(
 		return nil, fmt.Errorf("query error: %w", err)
 	}
 
-	calc, err := goconv.AutoBitRateCalculatorFromGRPC(resp.GetCalculator())
+	calc, err := goconvavp.AutoBitRateCalculatorFromProto(resp.GetCalculator())
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert the auto bitrate calculator from gRPC: %v", err)
 	}
@@ -250,7 +251,7 @@ func (c *Client) SetAutoBitRateCalculator(
 	}
 	defer conn.Close()
 
-	calcGRPC, err := goconv.AutoBitRateCalculatorToGRPC(calculator)
+	calcGRPC, err := goconvavp.AutoBitRateCalculatorToProto(calculator)
 	if err != nil {
 		return fmt.Errorf("unable to convert the auto bitrate calculator to gRPC: %v", err)
 	}

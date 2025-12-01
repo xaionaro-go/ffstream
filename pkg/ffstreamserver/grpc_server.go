@@ -122,7 +122,7 @@ func (srv *GRPCServer) GetAutoBitRateCalculator(
 	if calc == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the auto bitrate calculator")
 	}
-	calcGRPC, err := goconv.AutoBitRateCalculatorToGRPC(calc)
+	calcGRPC, err := goconvavp.AutoBitRateCalculatorToProto(calc)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to convert the auto bitrate calculator to gRPC: %v", err)
 	}
@@ -140,7 +140,7 @@ func (srv *GRPCServer) SetAutoBitRateCalculator(
 	defer func() {
 		logger.Tracef(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v %v", req.GetCalculator().GetAutoBitrateCalculator(), _ret, _err)
 	}()
-	calc, err := goconv.AutoBitRateCalculatorFromGRPC(req.GetCalculator())
+	calc, err := goconvavp.AutoBitRateCalculatorFromProto(req.GetCalculator())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to convert the auto bitrate calculator from gRPC: %v", err)
 	}

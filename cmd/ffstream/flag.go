@@ -211,9 +211,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		if vCodec == nil {
 			fatal(ctx, "unable to determine video codec from %q", flags.VideoEncoder.Codec)
 		}
-		cfg := streammux.DefaultAutoBitrateConfig(
-			vCodec.ID(),
-		)
+		cfg := streammux.DefaultAutoBitRateVideoConfig(vCodec.ID())
 		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MaxHeight(uint32(autoBitrateMaxHeight.Value()))
 		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MinHeight(uint32(autoBitrateMinHeight.Value()))
 		if flags.MuxMode == streammuxtypes.MuxModeForbid {

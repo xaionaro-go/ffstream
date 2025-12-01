@@ -192,12 +192,16 @@ func (s *FFStream) Start(
 	s.StreamMux, err = streammux.NewWithCustomData(
 		ctx,
 		muxMode,
-		autoBitRateVideo,
 		s.asSenderFactory(),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
+
+	if err := s.StreamMux.SetAutoBitRateVideoConfig(ctx, autoBitRateVideo); err != nil {
+		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", autoBitRateVideo, err)
+	}
+
 	s.NodeInput.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{

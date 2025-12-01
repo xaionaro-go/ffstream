@@ -72,13 +72,13 @@ func (s *senderFactory) NewSender(
 	}
 	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
-	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Find(outputKey.VideoResolution)
+	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Find(outputKey.VideoResolution)
 	var sendBufSize uint
 	if resCfg == nil {
 		if outputKey.VideoResolution != (codec.Resolution{}) {
 			logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.VideoResolution)
 		}
-		resCfg = s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateConfig.ResolutionsAndBitRates.Best()
+		resCfg = s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Best()
 	}
 	sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
 	sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB

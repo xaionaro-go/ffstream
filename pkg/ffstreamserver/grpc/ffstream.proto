@@ -16,6 +16,8 @@ service FFStream {
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
   rpc GetPipelines(GetPipelinesRequest) returns (GetPipelinesResponse);
+  rpc GetAutoBitRateConfig(GetAutoBitRateConfigRequest) returns (GetAutoBitRateConfigReply) {}
+  rpc SetAutoBitRateConfig(SetAutoBitRateConfigRequest) returns (SetAutoBitRateConfigReply) {}
   rpc GetAutoBitRateCalculator(GetAutoBitRateCalculatorRequest) returns (GetAutoBitRateCalculatorReply) {}
   rpc SetAutoBitRateCalculator(SetAutoBitRateCalculatorRequest) returns (SetAutoBitRateCalculatorReply) {}
   rpc GetFPSFraction(GetFPSFractionRequest) returns (GetFPSFractionReply) {}
@@ -208,7 +210,19 @@ message GetPipelinesRequest {}
 message GetPipelinesResponse {
     repeated avpipeline.Node nodes = 1;
 }
+message AutoBitRateConfig {
+}
+message GetAutoBitRateConfigRequest {}
 
+message GetAutoBitRateConfigReply {
+  AutoBitRateConfig config = 1;
+}
+
+message SetAutoBitRateConfigRequest {
+  AutoBitRateConfig config = 1;
+}
+
+message SetAutoBitRateConfigReply {}
 message GetAutoBitRateCalculatorRequest {}
 message GetAutoBitRateCalculatorReply {
     avpipeline.AutoBitrateCalculator calculator = 1;
