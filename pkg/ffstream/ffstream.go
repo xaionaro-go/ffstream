@@ -305,6 +305,46 @@ func (s *FFStream) Wait(
 	defer func() { logger.Debugf(ctx, "/Wait: %v", _err) }()
 	return s.StreamMux.WaitForStop(ctx)
 }
+
+func (s *FFStream) GetAutoBitRateVideoConfig(
+	ctx context.Context,
+) (_ret *streammuxtypes.AutoBitRateVideoConfig, err error) {
+	if s == nil {
+		return nil, fmt.Errorf("ffstream is nil")
+	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return nil, fmt.Errorf("it is allowed to use GetAutoBitRateVideoConfig only after Start is invoked")
+	}
+
+	h := s.StreamMux.GetAutoBitRateHandler()
+	if h == nil {
+		return nil, nil
+	}
+
+	return &h.AutoBitRateVideoConfig, nil
+}
+
+func (s *FFStream) SetAutoBitRateVideoConfig(
+	ctx context.Context,
+	cfg *streammuxtypes.AutoBitRateVideoConfig,
+) (_err error) {
+	logger.Debugf(ctx, "SetAutoBitRateVideoConfig(ctx, %#+v)", cfg)
+	defer func() { logger.Debugf(ctx, "/SetAutoBitRateVideoConfig(ctx, %#+v): %v", cfg, _err) }()
+
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return fmt.Errorf("it is allowed to use SetAutoBitRateVideoConfig only after Start is invoked")
+	}
+
+	if err := s.StreamMux.SetAutoBitRateVideoConfig(ctx, cfg); err != nil {
+		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", cfg, err)
+	}
+	return nil
+}
+
 func (s *FFStream) GetAutoBitRateCalculator(
 	ctx context.Context,
 ) streammux.AutoBitRateCalculator {

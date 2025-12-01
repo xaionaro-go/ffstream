@@ -216,7 +216,58 @@ func (c *Client) GetPipelines(
 	return resp, nil
 }
 
-func (c *Client) GetAutoBitRateCalculator(
+func (c *Client) GetVideoAutoBitRateConfig(
+	ctx context.Context,
+) (*streammuxtypes.AutoBitRateVideoConfig, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetVideoAutoBitRateConfig(ctx, &ffstream_grpc.GetVideoAutoBitRateConfigRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	cfg, err := goconvavp.AutoBitRateVideoConfigFromProto(resp.GetConfig())
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert the auto bitrate calculator from gRPC: %v", err)
+	}
+
+	return cfg, nil
+}
+
+func (c *Client) SetVideoAutoBitRateConfig(
+	ctx context.Context,
+	cfg *streammuxtypes.AutoBitRateVideoConfig,
+) (_err error) {
+	logger.Debugf(ctx, "SetVideoAutoBitRateConfig(ctx, %#+v)", cfg)
+	defer func() { logger.Debugf(ctx, "/SetVideoAutoBitRateConfig(ctx, %#+v): %v", cfg, _err) }()
+
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	cfgGRPC, err := goconvavp.AutoBitRateVideoConfigToProto(cfg)
+	if err != nil {
+		return fmt.Errorf("unable to convert the auto bitrate calculator to gRPC: %v", err)
+	}
+
+	logger.Tracef(ctx, "SetVideoAutoBitRateConfig: %s", try(json.Marshal(cfgGRPC)))
+	_, err = client.SetVideoAutoBitRateConfig(ctx, &ffstream_grpc.SetVideoAutoBitRateConfigRequest{
+		Config: cfgGRPC,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) GetVideoAutoBitRateCalculator(
 	ctx context.Context,
 ) (streammuxtypes.AutoBitRateCalculator, error) {
 	client, conn, err := c.grpcClient()
@@ -225,7 +276,7 @@ func (c *Client) GetAutoBitRateCalculator(
 	}
 	defer conn.Close()
 
-	resp, err := client.GetAutoBitRateCalculator(ctx, &ffstream_grpc.GetAutoBitRateCalculatorRequest{})
+	resp, err := client.GetVideoAutoBitRateCalculator(ctx, &ffstream_grpc.GetVideoAutoBitRateCalculatorRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
 	}
@@ -238,12 +289,12 @@ func (c *Client) GetAutoBitRateCalculator(
 	return calc, nil
 }
 
-func (c *Client) SetAutoBitRateCalculator(
+func (c *Client) SetVideoAutoBitRateCalculator(
 	ctx context.Context,
 	calculator streammuxtypes.AutoBitRateCalculator,
 ) (_err error) {
-	logger.Debugf(ctx, "SetAutoBitRateCalculator(ctx, %#+v)", calculator)
-	defer func() { logger.Debugf(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v", calculator, _err) }()
+	logger.Debugf(ctx, "SetVideoAutoBitRateCalculator(ctx, %#+v)", calculator)
+	defer func() { logger.Debugf(ctx, "/SetVideoAutoBitRateCalculator(ctx, %#+v): %v", calculator, _err) }()
 
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -256,8 +307,8 @@ func (c *Client) SetAutoBitRateCalculator(
 		return fmt.Errorf("unable to convert the auto bitrate calculator to gRPC: %v", err)
 	}
 
-	logger.Tracef(ctx, "SetAutoBitRateCalculator: %s", try(json.Marshal(calcGRPC)))
-	_, err = client.SetAutoBitRateCalculator(ctx, &ffstream_grpc.SetAutoBitRateCalculatorRequest{
+	logger.Tracef(ctx, "SetVideoAutoBitRateCalculator: %s", try(json.Marshal(calcGRPC)))
+	_, err = client.SetVideoAutoBitRateCalculator(ctx, &ffstream_grpc.SetVideoAutoBitRateCalculatorRequest{
 		Calculator: calcGRPC,
 	})
 	if err != nil {

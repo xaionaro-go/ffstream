@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -113,20 +114,40 @@ var (
 		Use: "auto_bitrate",
 	}
 
-	EncoderAutoBitRateCalculator = &cobra.Command{
+	EncoderAutoBitRateVideo = &cobra.Command{
+		Use: "video",
+	}
+
+	EncoderAutoBitRateVideoCalculator = &cobra.Command{
 		Use: "calculator",
 	}
 
-	EncoderAutoBitRateCalculatorGet = &cobra.Command{
+	EncoderAutoBitRateVideoCalculatorGet = &cobra.Command{
 		Use:  "get",
 		Args: cobra.ExactArgs(0),
 		Run:  autoBitRateCalculatorGet,
 	}
 
-	EncoderAutoBitRateCalculatorSet = &cobra.Command{
+	EncoderAutoBitRateVideoCalculatorSet = &cobra.Command{
 		Use:  "set",
 		Args: cobra.ExactArgs(0),
 		Run:  autoBitRateCalculatorSet,
+	}
+
+	EncoderAutoBitRateVideoConfig = &cobra.Command{
+		Use: "config",
+	}
+
+	EncoderAutoBitRateVideoConfigGet = &cobra.Command{
+		Use:  "get",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateConfigGet,
+	}
+
+	EncoderAutoBitRateVideoConfigSet = &cobra.Command{
+		Use:  "set",
+		Args: cobra.ExactArgs(0),
+		Run:  autoBitRateConfigSet,
 	}
 
 	EncoderFPSFraction = &cobra.Command{
@@ -184,9 +205,13 @@ func init() {
 	Encoder.AddCommand(EncoderConfig)
 
 	Encoder.AddCommand(EncoderAutoBitRate)
-	EncoderAutoBitRate.AddCommand(EncoderAutoBitRateCalculator)
-	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorGet)
-	EncoderAutoBitRateCalculator.AddCommand(EncoderAutoBitRateCalculatorSet)
+	EncoderAutoBitRate.AddCommand(EncoderAutoBitRateVideo)
+	EncoderAutoBitRateVideo.AddCommand(EncoderAutoBitRateVideoCalculator)
+	EncoderAutoBitRateVideoCalculator.AddCommand(EncoderAutoBitRateVideoCalculatorGet)
+	EncoderAutoBitRateVideoCalculator.AddCommand(EncoderAutoBitRateVideoCalculatorSet)
+	EncoderAutoBitRateVideo.AddCommand(EncoderAutoBitRateVideoConfig)
+	EncoderAutoBitRateVideoConfig.AddCommand(EncoderAutoBitRateVideoConfigGet)
+	EncoderAutoBitRateVideoConfig.AddCommand(EncoderAutoBitRateVideoConfigSet)
 
 	Encoder.AddCommand(EncoderFPSFraction)
 	EncoderFPSFraction.AddCommand(EncoderFPSFractionGet)
@@ -217,7 +242,9 @@ func init() {
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorLogK{})
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorStatic(0))
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorQueueSizeGapDecay{})
+	polyjson.RegisterType(streammuxtypes.UBps(0))
 	polyjson.RegisterType(indicator.MAMA[float64]{})
+	polyjson.RegisterType(indicator.MAMA[streammuxtypes.UBps]{})
 }
 
 func assertNoError(ctx context.Context, err error) {
@@ -353,7 +380,7 @@ func autoBitRateCalculatorGet(cmd *cobra.Command, args []string) {
 
 	client := client.New(remoteAddr)
 
-	calculator, err := client.GetAutoBitRateCalculator(ctx)
+	calculator, err := client.GetVideoAutoBitRateCalculator(ctx)
 	assertNoError(ctx, err)
 	logger.Debugf(ctx, "got AutoBitRateCalculator: %#v", calculator)
 
@@ -390,7 +417,59 @@ func autoBitRateCalculatorSet(cmd *cobra.Command, args []string) {
 	client := client.New(remoteAddr)
 
 	logger.Debugf(ctx, "setting AutoBitRateCalculator: %#v", m["calculator"])
-	err = client.SetAutoBitRateCalculator(ctx, m["calculator"])
+	err = client.SetVideoAutoBitRateCalculator(ctx, m["calculator"])
+	assertNoError(ctx, err)
+}
+
+func autoBitRateConfigGet(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	cfg, err := client.GetVideoAutoBitRateConfig(ctx)
+	assertNoError(ctx, err)
+	logger.Debugf(ctx, "got AutoBitRateConfig: %#v", cfg)
+
+	m := map[string]*streammuxtypes.AutoBitRateVideoConfig{
+		"config": cfg,
+	}
+
+	b, err := polyjson.MarshalWithTypeIDs(m, polyjson.TypeRegistry())
+	assertNoError(ctx, err)
+
+	// a workaround for a bug in polyjson:
+	m2 := map[string]json.RawMessage{}
+	err = json.Unmarshal(b, &m2)
+	assertNoError(ctx, err)
+	b64 := strings.Trim(string(m2["config"]), `"`)
+	j, err := base64.StdEncoding.DecodeString(string(b64))
+	assertNoError(ctx, err)
+
+	cmd.OutOrStdout().Write(j)
+}
+
+func autoBitRateConfigSet(cmd *cobra.Command, args []string) {
+	// an example:
+	// echo '{"./avpipeline/preset/streammux/types.AutoBitrateConfigStatic":1000}' | ffstreamctl encoder auto_bitrate calculator set
+	ctx := cmd.Context()
+
+	b, err := io.ReadAll(cmd.InOrStdin())
+	assertNoError(ctx, err)
+
+	var m map[string]*streammuxtypes.AutoBitRateVideoConfig
+	err = polyjson.UnmarshalWithTypeIDs([]byte(`{"config":`+string(b)+`}`), &m, polyjson.TypeRegistry())
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	logger.Debugf(ctx, "setting AutoBitRateConfig: %#v", m["config"])
+	err = client.SetVideoAutoBitRateConfig(ctx, m["config"])
 	assertNoError(ctx, err)
 }
 

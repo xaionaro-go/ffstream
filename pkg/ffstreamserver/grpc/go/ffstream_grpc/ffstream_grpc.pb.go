@@ -20,26 +20,28 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	FFStream_SetLoggingLevel_FullMethodName          = "/ffstream_grpc.FFStream/SetLoggingLevel"
-	FFStream_RemoveOutput_FullMethodName             = "/ffstream_grpc.FFStream/RemoveOutput"
-	FFStream_GetCurrentOutput_FullMethodName         = "/ffstream_grpc.FFStream/GetCurrentOutput"
-	FFStream_SwitchOutputByProps_FullMethodName      = "/ffstream_grpc.FFStream/SwitchOutputByProps"
-	FFStream_GetStats_FullMethodName                 = "/ffstream_grpc.FFStream/GetStats"
-	FFStream_GetOutputSRTStats_FullMethodName        = "/ffstream_grpc.FFStream/GetOutputSRTStats"
-	FFStream_GetSRTFlagInt_FullMethodName            = "/ffstream_grpc.FFStream/GetSRTFlagInt"
-	FFStream_SetSRTFlagInt_FullMethodName            = "/ffstream_grpc.FFStream/SetSRTFlagInt"
-	FFStream_WaitChan_FullMethodName                 = "/ffstream_grpc.FFStream/WaitChan"
-	FFStream_End_FullMethodName                      = "/ffstream_grpc.FFStream/End"
-	FFStream_GetPipelines_FullMethodName             = "/ffstream_grpc.FFStream/GetPipelines"
-	FFStream_GetAutoBitRateCalculator_FullMethodName = "/ffstream_grpc.FFStream/GetAutoBitRateCalculator"
-	FFStream_SetAutoBitRateCalculator_FullMethodName = "/ffstream_grpc.FFStream/SetAutoBitRateCalculator"
-	FFStream_GetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/GetFPSFraction"
-	FFStream_SetFPSFraction_FullMethodName           = "/ffstream_grpc.FFStream/SetFPSFraction"
-	FFStream_GetBitRates_FullMethodName              = "/ffstream_grpc.FFStream/GetBitRates"
-	FFStream_GetLatencies_FullMethodName             = "/ffstream_grpc.FFStream/GetLatencies"
-	FFStream_GetInputQuality_FullMethodName          = "/ffstream_grpc.FFStream/GetInputQuality"
-	FFStream_GetOutputQuality_FullMethodName         = "/ffstream_grpc.FFStream/GetOutputQuality"
-	FFStream_Monitor_FullMethodName                  = "/ffstream_grpc.FFStream/Monitor"
+	FFStream_SetLoggingLevel_FullMethodName               = "/ffstream_grpc.FFStream/SetLoggingLevel"
+	FFStream_RemoveOutput_FullMethodName                  = "/ffstream_grpc.FFStream/RemoveOutput"
+	FFStream_GetCurrentOutput_FullMethodName              = "/ffstream_grpc.FFStream/GetCurrentOutput"
+	FFStream_SwitchOutputByProps_FullMethodName           = "/ffstream_grpc.FFStream/SwitchOutputByProps"
+	FFStream_GetStats_FullMethodName                      = "/ffstream_grpc.FFStream/GetStats"
+	FFStream_GetOutputSRTStats_FullMethodName             = "/ffstream_grpc.FFStream/GetOutputSRTStats"
+	FFStream_GetSRTFlagInt_FullMethodName                 = "/ffstream_grpc.FFStream/GetSRTFlagInt"
+	FFStream_SetSRTFlagInt_FullMethodName                 = "/ffstream_grpc.FFStream/SetSRTFlagInt"
+	FFStream_WaitChan_FullMethodName                      = "/ffstream_grpc.FFStream/WaitChan"
+	FFStream_End_FullMethodName                           = "/ffstream_grpc.FFStream/End"
+	FFStream_GetPipelines_FullMethodName                  = "/ffstream_grpc.FFStream/GetPipelines"
+	FFStream_GetVideoAutoBitRateConfig_FullMethodName     = "/ffstream_grpc.FFStream/GetVideoAutoBitRateConfig"
+	FFStream_SetVideoAutoBitRateConfig_FullMethodName     = "/ffstream_grpc.FFStream/SetVideoAutoBitRateConfig"
+	FFStream_GetVideoAutoBitRateCalculator_FullMethodName = "/ffstream_grpc.FFStream/GetVideoAutoBitRateCalculator"
+	FFStream_SetVideoAutoBitRateCalculator_FullMethodName = "/ffstream_grpc.FFStream/SetVideoAutoBitRateCalculator"
+	FFStream_GetFPSFraction_FullMethodName                = "/ffstream_grpc.FFStream/GetFPSFraction"
+	FFStream_SetFPSFraction_FullMethodName                = "/ffstream_grpc.FFStream/SetFPSFraction"
+	FFStream_GetBitRates_FullMethodName                   = "/ffstream_grpc.FFStream/GetBitRates"
+	FFStream_GetLatencies_FullMethodName                  = "/ffstream_grpc.FFStream/GetLatencies"
+	FFStream_GetInputQuality_FullMethodName               = "/ffstream_grpc.FFStream/GetInputQuality"
+	FFStream_GetOutputQuality_FullMethodName              = "/ffstream_grpc.FFStream/GetOutputQuality"
+	FFStream_Monitor_FullMethodName                       = "/ffstream_grpc.FFStream/Monitor"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -57,8 +59,10 @@ type FFStreamClient interface {
 	WaitChan(ctx context.Context, in *WaitRequest, opts ...grpc.CallOption) (FFStream_WaitChanClient, error)
 	End(ctx context.Context, in *EndRequest, opts ...grpc.CallOption) (*EndReply, error)
 	GetPipelines(ctx context.Context, in *GetPipelinesRequest, opts ...grpc.CallOption) (*GetPipelinesResponse, error)
-	GetAutoBitRateCalculator(ctx context.Context, in *GetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetAutoBitRateCalculatorReply, error)
-	SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error)
+	GetVideoAutoBitRateConfig(ctx context.Context, in *GetVideoAutoBitRateConfigRequest, opts ...grpc.CallOption) (*GetVideoAutoBitRateConfigReply, error)
+	SetVideoAutoBitRateConfig(ctx context.Context, in *SetVideoAutoBitRateConfigRequest, opts ...grpc.CallOption) (*SetVideoAutoBitRateConfigReply, error)
+	GetVideoAutoBitRateCalculator(ctx context.Context, in *GetVideoAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetVideoAutoBitRateCalculatorReply, error)
+	SetVideoAutoBitRateCalculator(ctx context.Context, in *SetVideoAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetVideoAutoBitRateCalculatorReply, error)
 	GetFPSFraction(ctx context.Context, in *GetFPSFractionRequest, opts ...grpc.CallOption) (*GetFPSFractionReply, error)
 	SetFPSFraction(ctx context.Context, in *SetFPSFractionRequest, opts ...grpc.CallOption) (*SetFPSFractionReply, error)
 	GetBitRates(ctx context.Context, in *GetBitRatesRequest, opts ...grpc.CallOption) (*GetBitRatesReply, error)
@@ -209,20 +213,40 @@ func (c *fFStreamClient) GetPipelines(ctx context.Context, in *GetPipelinesReque
 	return out, nil
 }
 
-func (c *fFStreamClient) GetAutoBitRateCalculator(ctx context.Context, in *GetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetAutoBitRateCalculatorReply, error) {
+func (c *fFStreamClient) GetVideoAutoBitRateConfig(ctx context.Context, in *GetVideoAutoBitRateConfigRequest, opts ...grpc.CallOption) (*GetVideoAutoBitRateConfigReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAutoBitRateCalculatorReply)
-	err := c.cc.Invoke(ctx, FFStream_GetAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
+	out := new(GetVideoAutoBitRateConfigReply)
+	err := c.cc.Invoke(ctx, FFStream_GetVideoAutoBitRateConfig_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *fFStreamClient) SetAutoBitRateCalculator(ctx context.Context, in *SetAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetAutoBitRateCalculatorReply, error) {
+func (c *fFStreamClient) SetVideoAutoBitRateConfig(ctx context.Context, in *SetVideoAutoBitRateConfigRequest, opts ...grpc.CallOption) (*SetVideoAutoBitRateConfigReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetAutoBitRateCalculatorReply)
-	err := c.cc.Invoke(ctx, FFStream_SetAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
+	out := new(SetVideoAutoBitRateConfigReply)
+	err := c.cc.Invoke(ctx, FFStream_SetVideoAutoBitRateConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) GetVideoAutoBitRateCalculator(ctx context.Context, in *GetVideoAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*GetVideoAutoBitRateCalculatorReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVideoAutoBitRateCalculatorReply)
+	err := c.cc.Invoke(ctx, FFStream_GetVideoAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) SetVideoAutoBitRateCalculator(ctx context.Context, in *SetVideoAutoBitRateCalculatorRequest, opts ...grpc.CallOption) (*SetVideoAutoBitRateCalculatorReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetVideoAutoBitRateCalculatorReply)
+	err := c.cc.Invoke(ctx, FFStream_SetVideoAutoBitRateCalculator_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -337,8 +361,10 @@ type FFStreamServer interface {
 	WaitChan(*WaitRequest, FFStream_WaitChanServer) error
 	End(context.Context, *EndRequest) (*EndReply, error)
 	GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error)
-	GetAutoBitRateCalculator(context.Context, *GetAutoBitRateCalculatorRequest) (*GetAutoBitRateCalculatorReply, error)
-	SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error)
+	GetVideoAutoBitRateConfig(context.Context, *GetVideoAutoBitRateConfigRequest) (*GetVideoAutoBitRateConfigReply, error)
+	SetVideoAutoBitRateConfig(context.Context, *SetVideoAutoBitRateConfigRequest) (*SetVideoAutoBitRateConfigReply, error)
+	GetVideoAutoBitRateCalculator(context.Context, *GetVideoAutoBitRateCalculatorRequest) (*GetVideoAutoBitRateCalculatorReply, error)
+	SetVideoAutoBitRateCalculator(context.Context, *SetVideoAutoBitRateCalculatorRequest) (*SetVideoAutoBitRateCalculatorReply, error)
 	GetFPSFraction(context.Context, *GetFPSFractionRequest) (*GetFPSFractionReply, error)
 	SetFPSFraction(context.Context, *SetFPSFractionRequest) (*SetFPSFractionReply, error)
 	GetBitRates(context.Context, *GetBitRatesRequest) (*GetBitRatesReply, error)
@@ -386,11 +412,17 @@ func (UnimplementedFFStreamServer) End(context.Context, *EndRequest) (*EndReply,
 func (UnimplementedFFStreamServer) GetPipelines(context.Context, *GetPipelinesRequest) (*GetPipelinesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPipelines not implemented")
 }
-func (UnimplementedFFStreamServer) GetAutoBitRateCalculator(context.Context, *GetAutoBitRateCalculatorRequest) (*GetAutoBitRateCalculatorReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAutoBitRateCalculator not implemented")
+func (UnimplementedFFStreamServer) GetVideoAutoBitRateConfig(context.Context, *GetVideoAutoBitRateConfigRequest) (*GetVideoAutoBitRateConfigReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVideoAutoBitRateConfig not implemented")
 }
-func (UnimplementedFFStreamServer) SetAutoBitRateCalculator(context.Context, *SetAutoBitRateCalculatorRequest) (*SetAutoBitRateCalculatorReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetAutoBitRateCalculator not implemented")
+func (UnimplementedFFStreamServer) SetVideoAutoBitRateConfig(context.Context, *SetVideoAutoBitRateConfigRequest) (*SetVideoAutoBitRateConfigReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetVideoAutoBitRateConfig not implemented")
+}
+func (UnimplementedFFStreamServer) GetVideoAutoBitRateCalculator(context.Context, *GetVideoAutoBitRateCalculatorRequest) (*GetVideoAutoBitRateCalculatorReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVideoAutoBitRateCalculator not implemented")
+}
+func (UnimplementedFFStreamServer) SetVideoAutoBitRateCalculator(context.Context, *SetVideoAutoBitRateCalculatorRequest) (*SetVideoAutoBitRateCalculatorReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetVideoAutoBitRateCalculator not implemented")
 }
 func (UnimplementedFFStreamServer) GetFPSFraction(context.Context, *GetFPSFractionRequest) (*GetFPSFractionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFPSFraction not implemented")
@@ -627,38 +659,74 @@ func _FFStream_GetPipelines_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FFStream_GetAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAutoBitRateCalculatorRequest)
+func _FFStream_GetVideoAutoBitRateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVideoAutoBitRateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FFStreamServer).GetAutoBitRateCalculator(ctx, in)
+		return srv.(FFStreamServer).GetVideoAutoBitRateConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: FFStream_GetAutoBitRateCalculator_FullMethodName,
+		FullMethod: FFStream_GetVideoAutoBitRateConfig_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).GetAutoBitRateCalculator(ctx, req.(*GetAutoBitRateCalculatorRequest))
+		return srv.(FFStreamServer).GetVideoAutoBitRateConfig(ctx, req.(*GetVideoAutoBitRateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FFStream_SetAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetAutoBitRateCalculatorRequest)
+func _FFStream_SetVideoAutoBitRateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetVideoAutoBitRateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FFStreamServer).SetAutoBitRateCalculator(ctx, in)
+		return srv.(FFStreamServer).SetVideoAutoBitRateConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: FFStream_SetAutoBitRateCalculator_FullMethodName,
+		FullMethod: FFStream_SetVideoAutoBitRateConfig_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FFStreamServer).SetAutoBitRateCalculator(ctx, req.(*SetAutoBitRateCalculatorRequest))
+		return srv.(FFStreamServer).SetVideoAutoBitRateConfig(ctx, req.(*SetVideoAutoBitRateConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_GetVideoAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVideoAutoBitRateCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetVideoAutoBitRateCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetVideoAutoBitRateCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetVideoAutoBitRateCalculator(ctx, req.(*GetVideoAutoBitRateCalculatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_SetVideoAutoBitRateCalculator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetVideoAutoBitRateCalculatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetVideoAutoBitRateCalculator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetVideoAutoBitRateCalculator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetVideoAutoBitRateCalculator(ctx, req.(*SetVideoAutoBitRateCalculatorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -840,12 +908,20 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FFStream_GetPipelines_Handler,
 		},
 		{
-			MethodName: "GetAutoBitRateCalculator",
-			Handler:    _FFStream_GetAutoBitRateCalculator_Handler,
+			MethodName: "GetVideoAutoBitRateConfig",
+			Handler:    _FFStream_GetVideoAutoBitRateConfig_Handler,
 		},
 		{
-			MethodName: "SetAutoBitRateCalculator",
-			Handler:    _FFStream_SetAutoBitRateCalculator_Handler,
+			MethodName: "SetVideoAutoBitRateConfig",
+			Handler:    _FFStream_SetVideoAutoBitRateConfig_Handler,
+		},
+		{
+			MethodName: "GetVideoAutoBitRateCalculator",
+			Handler:    _FFStream_GetVideoAutoBitRateCalculator_Handler,
+		},
+		{
+			MethodName: "SetVideoAutoBitRateCalculator",
+			Handler:    _FFStream_SetVideoAutoBitRateCalculator_Handler,
 		},
 		{
 			MethodName: "GetFPSFraction",
