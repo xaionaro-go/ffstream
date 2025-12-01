@@ -411,7 +411,10 @@ func (s *FFStream) SetFPSFraction(
 	if num%den != 0 {
 		return fmt.Errorf("divider must be an integer fraction (num divisible by den), got %d/%d", num, den)
 	}
-	s.StreamMux.SetFPSFraction(ctx, num, den)
+	s.StreamMux.SetFPSFraction(ctx, avptypes.Rational{
+		Num: int(num),
+		Den: int(den),
+	})
 	return nil
 }
 

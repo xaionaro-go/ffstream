@@ -152,13 +152,13 @@ func (srv *GRPCServer) SetVideoAutoBitRateConfig(
 	return &ffstream_grpc.SetVideoAutoBitRateConfigReply{}, nil
 }
 
-func (srv *GRPCServer) GetAutoBitRateCalculator(
+func (srv *GRPCServer) GetVideoAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.GetVideoAutoBitRateCalculatorRequest,
 ) (_ret *ffstream_grpc.GetVideoAutoBitRateCalculatorReply, _err error) {
 	ctx = srv.ctx(ctx)
-	logger.Tracef(ctx, "GetAutoBitRateCalculator(ctx, %#+v)", req)
-	defer func() { logger.Tracef(ctx, "/GetAutoBitRateCalculator(ctx, %#+v): %v %v", req, _ret, _err) }()
+	logger.Tracef(ctx, "GetVideoAutoBitRateCalculator(ctx, %#+v)", req)
+	defer func() { logger.Tracef(ctx, "/GetVideoAutoBitRateCalculator(ctx, %#+v): %v %v", req, _ret, _err) }()
 	calc := srv.FFStream.GetAutoBitRateCalculator(ctx)
 	if calc == nil {
 		return nil, status.Errorf(codes.Unknown, "unable to get the auto bitrate calculator")
@@ -172,14 +172,14 @@ func (srv *GRPCServer) GetAutoBitRateCalculator(
 	}, nil
 }
 
-func (srv *GRPCServer) SetAutoBitRateCalculator(
+func (srv *GRPCServer) SetVideoAutoBitRateCalculator(
 	ctx context.Context,
 	req *ffstream_grpc.SetVideoAutoBitRateCalculatorRequest,
 ) (_ret *ffstream_grpc.SetVideoAutoBitRateCalculatorReply, _err error) {
 	ctx = srv.ctx(ctx)
-	logger.Tracef(ctx, "SetAutoBitRateCalculator(ctx, %#+v): %s", req.GetCalculator().GetAutoBitrateCalculator(), try(json.Marshal(req.GetCalculator().GetAutoBitrateCalculator())))
+	logger.Tracef(ctx, "SetVideoAutoBitRateCalculator(ctx, %#+v): %s", req.GetCalculator().GetAutoBitrateCalculator(), try(json.Marshal(req.GetCalculator().GetAutoBitrateCalculator())))
 	defer func() {
-		logger.Tracef(ctx, "/SetAutoBitRateCalculator(ctx, %#+v): %v %v", req.GetCalculator().GetAutoBitrateCalculator(), _ret, _err)
+		logger.Tracef(ctx, "/SetVideoAutoBitRateCalculator(ctx, %#+v): %v %v", req.GetCalculator().GetAutoBitrateCalculator(), _ret, _err)
 	}()
 	calc, err := goconvavp.AutoBitRateCalculatorFromProto(req.GetCalculator())
 	if err != nil {
