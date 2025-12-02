@@ -18,7 +18,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/indicator"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
-	goconvlibav "github.com/xaionaro-go/avpipeline/protobuf/goconv/libav"
+	goconvlibav "github.com/xaionaro-go/avpipeline/protobuf/goconv/libavnolibav"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/polyjson"
