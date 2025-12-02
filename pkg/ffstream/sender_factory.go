@@ -93,7 +93,11 @@ func (s *senderFactory) newOutputKernel(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (*kernel.Output, error) {
+) (_ret *kernel.Output, _err error) {
+	logger.Debugf(ctx, "newOutputKernel(ctx, %#+v, %q, %d)", outputTemplate, outputURL, bufSize)
+	defer func() {
+		logger.Debugf(ctx, "/newOutputKernel(ctx, %#+v, %q, %d): %#+v, %v", outputTemplate, outputURL, bufSize, _ret, _err)
+	}()
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
 		CustomOptions:  outputTemplate.Options,
 		SendBufferSize: bufSize,
@@ -111,7 +115,12 @@ func (s *senderFactory) newOutput(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
-) (SendingNodeAbstract, streammuxtypes.SenderConfig, error) {
+) (_ret0 SendingNodeAbstract, _ret1 streammuxtypes.SenderConfig, _err error) {
+	logger.Debugf(ctx, "newOutput(ctx, %#+v, %q, %d)", outputTemplate, outputURL, bufSize)
+	defer func() {
+		logger.Debugf(ctx, "/newOutput(ctx, %#+v, %q, %d): %#+v, %#+v, %v", outputTemplate, outputURL, bufSize, _ret0, _ret1, _err)
+	}()
+
 	outputKernel, err := s.newOutputKernel(ctx, outputTemplate, outputURL, bufSize)
 	if err != nil {
 		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output kernel: %w", err)
@@ -126,11 +135,15 @@ func (s *senderFactory) newOutputWithRetry(
 	outputURL string,
 	bufSize uint,
 	retryTimeout time.Duration,
-) (SendingNodeAbstract, streammuxtypes.SenderConfig, error) {
+) (_ret0 SendingNodeAbstract, _ret1 streammuxtypes.SenderConfig, _err error) {
+	logger.Debugf(ctx, "newOutputWithRetry(ctx, %#+v, %q, %d, %v)", outputTemplate, outputURL, bufSize, retryTimeout)
+	defer func() {
+		logger.Debugf(ctx, "/newOutputWithRetry(ctx, %#+v, %q, %d, %v): %#+v, %#+v, %v", outputTemplate, outputURL, bufSize, retryTimeout, _ret0, _ret1, _err)
+	}()
 	var errorsStartedAt time.Time
 	outputKernel := kernel.NewRetry(
 		ctx,
-		func(ctx context.Context) (*kernel.Output, error) {
+		func(ctx context.Context) (_ret *kernel.Output, _err error) {
 			outputKernel, err := s.newOutputKernel(ctx, outputTemplate, outputURL, bufSize)
 			if err != nil {
 				return nil, fmt.Errorf("(retryable-node:) unable to create output kernel: %w", err)
