@@ -136,9 +136,9 @@ func main() {
 		}
 
 		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
-			URLTemplate:          outputParams.URL,
-			Options:              outputOptions,
-			RetryOutputOnFailure: flags.RetryOutputOnFailure,
+			URLTemplate:                 outputParams.URL,
+			Options:                     outputOptions,
+			RetryOutputTimeoutOnFailure: flags.RetryOutputTimeoutOnFailure,
 		})
 		assertNoError(ctx, err)
 	}

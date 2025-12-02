@@ -14,23 +14,23 @@ import (
 )
 
 type Flags struct {
-	HWAccelGlobal         string
-	Inputs                []Resource
-	ListenControlSocket   string
-	ListenNetPprof        string
-	LoggerLevel           logger.Level
-	LogstashAddr          string
-	SentryDSN             string
-	LogFile               string
-	LockTimeout           time.Duration
-	InsecureDebug         bool
-	RemoveSecretsFromLogs bool
-	VideoEncoder          Encoder
-	AudioEncoder          Encoder
-	MuxMode               streammuxtypes.MuxMode
-	AutoBitRate           *streammuxtypes.AutoBitRateVideoConfig
-	RetryOutputOnFailure  bool
-	Outputs               []Resource
+	HWAccelGlobal               string
+	Inputs                      []Resource
+	ListenControlSocket         string
+	ListenNetPprof              string
+	LoggerLevel                 logger.Level
+	LogstashAddr                string
+	SentryDSN                   string
+	LogFile                     string
+	LockTimeout                 time.Duration
+	InsecureDebug               bool
+	RemoveSecretsFromLogs       bool
+	VideoEncoder                Encoder
+	AudioEncoder                Encoder
+	MuxMode                     streammuxtypes.MuxMode
+	AutoBitRate                 *streammuxtypes.AutoBitRateVideoConfig
+	RetryOutputTimeoutOnFailure time.Duration
+	Outputs                     []Resource
 }
 
 type Encoder struct {
@@ -70,7 +70,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
 	autoBitrateMinHeight := flag.AddParameter(p, "auto_bitrate_min_height", false, ptr(flag.Uint64(480)))
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
-	retryOutputOnFailure := flag.AddParameter(p, "retry_output_on_failure", false, ptr(flag.Bool(false)))
+	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, (*flag.Duration)(nil))
 	version := flag.AddFlag(p, "version", false)
 
 	encoders := flag.AddFlag(p, "encoders", false)
@@ -167,10 +167,10 @@ func parseFlags(args []string) (context.Context, Flags) {
 		LogFile:             logFile.Value(),
 		LockTimeout:         lockTimeout.Value(),
 
-		InsecureDebug:         insecureDebug.Value(),
-		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
-		MuxMode:               muxMode,
-		RetryOutputOnFailure:  retryOutputOnFailure.Value(),
+		InsecureDebug:               insecureDebug.Value(),
+		RemoveSecretsFromLogs:       removeSecretsFromLogs.Value(),
+		MuxMode:                     muxMode,
+		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
 		HWAccelGlobal: hwAccelFlag.Value(),
 		Inputs:        inputs,

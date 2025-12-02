@@ -18,9 +18,9 @@ import (
 )
 
 type SenderTemplate struct {
-	URLTemplate          string
-	Options              []avptypes.DictionaryItem
-	RetryOutputOnFailure bool
+	URLTemplate                 string
+	Options                     []avptypes.DictionaryItem
+	RetryOutputTimeoutOnFailure time.Duration
 }
 
 func (t *SenderTemplate) GetURL(
@@ -82,10 +82,28 @@ func (s *senderFactory) NewSender(
 	}
 	sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
 	sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
-	if outputTemplate.RetryOutputOnFailure {
-		return s.newOutputWithRetry(ctx, outputTemplate, outputURL, sendBufSize)
+	if outputTemplate.RetryOutputTimeoutOnFailure != 0 {
+		return s.newOutputWithRetry(ctx, outputTemplate, outputURL, sendBufSize, outputTemplate.RetryOutputTimeoutOnFailure)
 	}
 	return s.newOutput(ctx, outputTemplate, outputURL, sendBufSize)
+}
+
+func (s *senderFactory) newOutputKernel(
+	ctx context.Context,
+	outputTemplate SenderTemplate,
+	outputURL string,
+	bufSize uint,
+) (*kernel.Output, error) {
+	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
+		CustomOptions:  outputTemplate.Options,
+		SendBufferSize: bufSize,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
+	}
+
+	outputKernel.Filter = s.OutputQualityMeasurer
+	return outputKernel, nil
 }
 
 func (s *senderFactory) newOutput(
@@ -94,15 +112,10 @@ func (s *senderFactory) newOutput(
 	outputURL string,
 	bufSize uint,
 ) (SendingNodeAbstract, streammuxtypes.SenderConfig, error) {
-	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
-		CustomOptions:  outputTemplate.Options,
-		SendBufferSize: bufSize,
-	})
+	outputKernel, err := s.newOutputKernel(ctx, outputTemplate, outputURL, bufSize)
 	if err != nil {
-		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
+		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("unable to create output kernel: %w", err)
 	}
-	outputKernel.Filter = s.OutputQualityMeasurer
-
 	outputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData[CustomData]](ctx, outputKernel, processor.DefaultOptionsOutput()...)
 	return nodeSetDropOnCloserWrapper{outputNode}, streammuxtypes.SenderConfig{}, nil
 }
@@ -112,24 +125,31 @@ func (s *senderFactory) newOutputWithRetry(
 	outputTemplate SenderTemplate,
 	outputURL string,
 	bufSize uint,
+	retryTimeout time.Duration,
 ) (SendingNodeAbstract, streammuxtypes.SenderConfig, error) {
+	var errorsStartedAt time.Time
 	outputKernel := kernel.NewRetry(
 		ctx,
 		func(ctx context.Context) (*kernel.Output, error) {
-			outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
-				CustomOptions:  outputTemplate.Options,
-				SendBufferSize: bufSize,
-			})
+			outputKernel, err := s.newOutputKernel(ctx, outputTemplate, outputURL, bufSize)
 			if err != nil {
-				return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
+				return nil, fmt.Errorf("(retryable-node:) unable to create output kernel: %w", err)
 			}
-			outputKernel.Filter = s.OutputQualityMeasurer
 			return outputKernel, nil
 		},
 		func(ctx context.Context, k *kernel.Output) error {
+			errorsStartedAt = time.Time{}
 			return nil
 		},
 		func(ctx context.Context, k *kernel.Output, err error) error {
+			now := time.Now()
+			if errorsStartedAt.IsZero() {
+				errorsStartedAt = now
+			}
+			if now.Sub(errorsStartedAt) > retryTimeout {
+				logger.Errorf(ctx, "retry timeout exceeded (%v), not retrying output anymore", retryTimeout)
+				return err
+			}
 			logger.Debugf(ctx, "connection ended: %v", err)
 			time.Sleep(100 * time.Millisecond)
 			return kernel.ErrRetry{Err: err}
