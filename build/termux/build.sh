@@ -7,6 +7,8 @@ TERMUX_PKG_REVISION=1
 TERMUX_PKG_SRCURL=git+file:///project/
 TERMUX_PKG_SHA256=SKIP_CHECKSUM
 TERMUX_PKG_API_LEVEL=35
+TERMUX_PKG_NO_STRIP=true
+TERMUX_PKG_NO_ELF_CLEANER=true
 
 termux_step_make() {
 	termux_setup_golang
