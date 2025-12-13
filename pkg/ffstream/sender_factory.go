@@ -141,7 +141,7 @@ func (s *senderFactory) newOutputWithRetry(
 		logger.Debugf(ctx, "/newOutputWithRetry(ctx, %#+v, %q, %d, %v): %#+v, %#+v, %v", outputTemplate, outputURL, bufSize, retryTimeout, _ret0, _ret1, _err)
 	}()
 	var errorsStartedAt time.Time
-	outputKernel := kernel.NewRetry(
+	outputKernel := kernel.NewRetryable(
 		ctx,
 		func(ctx context.Context) (_ret *kernel.Output, _err error) {
 			outputKernel, err := s.newOutputKernel(ctx, outputTemplate, outputURL, bufSize)
@@ -149,10 +149,6 @@ func (s *senderFactory) newOutputWithRetry(
 				return nil, fmt.Errorf("(retryable-node:) unable to create output kernel: %w", err)
 			}
 			return outputKernel, nil
-		},
-		func(ctx context.Context, k *kernel.Output) error {
-			errorsStartedAt = time.Time{}
-			return nil
 		},
 		func(ctx context.Context, k *kernel.Output, err error) error {
 			now := time.Now()
@@ -167,6 +163,10 @@ func (s *senderFactory) newOutputWithRetry(
 			time.Sleep(100 * time.Millisecond)
 			return kernel.ErrRetry{Err: err}
 		},
+		kernel.RetryableOptionOnKernelOpen[*kernel.Output](func(ctx context.Context, k *kernel.Output) error {
+			errorsStartedAt = time.Time{}
+			return nil
+		}),
 	)
 
 	retryOutputNode := node.NewWithCustomDataFromKernel[streammux.OutputCustomData[CustomData]](

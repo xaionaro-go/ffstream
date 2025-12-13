@@ -12,13 +12,11 @@ import (
 	audio "github.com/xaionaro-go/audio/pkg/audio/types"
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
-	"github.com/xaionaro-go/avpipeline/kernel"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
 	"github.com/xaionaro-go/observability"
-	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
 )
 
@@ -40,7 +38,8 @@ func main() {
 	platformInit()
 	logger.Debugf(ctx, "platform initialized")
 
-	s := ffstream.New(ctx)
+	s, err := ffstream.New(ctx)
+	assertNoError(ctx, err)
 
 	if flags.ListenControlSocket != "" {
 		logger.Debugf(ctx, "flags.ListenControlSocket == '%s'", flags.ListenControlSocket)
@@ -53,14 +52,9 @@ func main() {
 		})
 	}
 
-	for _, input := range flags.Inputs {
-		opts := convertUnknownOptionsToAVPCustomOptions(input.Options)
-		logger.Debugf(ctx, "input %s opts: %v", input.URL, opts)
-		input, err := kernel.NewInputFromURL(ctx, input.URL, secret.New(""), kernel.InputConfig{
-			CustomOptions: opts,
-		})
+	for _, inputInfo := range flags.Inputs {
+		err = s.AddInput(ctx, inputInfo)
 		assertNoError(ctx, err)
-		s.AddInput(ctx, input)
 	}
 
 	var resolution codec.Resolution

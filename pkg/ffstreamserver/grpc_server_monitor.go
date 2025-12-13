@@ -58,6 +58,6 @@ func (srv *GRPCServer) getPipeline(
 	ctx context.Context,
 ) (result []node.Abstract) {
 	return []node.Abstract{
-		srv.FFStream.NodeInput,
+		srv.FFStream.Inputs,
 	}
 }

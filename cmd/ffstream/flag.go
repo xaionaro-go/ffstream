@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,11 +12,12 @@ import (
 	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
+	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 )
 
 type Flags struct {
 	HWAccelGlobal               string
-	Inputs                      []Resource
+	Inputs                      ffstream.Resources
 	ListenControlSocket         string
 	ListenNetPprof              string
 	LoggerLevel                 logger.Level
@@ -29,18 +31,14 @@ type Flags struct {
 	AudioEncoder                Encoder
 	MuxMode                     streammuxtypes.MuxMode
 	AutoBitRate                 *streammuxtypes.AutoBitRateVideoConfig
+	RetryInputTimeoutOnFailure  time.Duration
 	RetryOutputTimeoutOnFailure time.Duration
-	Outputs                     []Resource
+	Outputs                     ffstream.Resources
 }
 
 type Encoder struct {
 	Codec   codec.Name
 	BitRate uint64
-	Options []string
-}
-
-type Resource struct {
-	URL     string
 	Options []string
 }
 
@@ -70,6 +68,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
 	autoBitrateMinHeight := flag.AddParameter(p, "auto_bitrate_min_height", false, ptr(flag.Uint64(480)))
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
+	retryInputTimeoutOnFailure := flag.AddParameter(p, "retry_input_timeout_on_failure", false, ptr(flag.Duration(ffstream.DefaultConfig().InputRetryInterval)))
 	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, ptr(flag.Duration(0)))
 	version := flag.AddFlag(p, "version", false)
 
@@ -124,20 +123,32 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 	logger.Debugf(ctx, "unknownNonOptions: %#+v", unknownNonOptions)
 	logger.Debugf(ctx, "unknownOptions: %#+v", unknownOptions)
-	var outputs []Resource
+	var outputs ffstream.Resources
 	for idx, nonFlag := range unknownNonOptions {
-		outputs = append(outputs, Resource{
+		outputs = append(outputs, ffstream.Resource{
 			URL:     nonFlag,
 			Options: unknownOptions[idx],
 		})
 	}
 
-	var inputs []Resource
+	var inputs ffstream.Resources
 	for idx, input := range inputsFlag.Value() {
+		var fallbackPriority uint
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
-		inputs = append(inputs, Resource{
-			URL:     input,
-			Options: collectedOptions,
+		for idx, opt := range collectedOptions {
+			if opt == "-fallback_priority" && idx+1 < len(collectedOptions) {
+				priorityStr := collectedOptions[idx+1]
+				i, err := strconv.ParseUint(priorityStr, 10, 0)
+				if err != nil {
+					fatal(ctx, "unable to parse fallback priority %q: %v", priorityStr, err)
+				}
+				fallbackPriority = uint(i)
+			}
+		}
+		inputs = append(inputs, ffstream.Resource{
+			URL:              input,
+			Options:          collectedOptions,
+			FallbackPriority: fallbackPriority,
 		})
 	}
 
@@ -167,9 +178,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 		LogFile:             logFile.Value(),
 		LockTimeout:         lockTimeout.Value(),
 
-		InsecureDebug:               insecureDebug.Value(),
-		RemoveSecretsFromLogs:       removeSecretsFromLogs.Value(),
-		MuxMode:                     muxMode,
+		InsecureDebug:         insecureDebug.Value(),
+		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
+		MuxMode:               muxMode,
+
+		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
 		HWAccelGlobal: hwAccelFlag.Value(),

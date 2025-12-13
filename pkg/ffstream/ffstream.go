@@ -11,14 +11,13 @@ import (
 	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
-	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra"
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra/quality"
+	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
-	"github.com/xaionaro-go/avpipeline/processor"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -28,7 +27,9 @@ import (
 )
 
 type FFStream struct {
-	NodeInput       *node.Node[*processor.FromKernel[*kernel.Input]]
+	Config          Config
+	Inputs          *inputwithfallback.InputWithFallback[*Input, *codec.NaiveDecoderFactory, CustomData]
+	InputsInfo      []Resources
 	OutputTemplates []SenderTemplate
 
 	StreamMux *streammux.StreamMux[CustomData]
@@ -40,12 +41,25 @@ type FFStream struct {
 	locker     sync.Mutex
 }
 
-func New(ctx context.Context) *FFStream {
+func New(
+	ctx context.Context,
+	opts ...Option,
+) (*FFStream, error) {
+	cfg := Options(opts).Config()
+
+	var inputOpts []inputwithfallback.Option
+	inputOpts = append(inputOpts, inputwithfallback.OptionRetryInterval(cfg.InputRetryInterval))
+	inputs, err := inputwithfallback.New[*Input, *codec.NaiveDecoderFactory, CustomData](ctx, nil, inputOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create the inputs handler: %w", err)
+	}
 	s := &FFStream{
+		Config:                cfg,
+		Inputs:                inputs,
 		InputQualityMeasurer:  quality.NewMeasurements(),
 		OutputQualityMeasurer: extra.NewQuality(),
 	}
-	return s
+	return s, nil
 }
 
 func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
@@ -63,16 +77,21 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 
 func (s *FFStream) AddInput(
 	ctx context.Context,
-	input *kernel.Input,
-) error {
+	resource Resource,
+) (_err error) {
+	logger.Debugf(ctx, "AddInput(ctx, %#+v)", resource)
+	defer func() { logger.Debugf(ctx, "/AddInput(ctx, %#+v): %v", resource, _err) }()
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	if s.NodeInput != nil {
-		return fmt.Errorf("currently we support only one input")
+
+	if len(s.Inputs.InputChains) != len(s.InputsInfo) {
+		return fmt.Errorf("internal error: len(s.Inputs.InputChains) != len(s.InputsInfo): %d != %d", len(s.Inputs.InputChains), len(s.InputsInfo))
 	}
-	ctx, cancelFn := context.WithCancel(ctx)
-	s.addCancelFnLocked(cancelFn)
-	s.NodeInput = node.NewFromKernel(ctx, input, processor.DefaultOptionsInput()...)
+	for priority := len(s.Inputs.InputChains); priority <= int(resource.FallbackPriority); priority++ {
+		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(priority)))
+		s.InputsInfo = append(s.InputsInfo, nil)
+	}
+	s.InputsInfo[resource.FallbackPriority] = append(s.InputsInfo[resource.FallbackPriority], resource)
 	return nil
 }
 
@@ -135,8 +154,8 @@ func (s *FFStream) GetStats(
 			Sent:      &avpipeline_grpc.NodeCountersSection{},
 		},
 	}
-	if s.NodeInput != nil {
-		inputCounters := goconvavp.NodeCountersToGRPC(s.NodeInput.GetCountersPtr(), s.NodeInput.GetProcessor().CountersPtr())
+	if s.Inputs != nil {
+		inputCounters := goconvavp.NodeCountersToGRPC(s.Inputs.GetCountersPtr(), s.Inputs.GetProcessor().CountersPtr())
 		r.NodeCounters.Received = inputCounters.Received
 	}
 	if s.StreamMux != nil {
@@ -173,7 +192,7 @@ func (s *FFStream) Start(
 	if s.StreamMux != nil {
 		return fmt.Errorf("this ffstream was already used")
 	}
-	if s.NodeInput == nil {
+	if s.Inputs.GetInputChainsCount(ctx) == 0 {
 		return fmt.Errorf("no inputs added")
 	}
 	if len(s.OutputTemplates) != 1 {
@@ -202,7 +221,7 @@ func (s *FFStream) Start(
 		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", autoBitRateVideo, err)
 	}
 
-	s.NodeInput.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
+	s.Inputs.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		RecoderConfig:   recoderConfig,
@@ -264,7 +283,7 @@ func (s *FFStream) Start(
 		defer close(errCh)
 		avpipeline.Serve(ctx, avpipeline.ServeConfig{
 			EachNode: node.ServeConfig{},
-		}, errCh, s.NodeInput)
+		}, errCh, s.Inputs)
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {

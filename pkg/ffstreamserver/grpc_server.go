@@ -105,7 +105,7 @@ func (srv *GRPCServer) GetPipelines(
 	req *ffstream_grpc.GetPipelinesRequest,
 ) (*ffstream_grpc.GetPipelinesResponse, error) {
 	ctx = srv.ctx(ctx)
-	nodeInput := goconvavp.NodeToGRPC(ctx, srv.FFStream.NodeInput)
+	nodeInput := goconvavp.NodeToGRPC(ctx, srv.FFStream.Inputs)
 	return &ffstream_grpc.GetPipelinesResponse{
 		Nodes: []*avpipeline_grpc.Node{nodeInput},
 	}, nil

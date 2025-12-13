@@ -49,7 +49,7 @@ func (n nodeSetDropOnCloserWrapper) OriginalNodeAbstract() node.Abstract {
 	return r
 }
 
-type SendingNodeWithRetry = node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Retry[*kernel.Output]]]
+type SendingNodeWithRetry = node.NodeWithCustomData[streammux.OutputCustomData[CustomData], *processor.FromKernel[*kernel.Retryable[*kernel.Output]]]
 
 type nodeWithRetrySetDropOnCloserWrapper struct {
 	*SendingNodeWithRetry
