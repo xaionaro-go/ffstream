@@ -109,7 +109,7 @@ ffstream-android-arm64-in-termux: build
 	PKG_CONFIG='/home/builder/go/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='/data/data/com.termux/files/usr/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I/data/data/com.termux/files/usr/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -landroid-glob -landroid-posix-semaphore -lcamera2ndk -lmediandk -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L/data/data/com.termux/files/usr/lib' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -landroid-glob -landroid-posix-semaphore -lcamera2ndk -lmediandk -lpulse -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L/data/data/com.termux/files/usr/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	PATH="${PATH}:${HOME}/go/bin" \
 	GOFLAGS="$(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags=$(shell echo ${LINKER_FLAGS_ANDROID} | tr " " ",")" \
