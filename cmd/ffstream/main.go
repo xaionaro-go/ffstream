@@ -38,7 +38,9 @@ func main() {
 	platformInit()
 	logger.Debugf(ctx, "platform initialized")
 
-	s, err := ffstream.New(ctx)
+	s, err := ffstream.New(ctx,
+		ffstream.OptionInputRetryIntervalValue(flags.RetryInputTimeoutOnFailure),
+	)
 	assertNoError(ctx, err)
 
 	if flags.ListenControlSocket != "" {

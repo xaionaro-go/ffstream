@@ -1,5 +1,11 @@
 {
     "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+    "search.exclude": {
+        "**/imports/**": true
+    },
+    "files.exclude": {
+        "**/imports/**": true
+    },
     "protoc": {
         "options": [
             "-I./pkg/ffstreamserver/grpc"
