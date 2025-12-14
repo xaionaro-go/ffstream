@@ -98,9 +98,23 @@ func (s *senderFactory) newOutputKernel(
 	defer func() {
 		logger.Debugf(ctx, "/newOutputKernel(ctx, %#+v, %q, %d): %#+v, %v", outputTemplate, outputURL, bufSize, _ret, _err)
 	}()
+	waitForStreams := kernel.OutputConfigWaitForOutputStreams{}
+	switch s.StreamMux.MuxMode {
+	case streammuxtypes.UndefinedMuxMode:
+		return nil, fmt.Errorf("undefined mux mode")
+	case streammuxtypes.MuxModeForbid:
+	case streammuxtypes.MuxModeSameOutputSameTracks:
+	case streammuxtypes.MuxModeSameOutputDifferentTracks:
+	case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+	case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+		waitForStreams.VideoBeforeAudio = ptr(false)
+	default:
+		return nil, fmt.Errorf("unknown mux mode: %q", s.StreamMux.MuxMode)
+	}
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
-		CustomOptions:  outputTemplate.Options,
-		SendBufferSize: bufSize,
+		CustomOptions:        outputTemplate.Options,
+		SendBufferSize:       bufSize,
+		WaitForOutputStreams: &waitForStreams,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)

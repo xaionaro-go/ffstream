@@ -1,7 +1,7 @@
 package goconv
 
 import (
-	quality "github.com/xaionaro-go/avpipeline/packet/condition/extra/quality/types"
+	quality "github.com/xaionaro-go/avpipeline/packetorframe/filter/quality/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 

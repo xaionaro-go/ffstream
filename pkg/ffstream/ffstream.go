@@ -12,9 +12,11 @@ import (
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/node"
+	framefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/framefilter/condition"
 	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra"
-	"github.com/xaionaro-go/avpipeline/packet/condition/extra/quality"
+	"github.com/xaionaro-go/avpipeline/packetorframe"
+	"github.com/xaionaro-go/avpipeline/packetorframe/filter/quality"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
@@ -222,6 +224,7 @@ func (s *FFStream) Start(
 	}
 
 	s.Inputs.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
+	s.Inputs.AddPushFramesTo(ctx, s.StreamMux, framefiltercondition.Function(s.onInputFrame))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		RecoderConfig:   recoderConfig,
@@ -479,7 +482,19 @@ func (s *FFStream) onInputPacket(
 	ctx context.Context,
 	packet packetfiltercondition.Input,
 ) bool {
-	s.InputQualityMeasurer.ObservePacket(ctx, packet.Input)
+	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, packetorframe.InputUnion{
+		Packet: &packet.Input,
+	})
+	return true
+}
+
+func (s *FFStream) onInputFrame(
+	ctx context.Context,
+	packet framefiltercondition.Input,
+) bool {
+	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, packetorframe.InputUnion{
+		Frame: &packet.Input,
+	})
 	return true
 }
 

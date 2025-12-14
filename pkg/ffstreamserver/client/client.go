@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	quality "github.com/xaionaro-go/avpipeline/packet/condition/extra/quality/types"
+	quality "github.com/xaionaro-go/avpipeline/packetorframe/filter/quality/types"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipelinenolibav"
