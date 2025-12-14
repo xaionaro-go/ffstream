@@ -3,6 +3,7 @@ package ffstream
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
-	"github.com/xaionaro-go/avpipeline/urltools"
+	globaltypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
 )
@@ -124,10 +125,40 @@ func (f *inputFactory) NewInput(
 		}
 	}()
 	for _, res := range resources {
-		in, err := kernel.NewInputFromURL(ctx, res.URL, secret.New(""), kernel.InputConfig{
-			ForceRealTime: urltools.IsFileURL(res.URL),
+		cfg := kernel.InputConfig{
 			CustomOptions: convertUnknownOptionsToAVPCustomOptions(res.Options),
-		})
+		}
+		for idx, opt := range res.Options {
+			switch opt {
+			case "-force_start_pts":
+				if idx+1 < len(res.Options) {
+					ptsStr := res.Options[idx+1]
+					if ptsStr == "keep" {
+						cfg.ForceStartPTS = ptr(globaltypes.PTSKeep)
+						continue
+					}
+					pts, err := strconv.ParseInt(ptsStr, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("unable to parse force_start_pts %q: %v", ptsStr, err)
+					}
+					cfg.ForceStartPTS = ptr(pts)
+				}
+			case "-force_start_dts":
+				if idx+1 < len(res.Options) {
+					dtsStr := res.Options[idx+1]
+					if dtsStr == "keep" {
+						cfg.ForceStartDTS = ptr(globaltypes.PTSKeep)
+						continue
+					}
+					dts, err := strconv.ParseInt(dtsStr, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("unable to parse force_start_dts %q: %v", dtsStr, err)
+					}
+					cfg.ForceStartDTS = ptr(dts)
+				}
+			}
+		}
+		in, err := kernel.NewInputFromURL(ctx, res.URL, secret.New(""), cfg)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create input from URL %q: %w", res.URL, err)
 		}

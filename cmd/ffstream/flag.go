@@ -136,13 +136,16 @@ func parseFlags(args []string) (context.Context, Flags) {
 		var fallbackPriority uint
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
 		for idx, opt := range collectedOptions {
-			if opt == "-fallback_priority" && idx+1 < len(collectedOptions) {
-				priorityStr := collectedOptions[idx+1]
-				i, err := strconv.ParseUint(priorityStr, 10, 0)
-				if err != nil {
-					fatal(ctx, "unable to parse fallback priority %q: %v", priorityStr, err)
+			switch opt {
+			case "-fallback_priority":
+				if idx+1 < len(collectedOptions) {
+					priorityStr := collectedOptions[idx+1]
+					i, err := strconv.ParseUint(priorityStr, 10, 0)
+					if err != nil {
+						fatal(ctx, "unable to parse fallback priority %q: %v", priorityStr, err)
+					}
+					fallbackPriority = uint(i)
 				}
-				fallbackPriority = uint(i)
 			}
 		}
 		inputs = append(inputs, ffstream.Resource{
