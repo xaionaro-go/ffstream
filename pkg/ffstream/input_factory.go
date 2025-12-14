@@ -12,6 +12,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
+	"github.com/xaionaro-go/avpipeline/urltools"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
 )
@@ -124,6 +125,7 @@ func (f *inputFactory) NewInput(
 	}()
 	for _, res := range resources {
 		in, err := kernel.NewInputFromURL(ctx, res.URL, secret.New(""), kernel.InputConfig{
+			ForceRealTime: urltools.IsFileURL(res.URL),
 			CustomOptions: convertUnknownOptionsToAVPCustomOptions(res.Options),
 		})
 		if err != nil {

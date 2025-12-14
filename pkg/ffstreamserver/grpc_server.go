@@ -7,7 +7,6 @@ import (
 
 	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/logger"
-	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
@@ -19,11 +18,10 @@ import (
 
 type GRPCServer struct {
 	ffstream_grpc.UnimplementedFFStreamServer
-	FFStream             *ffstream.FFStream
-	Observability        *belt.Belt
-	locker               sync.Mutex
-	stopRecodingFunc     context.CancelFunc
-	initialRecoderConfig streammuxtypes.RecoderConfig
+	FFStream         *ffstream.FFStream
+	Observability    *belt.Belt
+	locker           sync.Mutex
+	stopRecodingFunc context.CancelFunc
 }
 
 func NewGRPCServer(
@@ -90,6 +88,7 @@ func (srv *GRPCServer) End(
 	req *ffstream_grpc.EndRequest,
 ) (*ffstream_grpc.EndReply, error) {
 	ctx = srv.ctx(ctx)
+	_ = ctx
 	srv.locker.Lock()
 	defer srv.locker.Unlock()
 	if srv.stopRecodingFunc == nil {
@@ -105,9 +104,13 @@ func (srv *GRPCServer) GetPipelines(
 	req *ffstream_grpc.GetPipelinesRequest,
 ) (*ffstream_grpc.GetPipelinesResponse, error) {
 	ctx = srv.ctx(ctx)
-	nodeInput := goconvavp.NodeToGRPC(ctx, srv.FFStream.Inputs)
+	var result []*avpipeline_grpc.Node
+	for _, node := range srv.FFStream.Inputs.GetInputs(ctx).NonNil() {
+		nodeInput := goconvavp.NodeToGRPC(ctx, node)
+		result = append(result, nodeInput)
+	}
 	return &ffstream_grpc.GetPipelinesResponse{
-		Nodes: []*avpipeline_grpc.Node{nodeInput},
+		Nodes: result,
 	}, nil
 }
 

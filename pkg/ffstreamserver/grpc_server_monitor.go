@@ -57,7 +57,8 @@ func (srv *GRPCServer) Monitor(
 func (srv *GRPCServer) getPipeline(
 	ctx context.Context,
 ) (result []node.Abstract) {
-	return []node.Abstract{
-		srv.FFStream.Inputs,
+	for _, node := range srv.FFStream.Inputs.GetInputs(ctx) {
+		result = append(result, node)
 	}
+	return result
 }
