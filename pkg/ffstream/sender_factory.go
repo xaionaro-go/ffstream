@@ -72,16 +72,23 @@ func (s *senderFactory) NewSender(
 	}
 	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
-	resCfg := s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Find(outputKey.VideoResolution)
 	var sendBufSize uint
-	if resCfg == nil {
-		if outputKey.VideoResolution != (codec.Resolution{}) {
-			logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.VideoResolution)
+	if ffstream := s.asFFStream(); ffstream != nil {
+		if streamMux := ffstream.StreamMux; streamMux != nil {
+			if autoBitrateHandler := streamMux.AutoBitRateHandler; autoBitrateHandler != nil {
+				logger.Debugf(ctx, "NewSender: calculating send buffer size for output key %v using AutoBitRateVideoConfig", outputKey)
+				resCfg := autoBitrateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Find(outputKey.VideoResolution)
+				if resCfg == nil {
+					if outputKey.VideoResolution != (codec.Resolution{}) {
+						logger.Errorf(ctx, "unable to find bitrate config for resolution %v, using default send buffer size", outputKey.VideoResolution)
+					}
+					resCfg = autoBitrateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Best()
+				}
+				sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
+				sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
+			}
 		}
-		resCfg = s.asFFStream().StreamMux.AutoBitRateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Best()
 	}
-	sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
-	sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
 	if outputTemplate.RetryOutputTimeoutOnFailure != 0 {
 		return s.newOutputWithRetry(ctx, outputTemplate, outputURL, sendBufSize, outputTemplate.RetryOutputTimeoutOnFailure)
 	}
@@ -99,17 +106,19 @@ func (s *senderFactory) newOutputKernel(
 		logger.Debugf(ctx, "/newOutputKernel(ctx, %#+v, %q, %d): %#+v, %v", outputTemplate, outputURL, bufSize, _ret, _err)
 	}()
 	waitForStreams := kernel.OutputConfigWaitForOutputStreams{}
-	switch s.StreamMux.MuxMode {
-	case streammuxtypes.UndefinedMuxMode:
-		return nil, fmt.Errorf("undefined mux mode")
-	case streammuxtypes.MuxModeForbid:
-	case streammuxtypes.MuxModeSameOutputSameTracks:
-	case streammuxtypes.MuxModeSameOutputDifferentTracks:
-	case streammuxtypes.MuxModeDifferentOutputsSameTracks:
-	case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
-		waitForStreams.VideoBeforeAudio = ptr(false)
-	default:
-		return nil, fmt.Errorf("unknown mux mode: %q", s.StreamMux.MuxMode)
+	if s.StreamMux != nil {
+		switch s.StreamMux.MuxMode {
+		case streammuxtypes.UndefinedMuxMode:
+			return nil, fmt.Errorf("undefined mux mode")
+		case streammuxtypes.MuxModeForbid:
+		case streammuxtypes.MuxModeSameOutputSameTracks:
+		case streammuxtypes.MuxModeSameOutputDifferentTracks:
+		case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+		case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+			waitForStreams.VideoBeforeAudio = ptr(false)
+		default:
+			return nil, fmt.Errorf("unknown mux mode: %q", s.StreamMux.MuxMode)
+		}
 	}
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
 		CustomOptions:        outputTemplate.Options,

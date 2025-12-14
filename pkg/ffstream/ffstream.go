@@ -119,12 +119,12 @@ func (s *FFStream) SwitchOutputByProps(
 	ctx context.Context,
 	props streammuxtypes.SenderProps,
 ) (_err error) {
-	logger.Debugf(ctx, "ModifyOutput(ctx, %#+v)", props)
+	logger.Debugf(ctx, "SwitchOutputByProps(ctx, %#+v)", props)
 	defer func() {
-		logger.Debugf(ctx, "/ModifyOutput(ctx, %#+v): %v", props, _err)
+		logger.Debugf(ctx, "/SwitchOutputByProps(ctx, %#+v): %v", props, _err)
 	}()
 	if s.StreamMux == nil {
-		return fmt.Errorf("it is allowed to use ModifyOutput only after Start is invoked")
+		return fmt.Errorf("it is allowed to use SwitchOutputByProps only after Start is invoked")
 	}
 	if len(props.Output.AudioTrackConfigs) > 0 {
 		audioCfg := &props.Output.AudioTrackConfigs[0]
@@ -230,7 +230,7 @@ func (s *FFStream) Start(
 		RecoderConfig:   recoderConfig,
 		SenderNodeProps: streammuxtypes.SenderNodeProps{},
 	}); err != nil {
-		return fmt.Errorf("SetRecoderConfig(%#+v): %w", recoderConfig, err)
+		return fmt.Errorf("SwitchOutputByProps(%#+v): %w", recoderConfig, err)
 	}
 
 	if autoBitRateVideo != nil {
