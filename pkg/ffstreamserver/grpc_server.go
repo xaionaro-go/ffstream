@@ -304,13 +304,17 @@ func (srv *GRPCServer) GetInputsInfo(
 			}
 			for idx, res := range resources {
 				inputKernel := func() *kernel.Input {
-					if k.KernelLocker.ManualTryLock(ctx) {
-						defer k.KernelLocker.ManualUnlock()
-						if k.Kernel != nil && len(k.Kernel.Kernel0) > 0 {
-							return k.Kernel.Kernel0[0]
-						}
+					if !k.KernelLocker.ManualTryLock(ctx) {
+						return nil
 					}
-					return nil
+					defer k.KernelLocker.ManualUnlock()
+					if k.Kernel == nil {
+						return nil
+					}
+					if len(k.Kernel.Kernel0) < idx {
+						return nil
+					}
+					return k.Kernel.Kernel0[idx]
 				}()
 				result = append(result, &ffstream_grpc.InputInfo{
 					Id:          uint64(inputKernel.GetObjectID()),
