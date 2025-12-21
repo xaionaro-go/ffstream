@@ -39,45 +39,40 @@ service FFStream {
 }
 
 enum LoggingLevel {
-  LoggingLevelNone  = 0;
-  LoggingLevelFatal = 1;
-  LoggingLevelPanic = 2;
-  LoggingLevelError = 3;
-  LoggingLevelWarn  = 4;
-  LoggingLevelInfo  = 5;
-  LoggingLevelDebug = 6;
-  LoggingLevelTrace = 7;
+  LOGGING_LEVEL_NONE  = 0;
+  LOGGING_LEVEL_FATAL = 1;
+  LOGGING_LEVEL_PANIC = 2;
+  LOGGING_LEVEL_ERROR = 3;
+  LOGGING_LEVEL_WARN  = 4;
+  LOGGING_LEVEL_INFO  = 5;
+  LOGGING_LEVEL_DEBUG = 6;
+  LOGGING_LEVEL_TRACE = 7;
 }
 
 message SetLoggingLevelRequest { LoggingLevel level = 1; }
 
 message SetLoggingLevelReply {}
 
-message customOption {
-  string key   = 1;
-  string value = 2;
-}
-
 message RemoveOutputRequest { uint64 id = 1; }
 
 message RemoveOutputReply {}
 
 message AudioCodecConfig {
-  string                codecName       = 1;
-  uint64                averagingPeriod = 2;
-  uint64                AverageBitRate  = 3;
-  repeated customOption customOptions   = 4;
+  string                          codec_name       = 1;
+  uint64                          averaging_period = 2;
+  uint64                          average_bit_rate = 3;
+  repeated avpipeline.CustomOption custom_options   = 4;
 }
 
 message VideoCodecConfig {
-  string                codecName          = 1;
-  uint64                averagingPeriod    = 2;
-  uint64                AverageBitRate     = 3;
-  repeated customOption customOptions      = 4;
-  string                hardwareDeviceType = 5;
-  string                hardwareDeviceName = 6;
-  uint32                width              = 7;
-  uint32                height             = 8;
+  string                          codec_name          = 1;
+  uint64                          averaging_period    = 2;
+  uint64                          average_bit_rate    = 3;
+  repeated avpipeline.CustomOption custom_options      = 4;
+  string                          hardware_device_type = 5;
+  string                          hardware_device_name = 6;
+  uint32                          width              = 7;
+  uint32                          height             = 8;
 }
 
 message RecoderConfig {
@@ -88,125 +83,125 @@ message RecoderConfig {
 message GetCurrentOutputRequest {}
 
 message GetCurrentOutputReply {
-  uint64        id         = 1;
-  RecoderConfig config     = 2;
-  uint64        maxBitRate = 3;
+  uint64        id          = 1;
+  RecoderConfig config      = 2;
+  uint64        max_bit_rate = 3;
 }
 
 message SwitchOutputByPropsRequest {
-  RecoderConfig config     = 1;
-  uint64        maxBitRate = 2;
+  RecoderConfig config      = 1;
+  uint64        max_bit_rate = 2;
 }
 
 message SwitchOutputByPropsReply {}
 
 message GetStatsRequest {}
 
-message GetStatsReply { avpipeline.NodeCounters nodeCounters = 1; }
+message GetStatsReply { avpipeline.NodeCounters node_counters = 1; }
 
-message GetOutputSRTStatsRequest { int32 outputID = 1; }
+message GetOutputSRTStatsRequest { int32 output_id = 1; }
 
 message GetOutputSRTStatsReply {
-  int64  msTimeStamp             = 1;
-  int64  pktSentTotal            = 2;
-  int64  pktRecvTotal            = 3;
-  int64  pktSndLossTotal         = 4;
-  int64  pktRcvLossTotal         = 5;
-  int64  pktRetransTotal         = 6;
-  int64  pktSentACKTotal         = 7;
-  int64  pktRecvACKTotal         = 8;
-  int64  pktSentNAKTotal         = 9;
-  int64  pktRecvNAKTotal         = 10;
-  int64  usSndDurationTotal      = 11;
-  int64  pktSndDropTotal         = 12;
-  int64  pktRcvDropTotal         = 13;
-  int64  pktRcvUndecryptTotal    = 14;
-  uint64 byteSentTotal           = 15;
-  uint64 byteRecvTotal           = 16;
-  uint64 byteRcvLossTotal        = 17;
-  uint64 byteRetransTotal        = 18;
-  uint64 byteSndDropTotal        = 19;
-  uint64 byteRcvDropTotal        = 20;
-  uint64 byteRcvUndecryptTotal   = 21;
-  int64  pktSent                 = 22;
-  int64  pktRecv                 = 23;
-  int64  pktSndLoss              = 24;
-  int64  pktRcvLoss              = 25;
-  int64  pktRetrans              = 26;
-  int64  pktRcvRetrans           = 27;
-  int64  pktSentACK              = 28;
-  int64  pktRecvACK              = 29;
-  int64  pktSentNAK              = 30;
-  int64  pktRecvNAK              = 31;
-  double mbpsSendRate            = 32;
-  double mbpsRecvRate            = 33;
-  int64  usSndDuration           = 34;
-  int64  pktReorderDistance      = 35;
-  double pktRcvAvgBelatedTime    = 36;
-  int64  pktRcvBelated           = 37;
-  int64  pktSndDrop              = 38;
-  int64  pktRcvDrop              = 39;
-  int64  pktRcvUndecrypt         = 40;
-  uint64 byteSent                = 41;
-  uint64 byteRecv                = 42;
-  uint64 byteRcvLoss             = 43;
-  uint64 byteRetrans             = 44;
-  uint64 byteSndDrop             = 45;
-  uint64 byteRcvDrop             = 46;
-  uint64 byteRcvUndecrypt        = 47;
-  double usPktSndPeriod          = 48;
-  int64  pktFlowWindow           = 49;
-  int64  pktCongestionWindow     = 50;
-  int64  pktFlightSize           = 51;
-  double msRTT                   = 52;
-  double mbpsBandwidth           = 53;
-  int64  byteAvailSndBuf         = 54;
-  int64  byteAvailRcvBuf         = 55;
-  double mbpsMaxBW               = 56;
-  int64  byteMSS                 = 57;
-  int64  pktSndBuf               = 58;
-  int64  byteSndBuf              = 59;
-  int64  msSndBuf                = 60;
-  int64  msSndTsbPdDelay         = 61;
-  int64  pktRcvBuf               = 62;
-  int64  byteRcvBuf              = 63;
-  int64  msRcvBuf                = 64;
-  int64  msRcvTsbPdDelay         = 65;
-  int64  pktSndFilterExtraTotal  = 66;
-  int64  pktRcvFilterExtraTotal  = 67;
-  int64  pktRcvFilterSupplyTotal = 68;
-  int64  pktRcvFilterLossTotal   = 69;
-  int64  pktSndFilterExtra       = 70;
-  int64  pktRcvFilterExtra       = 71;
-  int64  pktRcvFilterSupply      = 72;
-  int64  pktRcvFilterLoss        = 73;
-  int64  pktReorderTolerance     = 74;
-  int64  pktSentUniqueTotal      = 75;
-  int64  pktRecvUniqueTotal      = 76;
-  uint64 byteSentUniqueTotal     = 77;
-  uint64 byteRecvUniqueTotal     = 78;
-  int64  pktSentUnique           = 79;
-  int64  pktRecvUnique           = 80;
-  uint64 byteSentUnique          = 81;
-  uint64 byteRecvUnique          = 82;
+  int64  ms_time_stamp              = 1;
+  int64  pkt_sent_total             = 2;
+  int64  pkt_recv_total             = 3;
+  int64  pkt_snd_loss_total         = 4;
+  int64  pkt_rcv_loss_total         = 5;
+  int64  pkt_retrans_total          = 6;
+  int64  pkt_sent_ack_total         = 7;
+  int64  pkt_recv_ack_total         = 8;
+  int64  pkt_sent_nak_total         = 9;
+  int64  pkt_recv_nak_total         = 10;
+  int64  us_snd_duration_total      = 11;
+  int64  pkt_snd_drop_total         = 12;
+  int64  pkt_rcv_drop_total         = 13;
+  int64  pkt_rcv_undecrypt_total    = 14;
+  uint64 byte_sent_total            = 15;
+  uint64 byte_recv_total            = 16;
+  uint64 byte_rcv_loss_total        = 17;
+  uint64 byte_retrans_total         = 18;
+  uint64 byte_snd_drop_total        = 19;
+  uint64 byte_rcv_drop_total        = 20;
+  uint64 byte_rcv_undecrypt_total   = 21;
+  int64  pkt_sent                   = 22;
+  int64  pkt_recv                   = 23;
+  int64  pkt_snd_loss               = 24;
+  int64  pkt_rcv_loss               = 25;
+  int64  pkt_retrans                = 26;
+  int64  pkt_rcv_retrans            = 27;
+  int64  pkt_sent_ack               = 28;
+  int64  pkt_recv_ack               = 29;
+  int64  pkt_sent_nak               = 30;
+  int64  pkt_recv_nak               = 31;
+  double mbps_send_rate             = 32;
+  double mbps_recv_rate             = 33;
+  int64  us_snd_duration            = 34;
+  int64  pkt_reorder_distance       = 35;
+  double pkt_rcv_avg_belated_time   = 36;
+  int64  pkt_rcv_belated            = 37;
+  int64  pkt_snd_drop               = 38;
+  int64  pkt_rcv_drop               = 39;
+  int64  pkt_rcv_undecrypt          = 40;
+  uint64 byte_sent                  = 41;
+  uint64 byte_recv                  = 42;
+  uint64 byte_rcv_loss              = 43;
+  uint64 byte_retrans               = 44;
+  uint64 byte_snd_drop              = 45;
+  uint64 byte_rcv_drop              = 46;
+  uint64 byte_rcv_undecrypt         = 47;
+  double us_pkt_snd_period          = 48;
+  int64  pkt_flow_window            = 49;
+  int64  pkt_congestion_window      = 50;
+  int64  pkt_flight_size            = 51;
+  double ms_rtt                     = 52;
+  double mbps_bandwidth             = 53;
+  int64  byte_avail_snd_buf         = 54;
+  int64  byte_avail_rcv_buf         = 55;
+  double mbps_max_bw                = 56;
+  int64  byte_mss                   = 57;
+  int64  pkt_snd_buf                = 58;
+  int64  byte_snd_buf               = 59;
+  int64  ms_snd_buf                 = 60;
+  int64  ms_snd_tsb_pd_delay        = 61;
+  int64  pkt_rcv_buf                = 62;
+  int64  byte_rcv_buf               = 63;
+  int64  ms_rcv_buf                 = 64;
+  int64  ms_rcv_tsb_pd_delay        = 65;
+  int64  pkt_snd_filter_extra_total = 66;
+  int64  pkt_rcv_filter_extra_total = 67;
+  int64  pkt_rcv_filter_supply_total = 68;
+  int64  pkt_rcv_filter_loss_total  = 69;
+  int64  pkt_snd_filter_extra       = 70;
+  int64  pkt_rcv_filter_extra       = 71;
+  int64  pkt_rcv_filter_supply      = 72;
+  int64  pkt_rcv_filter_loss        = 73;
+  int64  pkt_reorder_tolerance      = 74;
+  int64  pkt_sent_unique_total      = 75;
+  int64  pkt_recv_unique_total      = 76;
+  uint64 byte_sent_unique_total     = 77;
+  uint64 byte_recv_unique_total     = 78;
+  int64  pkt_sent_unique            = 79;
+  int64  pkt_recv_unique            = 80;
+  uint64 byte_sent_unique           = 81;
+  uint64 byte_recv_unique           = 82;
 }
 
 enum SRTFlagInt {
-  undefined = 0;
-  Latency   = 1;
+  SRT_FLAG_INT_UNDEFINED = 0;
+  SRT_FLAG_INT_LATENCY   = 1;
 }
 
 message GetSRTFlagIntRequest {
-  int32      outputID = 1;
-  SRTFlagInt flag     = 2;
+  int32      output_id = 1;
+  SRTFlagInt flag      = 2;
 }
 
 message GetSRTFlagIntReply { int64 value = 1; }
 
 message SetSRTFlagIntRequest {
-  int32      outputID = 1;
-  SRTFlagInt flag     = 2;
-  int64      value    = 3;
+  int32      output_id = 1;
+  SRTFlagInt flag      = 2;
+  int64      value     = 3;
 }
 
 message SetSRTFlagIntReply {}
@@ -268,14 +263,14 @@ message BitRateInfo {
 }
 
 message BitRates {
-  BitRateInfo inputBitRate   = 1;
-  BitRateInfo encodedBitRate = 2;
-  BitRateInfo outputBitRate  = 3;
+  BitRateInfo input_bit_rate   = 1;
+  BitRateInfo encoded_bit_rate = 2;
+  BitRateInfo output_bit_rate  = 3;
 }
 
 message GetBitRatesRequest {}
 
-message GetBitRatesReply { BitRates bitRates = 1; }
+message GetBitRatesReply { BitRates bit_rates = 1; }
 
 message GetLatenciesRequest {}
 
@@ -287,10 +282,10 @@ message Latencies {
 }
 
 message TrackLatencies {
-  uint64 preRecodingU    = 1;
-  uint64 recodingU       = 2;
-  uint64 recodedPreSendU = 3;
-  uint64 sendingU        = 4;
+  uint64 pre_recoding_u     = 1;
+  uint64 recoding_u         = 2;
+  uint64 recoded_pre_send_u = 3;
+  uint64 sending_u          = 4;
 }
 
 message GetInputQualityRequest {}
@@ -301,10 +296,10 @@ message GetInputQualityReply {
 }
 
 message StreamQuality {
-  double continuity = 1;
-  double overlap    = 2;
-  double frameRate  = 3;
-  uint64 invalidDTS = 4;
+  double continuity   = 1;
+  double overlap      = 2;
+  double frame_rate   = 3;
+  uint64 invalid_dts  = 4;
 }
 
 message GetOutputQualityRequest {}
@@ -321,25 +316,25 @@ message GetInputsInfoReply {
 }
 
 message InputInfo {
-  uint64         id                 = 1;
-  string         url                = 2;
-  string         format             = 3;
-  bool           asyncOpen          = 4;
-  bool           autoClose          = 5;
-  uint32         recvBufferSize     = 6;
-  optional bool  forceRealTime      = 7;
-  optional int64 forceStartPTS      = 8;
-  optional int64 forceStartDTS      = 9;
-  bool           ignoreIncorrectDTS = 10;
-  bool           ignoreZeroDuration = 11;
+  uint64         id                   = 1;
+  string         url                  = 2;
+  string         format               = 3;
+  bool           async_open           = 4;
+  bool           auto_close           = 5;
+  uint32         recv_buffer_size     = 6;
+  optional bool  force_real_time      = 7;
+  optional int64 force_start_pts      = 8;
+  optional int64 force_start_dts      = 9;
+  bool           ignore_incorrect_dts = 10;
+  bool           ignore_zero_duration = 11;
 
-  repeated avpipeline.CustomOption customOptions = 12;
+  repeated avpipeline.CustomOption custom_options = 12;
 }
 
 message SetInputCustomOptionRequest {
-  uint64 inputID = 1;
-  string key     = 2;
-  string value   = 3;
+  uint64 input_id = 1;
+  string key      = 2;
+  string value    = 3;
 }
 
 message SetInputCustomOptionReply {}

@@ -73,21 +73,21 @@ func (c *Client) grpcClient() (ffstream_grpc.FFStreamClient, *grpc.ClientConn, e
 func logLevelGo2Protobuf(logLevel logger.Level) ffstream_grpc.LoggingLevel {
 	switch logLevel {
 	case logger.LevelFatal:
-		return ffstream_grpc.LoggingLevel_LoggingLevelFatal
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_FATAL
 	case logger.LevelPanic:
-		return ffstream_grpc.LoggingLevel_LoggingLevelPanic
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_PANIC
 	case logger.LevelError:
-		return ffstream_grpc.LoggingLevel_LoggingLevelError
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_ERROR
 	case logger.LevelWarning:
-		return ffstream_grpc.LoggingLevel_LoggingLevelWarn
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_WARN
 	case logger.LevelInfo:
-		return ffstream_grpc.LoggingLevel_LoggingLevelInfo
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_INFO
 	case logger.LevelDebug:
-		return ffstream_grpc.LoggingLevel_LoggingLevelDebug
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_DEBUG
 	case logger.LevelTrace:
-		return ffstream_grpc.LoggingLevel_LoggingLevelTrace
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_TRACE
 	default:
-		return ffstream_grpc.LoggingLevel_LoggingLevelWarn
+		return ffstream_grpc.LoggingLevel_LOGGING_LEVEL_WARN
 	}
 }
 

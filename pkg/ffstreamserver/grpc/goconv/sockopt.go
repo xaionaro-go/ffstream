@@ -13,7 +13,7 @@ func SRTSockoptIntFromGRPC(
 	id ffstream_grpc.SRTFlagInt,
 ) (libsrt.Sockopt, bool) {
 	switch id {
-	case ffstream_grpc.SRTFlagInt_Latency:
+	case ffstream_grpc.SRTFlagInt_SRT_FLAG_INT_LATENCY:
 		return sockopt.LATENCY, true
 	}
 	return sockopt.Sockopt(0), false
@@ -24,7 +24,7 @@ func SRTSockoptIntToGRPC(
 ) ffstream_grpc.SRTFlagInt {
 	switch id {
 	case sockopt.LATENCY:
-		return ffstream_grpc.SRTFlagInt_Latency
+		return ffstream_grpc.SRTFlagInt_SRT_FLAG_INT_LATENCY
 	}
-	return ffstream_grpc.SRTFlagInt_undefined
+	return ffstream_grpc.SRTFlagInt_SRT_FLAG_INT_UNDEFINED
 }

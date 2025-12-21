@@ -12,7 +12,7 @@ func StreamQualityToGRPC(
 		Continuity: in.Continuity,
 		Overlap:    in.Overlap,
 		FrameRate:  in.FrameRate,
-		InvalidDTS: uint64(in.InvalidDTS),
+		InvalidDts: uint64(in.InvalidDTS),
 	}
 }
 
@@ -26,6 +26,6 @@ func StreamQualityFromGRPC(
 		Continuity: in.Continuity,
 		Overlap:    in.Overlap,
 		FrameRate:  in.FrameRate,
-		InvalidDTS: uint(in.InvalidDTS),
+		InvalidDTS: uint(in.InvalidDts),
 	}
 }

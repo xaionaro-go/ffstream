@@ -40,7 +40,7 @@ func (c *Client) GetSRTFlagInt(
 	defer conn.Close()
 
 	flagID := goconv.SRTSockoptIntToGRPC(flag)
-	if flagID == ffstream_grpc.SRTFlagInt_undefined {
+	if flagID == ffstream_grpc.SRTFlagInt_SRT_FLAG_INT_UNDEFINED {
 		return 0, fmt.Errorf("unknown flag: %v", flag)
 	}
 
@@ -66,7 +66,7 @@ func (c *Client) SetSRTFlagInt(
 	defer conn.Close()
 
 	flagID := goconv.SRTSockoptIntToGRPC(flag)
-	if flagID == ffstream_grpc.SRTFlagInt_undefined {
+	if flagID == ffstream_grpc.SRTFlagInt_SRT_FLAG_INT_UNDEFINED {
 		return fmt.Errorf("unknown flag: %v", flag)
 	}
 
