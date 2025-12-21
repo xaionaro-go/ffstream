@@ -4,7 +4,7 @@ go 1.24.4
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20251214205619-069cfd64e2d3
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20251221215811-398e1d68b2e9
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250811230008-5f3141c8851a
 

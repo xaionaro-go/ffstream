@@ -72,6 +72,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, ptr(flag.Duration(0)))
 	version := flag.AddFlag(p, "version", false)
 
+	demuxers := flag.AddFlag(p, "demuxers", false)
 	encoders := flag.AddFlag(p, "encoders", false)
 	decoders := flag.AddFlag(p, "decoders", false)
 
@@ -83,6 +84,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 	if version.Value() {
 		printBuildInfo(ctx, os.Stdout)
+		os.Exit(0)
+	}
+
+	if demuxers.Value() {
+		printDemuxers()
 		os.Exit(0)
 	}
 
