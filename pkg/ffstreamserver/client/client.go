@@ -14,6 +14,7 @@ import (
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipelinenolibav"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
@@ -483,4 +484,68 @@ func (c *Client) GetOutputQuality(
 		Audio: goconv.StreamQualityFromGRPC(resp.GetAudio()),
 		Video: goconv.StreamQualityFromGRPC(resp.GetVideo()),
 	}, nil
+}
+
+func (c *Client) GetInputsInfo(
+	ctx context.Context,
+) (*ffstream_grpc.GetInputsInfoReply, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	resp, err := client.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	return resp, nil
+}
+
+func (c *Client) SetInputCustomOption(
+	ctx context.Context,
+	inputPriority uint64,
+	inputNum uint64,
+	option avptypes.DictionaryItem,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetInputCustomOption(ctx, &ffstream_grpc.SetInputCustomOptionRequest{
+		InputPriority: inputPriority,
+		InputNum:      inputNum,
+		Key:           option.Key,
+		Value:         option.Value,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) SetStopInput(
+	ctx context.Context,
+	inputPriority uint64,
+	stop bool,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetStopInput(ctx, &ffstream_grpc.SetStopInputRequest{
+		InputPriority: inputPriority,
+		Stop:          stop,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
 }

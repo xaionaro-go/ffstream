@@ -19,6 +19,7 @@ import (
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvlibav "github.com/xaionaro-go/avpipeline/protobuf/goconv/libavnolibav"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/polyjson"
@@ -191,6 +192,28 @@ var (
 		Args: cobra.RangeArgs(1, 2),
 		Run:  monitor,
 	}
+
+	Inputs = &cobra.Command{
+		Use: "inputs",
+	}
+
+	InputsInfo = &cobra.Command{
+		Use:  "info",
+		Args: cobra.ExactArgs(0),
+		Run:  inputsInfo,
+	}
+
+	InputsSetCustomOption = &cobra.Command{
+		Use:  "set_custom_option <input_priority> <input_num> <key> <value>",
+		Args: cobra.ExactArgs(4),
+		Run:  inputsSetCustomOption,
+	}
+
+	InputsSetStop = &cobra.Command{
+		Use:  "set_stop <input_priority> <stop>",
+		Args: cobra.ExactArgs(2),
+		Run:  inputsSetStop,
+	}
 )
 
 func init() {
@@ -236,6 +259,11 @@ func init() {
 	Monitor.Flags().Bool("include-frame-payload", false, "include frame payloads in monitor events")
 	Monitor.Flags().Bool("do-decode", false, "do decode of packets/frames for monitor events")
 	Monitor.Flags().String("format", "plaintext", "output format (plaintext|json)")
+
+	Root.AddCommand(Inputs)
+	Inputs.AddCommand(InputsInfo)
+	Inputs.AddCommand(InputsSetCustomOption)
+	Inputs.AddCommand(InputsSetStop)
 
 	polyjson.AutoRegisterTypes = true
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorThresholds{})
@@ -573,4 +601,60 @@ func monitor(cmd *cobra.Command, args []string) {
 
 func avconvDuration(pts int64, timeBase *goconvlibav.Rational) time.Duration {
 	return time.Duration(int64(time.Second) * pts * timeBase.N / timeBase.D)
+}
+
+func inputsInfo(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	inputsInfo, err := client.GetInputsInfo(ctx)
+	assertNoError(ctx, err)
+
+	jsonOutput(ctx, cmd.OutOrStdout(), inputsInfo)
+}
+
+func inputsSetCustomOption(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	inputPriority, err := strconv.ParseUint(args[0], 10, 32)
+	assertNoError(ctx, err)
+
+	inputNum, err := strconv.ParseUint(args[1], 10, 32)
+	assertNoError(ctx, err)
+
+	key := args[2]
+	value := args[3]
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	err = client.SetInputCustomOption(ctx, inputPriority, inputNum, avptypes.DictionaryItem{
+		Key:   key,
+		Value: value,
+	})
+	assertNoError(ctx, err)
+}
+
+func inputsSetStop(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	inputPriority, err := strconv.ParseUint(args[0], 10, 32)
+	assertNoError(ctx, err)
+
+	stop, err := strconv.ParseBool(args[1])
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	err = client.SetStopInput(ctx, inputPriority, stop)
+	assertNoError(ctx, err)
 }
