@@ -8,6 +8,13 @@
 		}
 	],
 	"settings": {
+		"go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+		"search.exclude": {
+			"**/imports/**": true
+		},
+		"files.exclude": {
+			"**/imports/**": true
+		},
 		"protobuf.includes": [
 			"./pkg/ffstreamserver/grpc",
 			"./pkg/ffstreamserver/grpc/imports/avpipeline/protobuf"

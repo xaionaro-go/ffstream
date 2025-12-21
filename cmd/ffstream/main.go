@@ -104,7 +104,7 @@ func main() {
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
-		outputOptions := convertUnknownOptionsToAVPCustomOptions(outputParams.Options)
+		outputOptions := outputParams.CustomOptions
 		var outputFormat string
 		for _, v := range outputOptions {
 			switch v.Key {

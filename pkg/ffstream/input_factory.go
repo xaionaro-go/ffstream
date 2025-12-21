@@ -5,22 +5,19 @@ import (
 	"fmt"
 	"strconv"
 
-	"strings"
-
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
-	globaltypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
 )
 
 type Input = kernel.ChainOfTwo[kernel.Tee[*kernel.Input], *kernel.MapStreamIndices]
 
-type inputFactory struct {
+type InputFactory struct {
 	FFStream         *FFStream
 	FallbackPriority uint
 	Locker           xsync.Mutex
@@ -35,21 +32,21 @@ type streamIndexKey struct {
 	Index  int
 }
 
-var _ inputwithfallback.InputFactory[*Input, *codec.NaiveDecoderFactory] = (*inputFactory)(nil)
-var _ kernel.StreamIndexAssigner = (*inputFactory)(nil)
+var _ inputwithfallback.InputFactory[*Input, *codec.NaiveDecoderFactory] = (*InputFactory)(nil)
+var _ kernel.StreamIndexAssigner = (*InputFactory)(nil)
 
 func newInputFactory(
 	ffstream *FFStream,
 	priority uint,
-) *inputFactory {
-	return &inputFactory{
+) *InputFactory {
+	return &InputFactory{
 		FFStream:         ffstream,
 		FallbackPriority: priority,
 		sourceIndex:      make(map[packetorframe.AbstractSource]int),
 	}
 }
 
-func (f *inputFactory) String() string {
+func (f *InputFactory) String() string {
 	return fmt.Sprintf("ffstream:inputFactory(priority=%d)", f.FallbackPriority)
 }
 
@@ -58,7 +55,7 @@ func (f *inputFactory) String() string {
 // Each underlying `*kernel.Input` in the Tee typically starts its streams from index 0.
 // `kernel.MapStreamIndices` uses this callback to remap those per-input indexes into a
 // single output index space, preventing collisions across sources.
-func (f *inputFactory) StreamIndexAssign(
+func (f *InputFactory) StreamIndexAssign(
 	ctx context.Context,
 	in packetorframe.InputUnion,
 ) (_ret []int, _err error) {
@@ -69,7 +66,7 @@ func (f *inputFactory) StreamIndexAssign(
 	return xsync.DoA2R2(ctx, &f.Locker, f.streamIndexAssignLocked, ctx, in)
 }
 
-func (f *inputFactory) streamIndexAssignLocked(
+func (f *InputFactory) streamIndexAssignLocked(
 	_ context.Context,
 	in packetorframe.InputUnion,
 ) ([]int, error) {
@@ -98,12 +95,12 @@ func (f *inputFactory) streamIndexAssignLocked(
 	return []int{out}, nil
 }
 
-func (f *inputFactory) NewInput(
+func (f *InputFactory) GetResources(
 	ctx context.Context,
-) (_ret *Input, _err error) {
-	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d)", f.FallbackPriority)
+) (_ret Resources, _err error) {
+	logger.Debugf(ctx, "inputFactory.GetResources(%d)", f.FallbackPriority)
 	defer func() {
-		logger.Debugf(ctx, "/inputFactory.NewInput(priority=%d): %v, %v", f.FallbackPriority, _ret, _err)
+		logger.Debugf(ctx, "/inputFactory.GetResources(%d): %v, %v", f.FallbackPriority, _ret, _err)
 	}()
 
 	if f.FFStream == nil {
@@ -113,7 +110,21 @@ func (f *inputFactory) NewInput(
 		return nil, fmt.Errorf("priority %d is out of range (inputs=%d)", f.FallbackPriority, len(f.FFStream.InputsInfo))
 	}
 
-	resources := f.FFStream.InputsInfo[f.FallbackPriority]
+	return f.FFStream.InputsInfo[f.FallbackPriority], nil
+}
+
+func (f *InputFactory) NewInput(
+	ctx context.Context,
+) (_ret *Input, _err error) {
+	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d)", f.FallbackPriority)
+	defer func() {
+		logger.Debugf(ctx, "/inputFactory.NewInput(priority=%d): %v, %v", f.FallbackPriority, _ret, _err)
+	}()
+
+	resources, err := f.GetResources(ctx)
+	if err != nil {
+		return nil, err
+	}
 	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d): %d resources", f.FallbackPriority, len(resources))
 
 	var inputs kernel.Tee[*kernel.Input]
@@ -126,36 +137,32 @@ func (f *inputFactory) NewInput(
 	}()
 	for _, res := range resources {
 		cfg := kernel.InputConfig{
-			CustomOptions: convertUnknownOptionsToAVPCustomOptions(res.Options),
+			CustomOptions: res.CustomOptions,
 		}
-		for idx, opt := range res.Options {
-			switch opt {
-			case "-force_start_pts":
-				if idx+1 < len(res.Options) {
-					ptsStr := res.Options[idx+1]
-					if ptsStr == "keep" {
-						cfg.ForceStartPTS = ptr(globaltypes.PTSKeep)
-						continue
-					}
-					pts, err := strconv.ParseInt(ptsStr, 10, 64)
-					if err != nil {
-						return nil, fmt.Errorf("unable to parse force_start_pts %q: %v", ptsStr, err)
-					}
-					cfg.ForceStartPTS = ptr(pts)
+		for _, opt := range res.CustomOptions {
+			switch opt.Key {
+			case "force_start_pts":
+				ptsStr := opt.Value
+				if ptsStr == "keep" {
+					cfg.ForceStartPTS = ptr(avptypes.PTSKeep)
+					continue
 				}
-			case "-force_start_dts":
-				if idx+1 < len(res.Options) {
-					dtsStr := res.Options[idx+1]
-					if dtsStr == "keep" {
-						cfg.ForceStartDTS = ptr(globaltypes.PTSKeep)
-						continue
-					}
-					dts, err := strconv.ParseInt(dtsStr, 10, 64)
-					if err != nil {
-						return nil, fmt.Errorf("unable to parse force_start_dts %q: %v", dtsStr, err)
-					}
-					cfg.ForceStartDTS = ptr(dts)
+				pts, err := strconv.ParseInt(ptsStr, 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("unable to parse force_start_pts %q: %v", ptsStr, err)
 				}
+				cfg.ForceStartPTS = ptr(pts)
+			case "force_start_dts":
+				dtsStr := opt.Value
+				if dtsStr == "keep" {
+					cfg.ForceStartDTS = ptr(avptypes.PTSKeep)
+					continue
+				}
+				dts, err := strconv.ParseInt(dtsStr, 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("unable to parse force_start_dts %q: %v", dtsStr, err)
+				}
+				cfg.ForceStartDTS = ptr(dts)
 			}
 		}
 		in, err := kernel.NewInputFromURL(ctx, res.URL, secret.New(""), cfg)
@@ -179,7 +186,7 @@ func (f *inputFactory) NewInput(
 	return kernel.NewChainOfTwo(inputs, kernel.NewMapStreamIndices(ctx, f)), nil
 }
 
-func (f *inputFactory) NewDecoderFactory(
+func (f *InputFactory) NewDecoderFactory(
 	ctx context.Context,
 ) (_ret *codec.NaiveDecoderFactory, _err error) {
 	logger.Debugf(ctx, "inputFactory.NewDecoderFactory(priority=%d)", f.FallbackPriority)
@@ -187,24 +194,4 @@ func (f *inputFactory) NewDecoderFactory(
 		logger.Debugf(ctx, "/inputFactory.NewDecoderFactory(priority=%d): %v, %v", f.FallbackPriority, _ret, _err)
 	}()
 	return codec.NewNaiveDecoderFactory(ctx, nil), nil
-}
-
-func convertUnknownOptionsToAVPCustomOptions(
-	unknownOpts []string,
-) avptypes.DictionaryItems {
-	var result avptypes.DictionaryItems
-
-	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
-		arg := unknownOpts[idx]
-
-		opt := strings.TrimPrefix(arg, "-")
-		value := unknownOpts[idx+1]
-
-		result = append(result, avptypes.DictionaryItem{
-			Key:   opt,
-			Value: value,
-		})
-	}
-
-	return result
 }

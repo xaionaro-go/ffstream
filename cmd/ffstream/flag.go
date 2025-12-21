@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
@@ -126,32 +126,21 @@ func parseFlags(args []string) (context.Context, Flags) {
 	var outputs ffstream.Resources
 	for idx, nonFlag := range unknownNonOptions {
 		outputs = append(outputs, ffstream.Resource{
-			URL:     nonFlag,
-			Options: unknownOptions[idx],
+			URL: nonFlag,
+			InputConfig: kernel.InputConfig{
+				CustomOptions: convertUnknownOptionsToAVPCustomOptions(unknownOptions[idx]),
+			},
 		})
 	}
 
 	var inputs ffstream.Resources
 	for idx, input := range inputsFlag.Value() {
-		var fallbackPriority uint
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
-		for idx, opt := range collectedOptions {
-			switch opt {
-			case "-fallback_priority":
-				if idx+1 < len(collectedOptions) {
-					priorityStr := collectedOptions[idx+1]
-					i, err := strconv.ParseUint(priorityStr, 10, 0)
-					if err != nil {
-						fatal(ctx, "unable to parse fallback priority %q: %v", priorityStr, err)
-					}
-					fallbackPriority = uint(i)
-				}
-			}
-		}
 		inputs = append(inputs, ffstream.Resource{
-			URL:              input,
-			Options:          collectedOptions,
-			FallbackPriority: fallbackPriority,
+			URL: input,
+			InputConfig: kernel.InputConfig{
+				CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
+			},
 		})
 	}
 

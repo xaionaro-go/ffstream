@@ -89,11 +89,12 @@ func (s *FFStream) AddInput(
 	if len(s.Inputs.InputChains) != len(s.InputsInfo) {
 		return fmt.Errorf("internal error: len(s.Inputs.InputChains) != len(s.InputsInfo): %d != %d", len(s.Inputs.InputChains), len(s.InputsInfo))
 	}
-	for priority := len(s.Inputs.InputChains); priority <= int(resource.FallbackPriority); priority++ {
-		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(priority)))
+	priority := resource.GetFallbackPriority(ctx)
+	for p := len(s.Inputs.InputChains); p <= int(priority); p++ {
+		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p)))
 		s.InputsInfo = append(s.InputsInfo, nil)
 	}
-	s.InputsInfo[resource.FallbackPriority] = append(s.InputsInfo[resource.FallbackPriority], resource)
+	s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
 	return nil
 }
 

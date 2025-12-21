@@ -3,6 +3,9 @@ package ffstream
 import (
 	"context"
 	"testing"
+
+	"github.com/xaionaro-go/avpipeline/kernel"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
 func TestInputFactory_NewInput_MultipleResourcesSamePriority(t *testing.T) {
@@ -11,8 +14,18 @@ func TestInputFactory_NewInput_MultipleResourcesSamePriority(t *testing.T) {
 	s := &FFStream{}
 	s.InputsInfo = []Resources{
 		{
-			{URL: "file:/does-not-exist-a", Options: []string{"-f", "mpegts"}},
-			{URL: "file:/does-not-exist-b", Options: []string{"-f", "mpegts"}},
+			{
+				URL: "file:/does-not-exist-a",
+				InputConfig: kernel.InputConfig{
+					CustomOptions: avptypes.DictionaryItems{{Key: "f", Value: "mpegts"}},
+				},
+			},
+			{
+				URL: "file:/does-not-exist-b",
+				InputConfig: kernel.InputConfig{
+					CustomOptions: avptypes.DictionaryItems{{Key: "f", Value: "mpegts"}},
+				},
+			},
 		},
 	}
 

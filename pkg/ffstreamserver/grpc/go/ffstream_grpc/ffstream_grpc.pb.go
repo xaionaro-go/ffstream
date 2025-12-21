@@ -44,6 +44,7 @@ const (
 	FFStream_Monitor_FullMethodName                       = "/ffstream_grpc.FFStream/Monitor"
 	FFStream_GetInputsInfo_FullMethodName                 = "/ffstream_grpc.FFStream/GetInputsInfo"
 	FFStream_SetInputCustomOption_FullMethodName          = "/ffstream_grpc.FFStream/SetInputCustomOption"
+	FFStream_SetStopInput_FullMethodName                  = "/ffstream_grpc.FFStream/SetStopInput"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -74,6 +75,7 @@ type FFStreamClient interface {
 	Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error)
 	GetInputsInfo(ctx context.Context, in *GetInputsInfoRequest, opts ...grpc.CallOption) (*GetInputsInfoReply, error)
 	SetInputCustomOption(ctx context.Context, in *SetInputCustomOptionRequest, opts ...grpc.CallOption) (*SetInputCustomOptionReply, error)
+	SetStopInput(ctx context.Context, in *SetStopInputRequest, opts ...grpc.CallOption) (*SetStopInputReply, error)
 }
 
 type fFStreamClient struct {
@@ -370,6 +372,16 @@ func (c *fFStreamClient) SetInputCustomOption(ctx context.Context, in *SetInputC
 	return out, nil
 }
 
+func (c *fFStreamClient) SetStopInput(ctx context.Context, in *SetStopInputRequest, opts ...grpc.CallOption) (*SetStopInputReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetStopInputReply)
+	err := c.cc.Invoke(ctx, FFStream_SetStopInput_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -398,6 +410,7 @@ type FFStreamServer interface {
 	Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error
 	GetInputsInfo(context.Context, *GetInputsInfoRequest) (*GetInputsInfoReply, error)
 	SetInputCustomOption(context.Context, *SetInputCustomOptionRequest) (*SetInputCustomOptionReply, error)
+	SetStopInput(context.Context, *SetStopInputRequest) (*SetStopInputReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -476,6 +489,9 @@ func (UnimplementedFFStreamServer) GetInputsInfo(context.Context, *GetInputsInfo
 }
 func (UnimplementedFFStreamServer) SetInputCustomOption(context.Context, *SetInputCustomOptionRequest) (*SetInputCustomOptionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetInputCustomOption not implemented")
+}
+func (UnimplementedFFStreamServer) SetStopInput(context.Context, *SetStopInputRequest) (*SetStopInputReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetStopInput not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -928,6 +944,24 @@ func _FFStream_SetInputCustomOption_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_SetStopInput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetStopInputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetStopInput(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetStopInput_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetStopInput(ctx, req.(*SetStopInputRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1022,6 +1056,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetInputCustomOption",
 			Handler:    _FFStream_SetInputCustomOption_Handler,
+		},
+		{
+			MethodName: "SetStopInput",
+			Handler:    _FFStream_SetStopInput_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

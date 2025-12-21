@@ -1,18 +1,40 @@
 package ffstream
 
 import (
+	"context"
 	"slices"
+	"strconv"
+
+	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/kernel"
 )
 
 type Resource struct {
-	URL              string
-	Options          []string
-	FallbackPriority uint
+	URL string
+	kernel.InputConfig
+}
+
+func (r Resource) GetFallbackPriority(
+	ctx context.Context,
+) uint {
+	for _, item := range r.CustomOptions {
+		if item.Key == "fallback_priority" {
+			i, err := strconv.ParseUint(item.Value, 10, 0)
+			if err != nil {
+				logger.Errorf(ctx, "unable to parse fallback priority %q: %v", item.Value, err)
+				continue
+			}
+			return uint(i)
+		}
+	}
+	return 0
 }
 
 type Resources []Resource
 
-func (s Resources) ByFallbackPriority() []Resources {
+func (s Resources) ByFallbackPriority(
+	ctx context.Context,
+) []Resources {
 	if len(s) == 0 {
 		return nil
 	}
@@ -22,7 +44,7 @@ func (s Resources) ByFallbackPriority() []Resources {
 	seen := map[uint]struct{}{}
 
 	for _, r := range s {
-		p := r.FallbackPriority
+		p := r.GetFallbackPriority(ctx)
 		groupsByPriority[p] = append(groupsByPriority[p], r)
 		if _, ok := seen[p]; !ok {
 			seen[p] = struct{}{}

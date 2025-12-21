@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/logger"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
+	"github.com/xaionaro-go/xsync"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -280,4 +284,111 @@ func (srv *GRPCServer) GetOutputQuality(
 		Audio: goconv.StreamQualityToGRPC(outputQuality.Audio),
 		Video: goconv.StreamQualityToGRPC(outputQuality.Video),
 	}, nil
+}
+
+func (srv *GRPCServer) GetInputsInfo(
+	ctx context.Context,
+	req *ffstream_grpc.GetInputsInfoRequest,
+) (*ffstream_grpc.GetInputsInfoReply, error) {
+	ctx = srv.ctx(ctx)
+
+	var result []*ffstream_grpc.InputInfo
+	srv.FFStream.Inputs.InputChainsLocker.Do(ctx, func() {
+		for _, inputChain := range srv.FFStream.Inputs.InputChains {
+			k := inputChain.Input.Processor.Kernel
+			inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
+			resources, err := inputFactory.GetResources(ctx)
+			if err != nil {
+				logger.Errorf(ctx, "unable to get resources for input factory: %v", err)
+				continue
+			}
+			for idx, res := range resources {
+				inputKernel := func() *kernel.Input {
+					if k.KernelLocker.ManualTryLock(ctx) {
+						defer k.KernelLocker.ManualUnlock()
+						if k.Kernel != nil && len(k.Kernel.Kernel0) > 0 {
+							return k.Kernel.Kernel0[0]
+						}
+					}
+					return nil
+				}()
+				result = append(result, &ffstream_grpc.InputInfo{
+					Id:          uint64(inputKernel.GetObjectID()),
+					Priority:    uint64(inputFactory.FallbackPriority),
+					Num:         uint64(idx),
+					Url:         res.URL,
+					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
+					IsActive:    k.KernelIsSet,
+				})
+			}
+		}
+	})
+
+	return &ffstream_grpc.GetInputsInfoReply{
+		Inputs: result,
+	}, nil
+}
+
+func (srv *GRPCServer) SetInputCustomOption(
+	ctx context.Context,
+	req *ffstream_grpc.SetInputCustomOptionRequest,
+) (_ret *ffstream_grpc.SetInputCustomOptionReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "SetInputCustomOption: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/SetInputCustomOption: %s: %v %v", spew.Sdump(req), _ret, _err) }()
+	return xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream_grpc.SetInputCustomOptionReply, error) {
+		if int(req.GetInputPriority()) > len(srv.FFStream.Inputs.InputChains) {
+			return nil, status.Errorf(codes.InvalidArgument, "input priority %d is out of range (input chains=%d)", req.GetInputPriority(), len(srv.FFStream.Inputs.InputChains))
+		}
+		inputChain := srv.FFStream.Inputs.InputChains[req.GetInputPriority()]
+
+		inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
+		if uint64(inputFactory.FallbackPriority) != req.GetInputPriority() {
+			return nil, status.Errorf(codes.Internal, "input factory priority %d does not match the requested input priority %d", inputFactory.FallbackPriority, req.GetInputPriority())
+		}
+
+		resources, err := inputFactory.GetResources(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to get resources for input factory: %v", err)
+		}
+
+		if int(req.GetInputNum()) >= len(resources) {
+			return nil, status.Errorf(codes.InvalidArgument, "input num %d is out of range (resources=%d)", req.GetInputNum(), len(resources))
+		}
+		resources[req.GetInputNum()].CustomOptions.SetFirst(avptypes.DictionaryItem{
+			Key:   req.GetKey(),
+			Value: req.GetValue(),
+		})
+		return &ffstream_grpc.SetInputCustomOptionReply{}, nil
+	})
+}
+
+func (srv *GRPCServer) SetStopInput(
+	ctx context.Context,
+	req *ffstream_grpc.SetStopInputRequest,
+) (*ffstream_grpc.SetStopInputReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "SetStopInput: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/SetStopInput: %s", spew.Sdump(req)) }()
+	return xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream_grpc.SetStopInputReply, error) {
+		if int(req.GetInputPriority()) > len(srv.FFStream.Inputs.InputChains) {
+			return nil, status.Errorf(codes.InvalidArgument, "input priority %d is out of range (input chains=%d)", req.GetInputPriority(), len(srv.FFStream.Inputs.InputChains))
+		}
+		inputChain := srv.FFStream.Inputs.InputChains[req.GetInputPriority()]
+
+		switch req.GetStop() {
+		case true:
+			err := inputChain.Pause(ctx)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "unable to stop input at priority %d: %v", req.GetInputPriority(), err)
+			}
+		case false:
+			err := inputChain.Unpause(ctx)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "unable to resume input at priority %d: %v", req.GetInputPriority(), err)
+			}
+		}
+
+		return &ffstream_grpc.SetStopInputReply{}, nil
+	})
 }
