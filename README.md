@@ -4,7 +4,7 @@ A drop-in replacement for `ffmpeg` that is tailored to live-streaming: it allows
 
 The main use case this was implemented for is [IRL streaming](https://kick.com/category/irl). For example:
 * When the internet connection is of variable bandwidth: one may dynamically adjust the bitrate according to available channel.
-* When the recoding equipment is overheating, it is possible to dynamically enable a pass-through (and disable recoding until the equipment would cool down).
+* When the transcoding equipment is overheating, it is possible to dynamically enable a pass-through (and disable transcoding until the equipment would cool down).
 
 But actually, if you got into using `ffstream` instead of `ffmpeg` you may want to consider writing yourown tool that is tailored for your needs by just using [`avpipeline`](https://github.com/xaionaro-go/avpipeline) directly.
 

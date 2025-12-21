@@ -24,10 +24,10 @@ func TrackLatenciesToGRPC(
 	in streammuxtypes.TrackLatencies,
 ) *ffstream_grpc.TrackLatencies {
 	return &ffstream_grpc.TrackLatencies{
-		PreRecodingU:    uint64(in.PreRecoding.Nanoseconds()),
-		RecodingU:       uint64(in.Recoding.Nanoseconds()),
-		RecodedPreSendU: uint64(in.RecodedPreSend.Nanoseconds()),
-		SendingU:        uint64(in.Sending.Nanoseconds()),
+		PreTranscodingU:    uint64(in.PreTranscoding.Nanoseconds()),
+		TranscodingU:       uint64(in.Transcoding.Nanoseconds()),
+		TranscodedPreSendU: uint64(in.TranscodedPreSend.Nanoseconds()),
+		SendingU:           uint64(in.Sending.Nanoseconds()),
 	}
 }
 
@@ -52,10 +52,10 @@ func TrackLatenciesFromGRPC(
 	}
 
 	return streammuxtypes.TrackLatencies{
-		PreRecoding:    nanosecondsToDuration(int64(in.PreRecodingU)),
-		Recoding:       nanosecondsToDuration(int64(in.RecodingU)),
-		RecodedPreSend: nanosecondsToDuration(int64(in.RecodedPreSendU)),
-		Sending:        nanosecondsToDuration(int64(in.SendingU)),
+		PreTranscoding:    nanosecondsToDuration(int64(in.PreTranscodingU)),
+		Transcoding:       nanosecondsToDuration(int64(in.TranscodingU)),
+		TranscodedPreSend: nanosecondsToDuration(int64(in.TranscodedPreSendU)),
+		Sending:           nanosecondsToDuration(int64(in.SendingU)),
 	}
 }
 

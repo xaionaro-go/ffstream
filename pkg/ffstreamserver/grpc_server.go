@@ -22,10 +22,10 @@ import (
 
 type GRPCServer struct {
 	ffstream_grpc.UnimplementedFFStreamServer
-	FFStream         *ffstream.FFStream
-	Observability    *belt.Belt
-	locker           sync.Mutex
-	stopRecodingFunc context.CancelFunc
+	FFStream            *ffstream.FFStream
+	Observability       *belt.Belt
+	locker              sync.Mutex
+	stopTranscodingFunc context.CancelFunc
 }
 
 func NewGRPCServer(
@@ -54,9 +54,9 @@ func (srv *GRPCServer) GetCurrentOutput(
 	req *ffstream_grpc.GetCurrentOutputRequest,
 ) (*ffstream_grpc.GetCurrentOutputReply, error) {
 	ctx = srv.ctx(ctx)
-	cfg := srv.FFStream.GetRecoderConfig(ctx)
+	cfg := srv.FFStream.GetTranscoderConfig(ctx)
 	return &ffstream_grpc.GetCurrentOutputReply{
-		Config: goconv.RecoderConfigToGRPC(cfg),
+		Config: goconv.TranscoderConfigToGRPC(cfg),
 	}, nil
 }
 
@@ -95,11 +95,11 @@ func (srv *GRPCServer) End(
 	_ = ctx
 	srv.locker.Lock()
 	defer srv.locker.Unlock()
-	if srv.stopRecodingFunc == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "recoding is not started")
+	if srv.stopTranscodingFunc == nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "transcoding is not started")
 	}
-	srv.stopRecodingFunc()
-	srv.stopRecodingFunc = nil
+	srv.stopTranscodingFunc()
+	srv.stopTranscodingFunc = nil
 	return &ffstream_grpc.EndReply{}, nil
 }
 

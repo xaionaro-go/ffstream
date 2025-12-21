@@ -113,10 +113,10 @@ func (s *FFStream) AddOutputTemplate(
 	return nil
 }
 
-func (s *FFStream) GetRecoderConfig(
+func (s *FFStream) GetTranscoderConfig(
 	ctx context.Context,
-) (_ret streammuxtypes.RecoderConfig) {
-	return s.StreamMux.GetRecoderConfig(ctx)
+) (_ret streammuxtypes.TranscoderConfig) {
+	return s.StreamMux.GetTranscoderConfig(ctx)
 }
 
 func (s *FFStream) SwitchOutputByProps(
@@ -188,7 +188,7 @@ func (s *FFStream) GetAllStats(
 
 func (s *FFStream) Start(
 	ctx context.Context,
-	recoderConfig streammuxtypes.RecoderConfig,
+	transcoderConfig streammuxtypes.TranscoderConfig,
 	muxMode streammuxtypes.MuxMode,
 	autoBitRateVideo *streammuxtypes.AutoBitRateVideoConfig,
 ) (_err error) {
@@ -231,14 +231,14 @@ func (s *FFStream) Start(
 	s.Inputs.AddPushFramesTo(ctx, s.StreamMux, framefiltercondition.Function(s.onInputFrame))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
-		RecoderConfig:   recoderConfig,
-		SenderNodeProps: streammuxtypes.SenderNodeProps{},
+		TranscoderConfig: transcoderConfig,
+		SenderNodeProps:  streammuxtypes.SenderNodeProps{},
 	}); err != nil {
-		return fmt.Errorf("SwitchOutputByProps(%#+v): %w", recoderConfig, err)
+		return fmt.Errorf("SwitchOutputByProps(%#+v): %w", transcoderConfig, err)
 	}
 
 	if autoBitRateVideo != nil {
-		senderKey := streammux.PartialSenderKeyFromRecoderConfig(ctx, &recoderConfig)
+		senderKey := streammux.PartialSenderKeyFromTranscoderConfig(ctx, &transcoderConfig)
 		var wg sync.WaitGroup
 		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
 			senderKey.VideoResolution = output.Resolution

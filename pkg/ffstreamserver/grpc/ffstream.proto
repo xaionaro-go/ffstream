@@ -76,7 +76,7 @@ message VideoCodecConfig {
   uint32                           height               = 8;
 }
 
-message RecoderConfig {
+message TranscoderConfig {
   AudioCodecConfig audio = 1;
   VideoCodecConfig video = 2;
 }
@@ -84,14 +84,14 @@ message RecoderConfig {
 message GetCurrentOutputRequest {}
 
 message GetCurrentOutputReply {
-  uint64        id           = 1;
-  RecoderConfig config       = 2;
-  uint64        max_bit_rate = 3;
+  uint64           id           = 1;
+  TranscoderConfig config       = 2;
+  uint64           max_bit_rate = 3;
 }
 
 message SwitchOutputByPropsRequest {
-  RecoderConfig config       = 1;
-  uint64        max_bit_rate = 2;
+  TranscoderConfig config       = 1;
+  uint64           max_bit_rate = 2;
 }
 
 message SwitchOutputByPropsReply {}
@@ -283,10 +283,10 @@ message Latencies {
 }
 
 message TrackLatencies {
-  uint64 pre_recoding_u     = 1;
-  uint64 recoding_u         = 2;
-  uint64 recoded_pre_send_u = 3;
-  uint64 sending_u          = 4;
+  uint64 pre_transcoding_u     = 1;
+  uint64 transcoding_u         = 2;
+  uint64 transcoded_pre_send_u = 3;
+  uint64 sending_u             = 4;
 }
 
 message GetInputQualityRequest {}

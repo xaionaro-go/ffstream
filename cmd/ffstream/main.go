@@ -142,8 +142,8 @@ func main() {
 	if hardwareDeviceType == -1 {
 		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
 	}
-	recoderConfig := streammuxtypes.RecoderConfig{
-		Output: streammuxtypes.RecoderOutputConfig{
+	transcoderConfig := streammuxtypes.TranscoderConfig{
+		Output: streammuxtypes.TranscoderOutputConfig{
 			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
 				InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 				OutputTrackIDs:     []int{0},
@@ -167,7 +167,7 @@ func main() {
 		},
 	}
 
-	err = s.Start(ctx, recoderConfig, flags.MuxMode, flags.AutoBitRate)
+	err = s.Start(ctx, transcoderConfig, flags.MuxMode, flags.AutoBitRate)
 	assertNoError(ctx, err)
 
 	if logger.FromCtx(ctx).Level() >= logger.LevelTrace {

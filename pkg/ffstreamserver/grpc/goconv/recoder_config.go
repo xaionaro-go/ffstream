@@ -7,12 +7,12 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 )
 
-func RecoderConfigFromGRPC(
-	req *ffstream_grpc.RecoderConfig,
-) streammuxtypes.RecoderConfig {
+func TranscoderConfigFromGRPC(
+	req *ffstream_grpc.TranscoderConfig,
+) streammuxtypes.TranscoderConfig {
 	videoDeviceTypeName := avptypes.HardwareDeviceTypeFromString(req.GetVideo().GetHardwareDeviceType())
-	return streammuxtypes.RecoderConfig{
-		Output: streammuxtypes.RecoderOutputConfig{
+	return streammuxtypes.TranscoderConfig{
+		Output: streammuxtypes.TranscoderOutputConfig{
 			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
 				InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
 				OutputTrackIDs:     []int{0},
@@ -39,10 +39,10 @@ func RecoderConfigFromGRPC(
 	}
 }
 
-func RecoderConfigToGRPC(
-	cfg streammuxtypes.RecoderConfig,
-) *ffstream_grpc.RecoderConfig {
-	result := &ffstream_grpc.RecoderConfig{}
+func TranscoderConfigToGRPC(
+	cfg streammuxtypes.TranscoderConfig,
+) *ffstream_grpc.TranscoderConfig {
+	result := &ffstream_grpc.TranscoderConfig{}
 	if len(cfg.Output.AudioTrackConfigs) > 0 {
 		audio := cfg.Output.AudioTrackConfigs[0]
 		result.Audio = &ffstream_grpc.AudioCodecConfig{
