@@ -28,9 +28,12 @@ import (
 	"github.com/xaionaro-go/observability"
 )
 
+type Inputs = inputwithfallback.InputWithFallback[*Input, *codec.NaiveDecoderFactory, CustomData]
+type InputChain = inputwithfallback.InputChain[*Input, *codec.NaiveDecoderFactory, CustomData]
+
 type FFStream struct {
 	Config          Config
-	Inputs          *inputwithfallback.InputWithFallback[*Input, *codec.NaiveDecoderFactory, CustomData]
+	Inputs          *Inputs
 	InputsInfo      []Resources
 	OutputTemplates []SenderTemplate
 

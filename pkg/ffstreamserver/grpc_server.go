@@ -336,31 +336,35 @@ func (srv *GRPCServer) SetInputCustomOption(
 	ctx = srv.ctx(ctx)
 	logger.Debugf(ctx, "SetInputCustomOption: %s", spew.Sdump(req))
 	defer func() { logger.Debugf(ctx, "/SetInputCustomOption: %s: %v %v", spew.Sdump(req), _ret, _err) }()
-	return xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream_grpc.SetInputCustomOptionReply, error) {
+	inputChain, err := xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream.InputChain, error) {
 		if int(req.GetInputPriority()) > len(srv.FFStream.Inputs.InputChains) {
 			return nil, status.Errorf(codes.InvalidArgument, "input priority %d is out of range (input chains=%d)", req.GetInputPriority(), len(srv.FFStream.Inputs.InputChains))
 		}
-		inputChain := srv.FFStream.Inputs.InputChains[req.GetInputPriority()]
-
-		inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
-		if uint64(inputFactory.FallbackPriority) != req.GetInputPriority() {
-			return nil, status.Errorf(codes.Internal, "input factory priority %d does not match the requested input priority %d", inputFactory.FallbackPriority, req.GetInputPriority())
-		}
-
-		resources, err := inputFactory.GetResources(ctx)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to get resources for input factory: %v", err)
-		}
-
-		if int(req.GetInputNum()) >= len(resources) {
-			return nil, status.Errorf(codes.InvalidArgument, "input num %d is out of range (resources=%d)", req.GetInputNum(), len(resources))
-		}
-		resources[req.GetInputNum()].CustomOptions.SetFirst(avptypes.DictionaryItem{
-			Key:   req.GetKey(),
-			Value: req.GetValue(),
-		})
-		return &ffstream_grpc.SetInputCustomOptionReply{}, nil
+		return srv.FFStream.Inputs.InputChains[req.GetInputPriority()], nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
+	if uint64(inputFactory.FallbackPriority) != req.GetInputPriority() {
+		return nil, status.Errorf(codes.Internal, "input factory priority %d does not match the requested input priority %d", inputFactory.FallbackPriority, req.GetInputPriority())
+	}
+
+	resources, err := inputFactory.GetResources(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to get resources for input factory: %v", err)
+	}
+
+	if int(req.GetInputNum()) >= len(resources) {
+		return nil, status.Errorf(codes.InvalidArgument, "input num %d is out of range (resources=%d)", req.GetInputNum(), len(resources))
+	}
+	resources[req.GetInputNum()].CustomOptions.SetFirst(avptypes.DictionaryItem{
+		Key:   req.GetKey(),
+		Value: req.GetValue(),
+	})
+
+	return &ffstream_grpc.SetInputCustomOptionReply{}, nil
 }
 
 func (srv *GRPCServer) SetStopInput(
@@ -370,25 +374,28 @@ func (srv *GRPCServer) SetStopInput(
 	ctx = srv.ctx(ctx)
 	logger.Debugf(ctx, "SetStopInput: %s", spew.Sdump(req))
 	defer func() { logger.Debugf(ctx, "/SetStopInput: %s", spew.Sdump(req)) }()
-	return xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream_grpc.SetStopInputReply, error) {
+	inputChain, err := xsync.DoR2(ctx, &srv.FFStream.Inputs.InputChainsLocker, func() (*ffstream.InputChain, error) {
 		if int(req.GetInputPriority()) > len(srv.FFStream.Inputs.InputChains) {
 			return nil, status.Errorf(codes.InvalidArgument, "input priority %d is out of range (input chains=%d)", req.GetInputPriority(), len(srv.FFStream.Inputs.InputChains))
 		}
-		inputChain := srv.FFStream.Inputs.InputChains[req.GetInputPriority()]
-
-		switch req.GetStop() {
-		case true:
-			err := inputChain.Pause(ctx)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "unable to stop input at priority %d: %v", req.GetInputPriority(), err)
-			}
-		case false:
-			err := inputChain.Unpause(ctx)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "unable to resume input at priority %d: %v", req.GetInputPriority(), err)
-			}
-		}
-
-		return &ffstream_grpc.SetStopInputReply{}, nil
+		return srv.FFStream.Inputs.InputChains[req.GetInputPriority()], nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	switch req.GetStop() {
+	case true:
+		err := inputChain.Pause(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to stop input at priority %d: %v", req.GetInputPriority(), err)
+		}
+	case false:
+		err := inputChain.Unpause(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to resume input at priority %d: %v", req.GetInputPriority(), err)
+		}
+	}
+
+	return &ffstream_grpc.SetStopInputReply{}, nil
 }
