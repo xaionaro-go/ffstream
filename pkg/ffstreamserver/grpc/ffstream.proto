@@ -8,43 +8,42 @@ service FFStream {
   rpc SetLoggingLevel(SetLoggingLevelRequest) returns (SetLoggingLevelReply) {}
   rpc RemoveOutput(RemoveOutputRequest) returns (RemoveOutputReply) {}
   rpc GetCurrentOutput(GetCurrentOutputRequest)
-      returns (GetCurrentOutputReply) {}
+  returns (GetCurrentOutputReply) {}
   rpc SwitchOutputByProps(SwitchOutputByPropsRequest)
-      returns (SwitchOutputByPropsReply) {}
+  returns (SwitchOutputByPropsReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest)
-      returns (GetOutputSRTStatsReply) {}
+  returns (GetOutputSRTStatsReply) {}
   rpc GetSRTFlagInt(GetSRTFlagIntRequest) returns (GetSRTFlagIntReply) {}
   rpc SetSRTFlagInt(SetSRTFlagIntRequest) returns (SetSRTFlagIntReply) {}
   rpc WaitChan(WaitRequest) returns (stream WaitReply) {}
   rpc End(EndRequest) returns (EndReply) {}
   rpc GetPipelines(GetPipelinesRequest) returns (GetPipelinesResponse);
   rpc GetVideoAutoBitRateConfig(GetVideoAutoBitRateConfigRequest)
-      returns (GetVideoAutoBitRateConfigReply) {}
+  returns (GetVideoAutoBitRateConfigReply) {}
   rpc SetVideoAutoBitRateConfig(SetVideoAutoBitRateConfigRequest)
-      returns (SetVideoAutoBitRateConfigReply) {}
+  returns (SetVideoAutoBitRateConfigReply) {}
   rpc GetVideoAutoBitRateCalculator(GetVideoAutoBitRateCalculatorRequest)
-      returns (GetVideoAutoBitRateCalculatorReply) {}
+  returns (GetVideoAutoBitRateCalculatorReply) {}
   rpc SetVideoAutoBitRateCalculator(SetVideoAutoBitRateCalculatorRequest)
-      returns (SetVideoAutoBitRateCalculatorReply) {}
+  returns (SetVideoAutoBitRateCalculatorReply) {}
   rpc GetFPSFraction(GetFPSFractionRequest) returns (GetFPSFractionReply) {}
   rpc SetFPSFraction(SetFPSFractionRequest) returns (SetFPSFractionReply) {}
   rpc GetBitRates(GetBitRatesRequest) returns (GetBitRatesReply) {}
   rpc GetLatencies(GetLatenciesRequest) returns (GetLatenciesReply) {}
   rpc GetInputQuality(GetInputQualityRequest) returns (GetInputQualityReply) {}
-  rpc GetOutputQuality(GetOutputQualityRequest)
-      returns (GetOutputQualityReply) {}
-  rpc Monitor(avpipeline.MonitorRequest)
-      returns (stream avpipeline.MonitorEvent);
+  rpc GetOutputQuality(GetOutputQualityRequest) returns (GetOutputQualityReply) {}
+  rpc Monitor(avpipeline.MonitorRequest) returns (stream avpipeline.MonitorEvent) {}
+  rpc GetInputsInfo(GetInputsInfoRequest) returns (GetInputsInfoReply) {}
 }
 
 enum LoggingLevel {
-  LoggingLevelNone = 0;
+  LoggingLevelNone  = 0;
   LoggingLevelFatal = 1;
   LoggingLevelPanic = 2;
   LoggingLevelError = 3;
-  LoggingLevelWarn = 4;
-  LoggingLevelInfo = 5;
+  LoggingLevelWarn  = 4;
+  LoggingLevelInfo  = 5;
   LoggingLevelDebug = 6;
   LoggingLevelTrace = 7;
 }
@@ -54,160 +53,177 @@ message SetLoggingLevelRequest { LoggingLevel level = 1; }
 message SetLoggingLevelReply {}
 
 message customOption {
-  string key = 1;
+  string key   = 1;
   string value = 2;
 }
 
 message RemoveOutputRequest { uint64 id = 1; }
+
 message RemoveOutputReply {}
 
 message AudioCodecConfig {
-  string codecName = 1;
-  uint64 averagingPeriod = 2;
-  uint64 AverageBitRate = 3;
-  repeated customOption customOptions = 4;
+  string                codecName       = 1;
+  uint64                averagingPeriod = 2;
+  uint64                AverageBitRate  = 3;
+  repeated customOption customOptions   = 4;
 }
+
 message VideoCodecConfig {
-  string codecName = 1;
-  uint64 averagingPeriod = 2;
-  uint64 AverageBitRate = 3;
-  repeated customOption customOptions = 4;
-  string hardwareDeviceType = 5;
-  string hardwareDeviceName = 6;
-  uint32 width = 7;
-  uint32 height = 8;
+  string                codecName          = 1;
+  uint64                averagingPeriod    = 2;
+  uint64                AverageBitRate     = 3;
+  repeated customOption customOptions      = 4;
+  string                hardwareDeviceType = 5;
+  string                hardwareDeviceName = 6;
+  uint32                width              = 7;
+  uint32                height             = 8;
 }
+
 message RecoderConfig {
   AudioCodecConfig audio = 1;
   VideoCodecConfig video = 2;
 }
+
 message GetCurrentOutputRequest {}
+
 message GetCurrentOutputReply {
-  uint64 id = 1;
-  RecoderConfig config = 2;
-  uint64 maxBitRate = 3;
+  uint64        id         = 1;
+  RecoderConfig config     = 2;
+  uint64        maxBitRate = 3;
 }
+
 message SwitchOutputByPropsRequest {
-  RecoderConfig config = 1;
-  uint64 maxBitRate = 2;
+  RecoderConfig config     = 1;
+  uint64        maxBitRate = 2;
 }
+
 message SwitchOutputByPropsReply {}
 
 message GetStatsRequest {}
+
 message GetStatsReply { avpipeline.NodeCounters nodeCounters = 1; }
 
 message GetOutputSRTStatsRequest { int32 outputID = 1; }
+
 message GetOutputSRTStatsReply {
-  int64 msTimeStamp = 1;
-  int64 pktSentTotal = 2;
-  int64 pktRecvTotal = 3;
-  int64 pktSndLossTotal = 4;
-  int64 pktRcvLossTotal = 5;
-  int64 pktRetransTotal = 6;
-  int64 pktSentACKTotal = 7;
-  int64 pktRecvACKTotal = 8;
-  int64 pktSentNAKTotal = 9;
-  int64 pktRecvNAKTotal = 10;
-  int64 usSndDurationTotal = 11;
-  int64 pktSndDropTotal = 12;
-  int64 pktRcvDropTotal = 13;
-  int64 pktRcvUndecryptTotal = 14;
-  uint64 byteSentTotal = 15;
-  uint64 byteRecvTotal = 16;
-  uint64 byteRcvLossTotal = 17;
-  uint64 byteRetransTotal = 18;
-  uint64 byteSndDropTotal = 19;
-  uint64 byteRcvDropTotal = 20;
-  uint64 byteRcvUndecryptTotal = 21;
-  int64 pktSent = 22;
-  int64 pktRecv = 23;
-  int64 pktSndLoss = 24;
-  int64 pktRcvLoss = 25;
-  int64 pktRetrans = 26;
-  int64 pktRcvRetrans = 27;
-  int64 pktSentACK = 28;
-  int64 pktRecvACK = 29;
-  int64 pktSentNAK = 30;
-  int64 pktRecvNAK = 31;
-  double mbpsSendRate = 32;
-  double mbpsRecvRate = 33;
-  int64 usSndDuration = 34;
-  int64 pktReorderDistance = 35;
-  double pktRcvAvgBelatedTime = 36;
-  int64 pktRcvBelated = 37;
-  int64 pktSndDrop = 38;
-  int64 pktRcvDrop = 39;
-  int64 pktRcvUndecrypt = 40;
-  uint64 byteSent = 41;
-  uint64 byteRecv = 42;
-  uint64 byteRcvLoss = 43;
-  uint64 byteRetrans = 44;
-  uint64 byteSndDrop = 45;
-  uint64 byteRcvDrop = 46;
-  uint64 byteRcvUndecrypt = 47;
-  double usPktSndPeriod = 48;
-  int64 pktFlowWindow = 49;
-  int64 pktCongestionWindow = 50;
-  int64 pktFlightSize = 51;
-  double msRTT = 52;
-  double mbpsBandwidth = 53;
-  int64 byteAvailSndBuf = 54;
-  int64 byteAvailRcvBuf = 55;
-  double mbpsMaxBW = 56;
-  int64 byteMSS = 57;
-  int64 pktSndBuf = 58;
-  int64 byteSndBuf = 59;
-  int64 msSndBuf = 60;
-  int64 msSndTsbPdDelay = 61;
-  int64 pktRcvBuf = 62;
-  int64 byteRcvBuf = 63;
-  int64 msRcvBuf = 64;
-  int64 msRcvTsbPdDelay = 65;
-  int64 pktSndFilterExtraTotal = 66;
-  int64 pktRcvFilterExtraTotal = 67;
-  int64 pktRcvFilterSupplyTotal = 68;
-  int64 pktRcvFilterLossTotal = 69;
-  int64 pktSndFilterExtra = 70;
-  int64 pktRcvFilterExtra = 71;
-  int64 pktRcvFilterSupply = 72;
-  int64 pktRcvFilterLoss = 73;
-  int64 pktReorderTolerance = 74;
-  int64 pktSentUniqueTotal = 75;
-  int64 pktRecvUniqueTotal = 76;
-  uint64 byteSentUniqueTotal = 77;
-  uint64 byteRecvUniqueTotal = 78;
-  int64 pktSentUnique = 79;
-  int64 pktRecvUnique = 80;
-  uint64 byteSentUnique = 81;
-  uint64 byteRecvUnique = 82;
+  int64  msTimeStamp             = 1;
+  int64  pktSentTotal            = 2;
+  int64  pktRecvTotal            = 3;
+  int64  pktSndLossTotal         = 4;
+  int64  pktRcvLossTotal         = 5;
+  int64  pktRetransTotal         = 6;
+  int64  pktSentACKTotal         = 7;
+  int64  pktRecvACKTotal         = 8;
+  int64  pktSentNAKTotal         = 9;
+  int64  pktRecvNAKTotal         = 10;
+  int64  usSndDurationTotal      = 11;
+  int64  pktSndDropTotal         = 12;
+  int64  pktRcvDropTotal         = 13;
+  int64  pktRcvUndecryptTotal    = 14;
+  uint64 byteSentTotal           = 15;
+  uint64 byteRecvTotal           = 16;
+  uint64 byteRcvLossTotal        = 17;
+  uint64 byteRetransTotal        = 18;
+  uint64 byteSndDropTotal        = 19;
+  uint64 byteRcvDropTotal        = 20;
+  uint64 byteRcvUndecryptTotal   = 21;
+  int64  pktSent                 = 22;
+  int64  pktRecv                 = 23;
+  int64  pktSndLoss              = 24;
+  int64  pktRcvLoss              = 25;
+  int64  pktRetrans              = 26;
+  int64  pktRcvRetrans           = 27;
+  int64  pktSentACK              = 28;
+  int64  pktRecvACK              = 29;
+  int64  pktSentNAK              = 30;
+  int64  pktRecvNAK              = 31;
+  double mbpsSendRate            = 32;
+  double mbpsRecvRate            = 33;
+  int64  usSndDuration           = 34;
+  int64  pktReorderDistance      = 35;
+  double pktRcvAvgBelatedTime    = 36;
+  int64  pktRcvBelated           = 37;
+  int64  pktSndDrop              = 38;
+  int64  pktRcvDrop              = 39;
+  int64  pktRcvUndecrypt         = 40;
+  uint64 byteSent                = 41;
+  uint64 byteRecv                = 42;
+  uint64 byteRcvLoss             = 43;
+  uint64 byteRetrans             = 44;
+  uint64 byteSndDrop             = 45;
+  uint64 byteRcvDrop             = 46;
+  uint64 byteRcvUndecrypt        = 47;
+  double usPktSndPeriod          = 48;
+  int64  pktFlowWindow           = 49;
+  int64  pktCongestionWindow     = 50;
+  int64  pktFlightSize           = 51;
+  double msRTT                   = 52;
+  double mbpsBandwidth           = 53;
+  int64  byteAvailSndBuf         = 54;
+  int64  byteAvailRcvBuf         = 55;
+  double mbpsMaxBW               = 56;
+  int64  byteMSS                 = 57;
+  int64  pktSndBuf               = 58;
+  int64  byteSndBuf              = 59;
+  int64  msSndBuf                = 60;
+  int64  msSndTsbPdDelay         = 61;
+  int64  pktRcvBuf               = 62;
+  int64  byteRcvBuf              = 63;
+  int64  msRcvBuf                = 64;
+  int64  msRcvTsbPdDelay         = 65;
+  int64  pktSndFilterExtraTotal  = 66;
+  int64  pktRcvFilterExtraTotal  = 67;
+  int64  pktRcvFilterSupplyTotal = 68;
+  int64  pktRcvFilterLossTotal   = 69;
+  int64  pktSndFilterExtra       = 70;
+  int64  pktRcvFilterExtra       = 71;
+  int64  pktRcvFilterSupply      = 72;
+  int64  pktRcvFilterLoss        = 73;
+  int64  pktReorderTolerance     = 74;
+  int64  pktSentUniqueTotal      = 75;
+  int64  pktRecvUniqueTotal      = 76;
+  uint64 byteSentUniqueTotal     = 77;
+  uint64 byteRecvUniqueTotal     = 78;
+  int64  pktSentUnique           = 79;
+  int64  pktRecvUnique           = 80;
+  uint64 byteSentUnique          = 81;
+  uint64 byteRecvUnique          = 82;
 }
 
 enum SRTFlagInt {
   undefined = 0;
-  Latency = 1;
+  Latency   = 1;
 }
 
 message GetSRTFlagIntRequest {
-  int32 outputID = 1;
-  SRTFlagInt flag = 2;
+  int32      outputID = 1;
+  SRTFlagInt flag     = 2;
 }
+
 message GetSRTFlagIntReply { int64 value = 1; }
+
 message SetSRTFlagIntRequest {
-  int32 outputID = 1;
-  SRTFlagInt flag = 2;
-  int64 value = 3;
+  int32      outputID = 1;
+  SRTFlagInt flag     = 2;
+  int64      value    = 3;
 }
+
 message SetSRTFlagIntReply {}
 
 message WaitRequest {}
+
 message WaitReply {}
+
 message EndRequest {}
+
 message EndReply {}
 
 message GetPipelinesRequest {}
+
 message GetPipelinesResponse { repeated avpipeline.Node nodes = 1; }
 
 message GetVideoAutoBitRateConfigRequest {}
+
 message GetVideoAutoBitRateConfigReply {
   avpipeline.AutoBitRateVideoConfig config = 1;
 }
@@ -217,24 +233,31 @@ message SetVideoAutoBitRateConfigRequest {
 }
 
 message SetVideoAutoBitRateConfigReply {}
+
 message GetVideoAutoBitRateCalculatorRequest {}
+
 message GetVideoAutoBitRateCalculatorReply {
   avpipeline.AutoBitrateCalculator calculator = 1;
 }
+
 message SetVideoAutoBitRateCalculatorRequest {
   avpipeline.AutoBitrateCalculator calculator = 1;
 }
+
 message SetVideoAutoBitRateCalculatorReply {}
 
 message GetFPSFractionRequest {}
+
 message GetFPSFractionReply {
   uint32 num = 1;
   uint32 den = 2;
 }
+
 message SetFPSFractionRequest {
   uint32 num = 1;
   uint32 den = 2;
 }
+
 message SetFPSFractionReply {}
 
 message BitRateInfo {
@@ -244,15 +267,17 @@ message BitRateInfo {
 }
 
 message BitRates {
-  BitRateInfo inputBitRate = 1;
+  BitRateInfo inputBitRate   = 1;
   BitRateInfo encodedBitRate = 2;
-  BitRateInfo outputBitRate = 3;
+  BitRateInfo outputBitRate  = 3;
 }
 
 message GetBitRatesRequest {}
+
 message GetBitRatesReply { BitRates bitRates = 1; }
 
 message GetLatenciesRequest {}
+
 message GetLatenciesReply { Latencies latencies = 1; }
 
 message Latencies {
@@ -261,13 +286,14 @@ message Latencies {
 }
 
 message TrackLatencies {
-  uint64 preRecodingU = 1;
-  uint64 recodingU = 2;
+  uint64 preRecodingU    = 1;
+  uint64 recodingU       = 2;
   uint64 recodedPreSendU = 3;
-  uint64 sendingU = 4;
+  uint64 sendingU        = 4;
 }
 
 message GetInputQualityRequest {}
+
 message GetInputQualityReply {
   StreamQuality audio = 1;
   StreamQuality video = 2;
@@ -275,13 +301,36 @@ message GetInputQualityReply {
 
 message StreamQuality {
   double continuity = 1;
-  double overlap = 2;
-  double frameRate = 3;
+  double overlap    = 2;
+  double frameRate  = 3;
   uint64 invalidDTS = 4;
 }
 
 message GetOutputQualityRequest {}
+
 message GetOutputQualityReply {
   StreamQuality audio = 1;
   StreamQuality video = 2;
+}
+
+message GetInputsInfoRequest {}
+
+message GetInputsInfoReply {
+  repeated InputInfo inputs = 1;
+}
+
+message InputInfo {
+  uint64         id                 = 1;
+  string         url                = 2;
+  string         format             = 3;
+  bool           asyncOpen          = 4;
+  bool           autoClose          = 5;
+  uint32         recvBufferSize     = 6;
+  optional bool  forceRealTime      = 7;
+  optional int64 forceStartPTS      = 8;
+  optional int64 forceStartDTS      = 9;
+  bool           ignoreIncorrectDTS = 10;
+  bool           ignoreZeroDuration = 11;
+
+  repeated avpipeline.CustomOption customOptions = 12;
 }

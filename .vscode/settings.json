@@ -6,9 +6,9 @@
     "files.exclude": {
         "**/imports/**": true
     },
-    "protoc": {
-        "options": [
-            "-I./pkg/ffstreamserver/grpc"
-        ]
-    },
+    "protobuf.includes": [
+        "./pkg/ffstreamserver/grpc",
+        "./pkg/ffstreamserver/grpc/imports/avpipeline/protobuf"
+    ],
+    "protobuf.diagnostics.documentationComments": false
 }

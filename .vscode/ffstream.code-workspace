@@ -7,5 +7,11 @@
 			"path": "../../avpipeline"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"protobuf.includes": [
+			"./pkg/ffstreamserver/grpc",
+			"./pkg/ffstreamserver/grpc/imports/avpipeline/protobuf"
+		],
+		"protobuf.diagnostics.documentationComments": false
+	}
 }

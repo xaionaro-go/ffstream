@@ -42,6 +42,7 @@ const (
 	FFStream_GetInputQuality_FullMethodName               = "/ffstream_grpc.FFStream/GetInputQuality"
 	FFStream_GetOutputQuality_FullMethodName              = "/ffstream_grpc.FFStream/GetOutputQuality"
 	FFStream_Monitor_FullMethodName                       = "/ffstream_grpc.FFStream/Monitor"
+	FFStream_GetInputsInfo_FullMethodName                 = "/ffstream_grpc.FFStream/GetInputsInfo"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -70,6 +71,7 @@ type FFStreamClient interface {
 	GetInputQuality(ctx context.Context, in *GetInputQualityRequest, opts ...grpc.CallOption) (*GetInputQualityReply, error)
 	GetOutputQuality(ctx context.Context, in *GetOutputQualityRequest, opts ...grpc.CallOption) (*GetOutputQualityReply, error)
 	Monitor(ctx context.Context, in *avpipeline.MonitorRequest, opts ...grpc.CallOption) (FFStream_MonitorClient, error)
+	GetInputsInfo(ctx context.Context, in *GetInputsInfoRequest, opts ...grpc.CallOption) (*GetInputsInfoReply, error)
 }
 
 type fFStreamClient struct {
@@ -346,6 +348,16 @@ func (x *fFStreamMonitorClient) Recv() (*avpipeline.MonitorEvent, error) {
 	return m, nil
 }
 
+func (c *fFStreamClient) GetInputsInfo(ctx context.Context, in *GetInputsInfoRequest, opts ...grpc.CallOption) (*GetInputsInfoReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetInputsInfoReply)
+	err := c.cc.Invoke(ctx, FFStream_GetInputsInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility
@@ -372,6 +384,7 @@ type FFStreamServer interface {
 	GetInputQuality(context.Context, *GetInputQualityRequest) (*GetInputQualityReply, error)
 	GetOutputQuality(context.Context, *GetOutputQualityRequest) (*GetOutputQualityReply, error)
 	Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error
+	GetInputsInfo(context.Context, *GetInputsInfoRequest) (*GetInputsInfoReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -444,6 +457,9 @@ func (UnimplementedFFStreamServer) GetOutputQuality(context.Context, *GetOutputQ
 }
 func (UnimplementedFFStreamServer) Monitor(*avpipeline.MonitorRequest, FFStream_MonitorServer) error {
 	return status.Errorf(codes.Unimplemented, "method Monitor not implemented")
+}
+func (UnimplementedFFStreamServer) GetInputsInfo(context.Context, *GetInputsInfoRequest) (*GetInputsInfoReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInputsInfo not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 
@@ -860,6 +876,24 @@ func (x *fFStreamMonitorServer) Send(m *avpipeline.MonitorEvent) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _FFStream_GetInputsInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInputsInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).GetInputsInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_GetInputsInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).GetInputsInfo(ctx, req.(*GetInputsInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -946,6 +980,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOutputQuality",
 			Handler:    _FFStream_GetOutputQuality_Handler,
+		},
+		{
+			MethodName: "GetInputsInfo",
+			Handler:    _FFStream_GetInputsInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
