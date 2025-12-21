@@ -2,6 +2,7 @@ package ffstream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -120,11 +121,18 @@ func (s *senderFactory) newOutputKernel(
 			return nil, fmt.Errorf("unknown mux mode: %q", s.StreamMux.MuxMode)
 		}
 	}
-	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), kernel.OutputConfig{
+	cfg := kernel.OutputConfig{
 		CustomOptions:        outputTemplate.Options,
 		SendBufferSize:       bufSize,
 		WaitForOutputStreams: &waitForStreams,
-	})
+	}
+	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), cfg)
+	switch {
+	case errors.As(err, &kernel.ErrUnableToSetSendBufferSize{}):
+		logger.Warnf(ctx, "unable to set send buffer size, retrying with 0 send buffer size: %v", err)
+		cfg.SendBufferSize = 0
+		outputKernel, err = kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), cfg)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
