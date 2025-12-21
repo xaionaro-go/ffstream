@@ -35,6 +35,7 @@ service FFStream {
   rpc GetOutputQuality(GetOutputQualityRequest) returns (GetOutputQualityReply) {}
   rpc Monitor(avpipeline.MonitorRequest) returns (stream avpipeline.MonitorEvent) {}
   rpc GetInputsInfo(GetInputsInfoRequest) returns (GetInputsInfoReply) {}
+  rpc SetInputCustomOption(SetInputCustomOptionRequest) returns (SetInputCustomOptionReply) {}
 }
 
 enum LoggingLevel {
@@ -334,3 +335,11 @@ message InputInfo {
 
   repeated avpipeline.CustomOption customOptions = 12;
 }
+
+message SetInputCustomOptionRequest {
+  uint64 inputID = 1;
+  string key     = 2;
+  string value   = 3;
+}
+
+message SetInputCustomOptionReply {}
