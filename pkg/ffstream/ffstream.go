@@ -28,8 +28,8 @@ import (
 	"github.com/xaionaro-go/observability"
 )
 
-type Inputs = inputwithfallback.InputWithFallback[*Input, *codec.NaiveDecoderFactory, CustomData]
-type InputChain = inputwithfallback.InputChain[*Input, *codec.NaiveDecoderFactory, CustomData]
+type Inputs = inputwithfallback.InputWithFallback[*Input, *DecoderFactory, CustomData]
+type InputChain = inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData]
 
 type FFStream struct {
 	Config          Config
@@ -54,7 +54,7 @@ func New(
 
 	var inputOpts []inputwithfallback.Option
 	inputOpts = append(inputOpts, inputwithfallback.OptionRetryInterval(cfg.InputRetryInterval))
-	inputs, err := inputwithfallback.New[*Input, *codec.NaiveDecoderFactory, CustomData](ctx, nil, inputOpts...)
+	inputs, err := inputwithfallback.New[*Input, *DecoderFactory, CustomData](ctx, nil, inputOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the inputs handler: %w", err)
 	}

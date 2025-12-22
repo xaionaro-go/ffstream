@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
-	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
@@ -32,7 +31,7 @@ type streamIndexKey struct {
 	Index  int
 }
 
-var _ inputwithfallback.InputFactory[*Input, *codec.NaiveDecoderFactory] = (*InputFactory)(nil)
+var _ inputwithfallback.InputFactory[*Input, *DecoderFactory, CustomData] = (*InputFactory)(nil)
 var _ kernel.StreamIndexAssigner = (*InputFactory)(nil)
 
 func newInputFactory(
@@ -115,6 +114,7 @@ func (f *InputFactory) GetResources(
 
 func (f *InputFactory) NewInput(
 	ctx context.Context,
+	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
 ) (_ret *Input, _err error) {
 	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d)", f.FallbackPriority)
 	defer func() {
@@ -188,10 +188,12 @@ func (f *InputFactory) NewInput(
 
 func (f *InputFactory) NewDecoderFactory(
 	ctx context.Context,
-) (_ret *codec.NaiveDecoderFactory, _err error) {
+	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
+) (_ret *DecoderFactory, _err error) {
 	logger.Debugf(ctx, "inputFactory.NewDecoderFactory(priority=%d)", f.FallbackPriority)
 	defer func() {
 		logger.Debugf(ctx, "/inputFactory.NewDecoderFactory(priority=%d): %v, %v", f.FallbackPriority, _ret, _err)
 	}()
-	return codec.NewNaiveDecoderFactory(ctx, nil), nil
+
+	return f.newDecoderFactory(ctx), nil
 }

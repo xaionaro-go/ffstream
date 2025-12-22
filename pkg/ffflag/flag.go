@@ -63,6 +63,21 @@ func (v *Uint64) Value() uint64 {
 	return uint64(*v)
 }
 
+type Float64 float64
+
+func (v *Float64) Parse(input string) error {
+	i, err := strconv.ParseFloat(input, 64)
+	if err != nil {
+		return err
+	}
+	*v = Float64(i)
+	return nil
+}
+
+func (v *Float64) Value() float64 {
+	return float64(*v)
+}
+
 type String string
 
 func (v *String) Parse(input string) error {
