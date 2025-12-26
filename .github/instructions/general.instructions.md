@@ -49,9 +49,10 @@
 - If a change you made is reverted, assume it was incorrect.
 - After each change ask yourself: "why what I did may not be what was requested?". If you find any reason, then go back to the "critique analysis" point.
 
-## 9. Hints file usage
+## 9. Hints files
 - Every ~5 meaningful steps and before any major step, read `(ffstream/).github/instructions/hints.md`.
-- Delete the hints after reading them.
+- Delete the hints.md content after reading them.
+- Before finishing/pausing the execution (e.g. asking me anything check if file `(ffstream/).github/instructions/afk` is present). If it is present I'm unavailable, so don't block on me, use your best judgement to continue. While I'm unavailable you should not do `git push` (or analogous commands), but otherwise you can do whatever you want (the system is in a container, so nothing bad will happen if you'll ruing something).
 
 ## 10. Coding
 - Don't make cheap initializations be lazy, initialize normally instead.
