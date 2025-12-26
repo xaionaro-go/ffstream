@@ -81,3 +81,45 @@ curl http://127.0.0.1:12345/debug/pprof/goroutine?debug=1 | less
 ffstream -v trace -logstash_addr udp://my.logstash.server:9600 -sentry_dsn https://my.sentry.server/URI -i rtmp://127.0.0.1:1937/test/stream0 -c:v libx264 -f flv rtmp://127.0.0.1:1937/test/stream1
 ```
 
+# Testing
+
+## E2E Tests
+
+The `e2e/` directory contains end-to-end tests that run on real Android devices or emulators via ADB.
+
+### Prerequisites
+
+- ADB server accessible (set `ADB_SERVER_ADDR` env var if not local, e.g. `tcp:172.17.0.1:5037`)
+- Android device with Termux installed, or an emulator
+- Camera permission granted to Termux (for camera capture tests)
+
+### Running Tests
+
+```sh
+# Run all e2e tests (requires connected device)
+go test -v -timeout 180s ./e2e/...
+
+# Run specific test
+go test -v -timeout 60s ./e2e/... -run TestFFstreamCameraCapture
+
+# Run with RTMP streaming (requires RTMP server)
+FFSTREAM_E2E_RTMP_URL=rtmp://your.server/live/stream go test -v -timeout 180s ./e2e/...
+```
+
+### Test Coverage
+
+| Test | Description |
+|------|-------------|
+| `TestListDevices` | Lists connected ADB devices |
+| `TestRealDeviceConnection` | Verifies real device connectivity |
+| `TestEmulatorConnection` | Verifies emulator connectivity |
+| `TestFFstreamDeployment` | Deploys deb package, installs dependencies, creates library symlinks |
+| `TestFFstreamBasicRun` | Runs `ffstream -version` |
+| `TestFFstreamEncodersList` | Lists available video encoders |
+| `TestFFstreamInputDevices` | Lists available input formats |
+| `TestFFstreamHelp` | Tests ffstream shows usage info |
+| `TestFFstreamCameraCapture` | Captures video from android_camera with h264_mediacodec encoder |
+| `TestFFstreamRTMPStreaming` | Streams camera to RTMP (requires `FFSTREAM_E2E_RTMP_URL`) |
+| `TestFFstreamFullPipeline` | Full pipeline test similar to production (requires `FFSTREAM_E2E_RTMP_URL`) |
+| `TestFFstreamControlSocket` | Tests gRPC control socket with ffstreamctl |
+
