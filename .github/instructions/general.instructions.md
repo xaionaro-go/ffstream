@@ -30,14 +30,15 @@
 - Before fixing a bug, prefer adding/adjusting a unit/integration test that reproduces it (when feasible and not prohibitively expensive).
 - After code changes, ensure relevant tests are updated and passing.
 - If tests are not feasible, document why and provide an alternative verification method.
-- If logs were provided for diagnosis, use them as verification evidence: confirm the fix by showing (from the logs) that the previously-missing behavior now occurs (or the previously-present error no longer occurs). If the original logs are insufficient to verify, state what additional log line(s) or log level would be needed.
+- If logs, stacktraces or whatnot were provided for diagnosis, use them as verification evidence: prove your hypothesis throught it. If the original logs are insufficient to verify then add additional logging.
+- If an auto-test unrelated to your change does not work: fix it as well.
 
 ## 6. Diagnostics and logging
 - When unsure, prefer more diagnostics.
 
 ## 7. Root cause and correctness checks
-- Fix root causes, not symptoms.
-- I repeat: before considering an issue solve, think if there could be a deeper reason of the issue, and address it. For example:
+- Fix both root causes and symptoms. Fixing symptoms alone is NOT SUFFICIENT.
+- I repeat: before considering an issue solved, think if there could be a deeper reason of the issue, and address it. For example:
   - If something is nil, then just a check for nil is not enough: why is it nil? Should it be nil? If not, fix the root cause.
 
 ## 8. Self-review and reversions
@@ -60,6 +61,7 @@
 - If you designed something, build information-dense documentation in directory `doc` of the relevant project.
 - Keep outputs in the chat short.
 - Again: do not write long texts in the chat! Let me repeat: DO NOT WRITE LONG TEXTS IN THE CHAT!
+- If you don't have anything conclusive then don't write more than 3 sentences per message.
 - On success, report only:
   - Status: DONE
   - Objective direct evidence
