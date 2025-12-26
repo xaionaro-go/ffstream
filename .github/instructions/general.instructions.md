@@ -32,6 +32,8 @@
 - If tests are not feasible, document why and provide an alternative verification method.
 - If logs, stacktraces or whatnot were provided for diagnosis, use them as verification evidence: prove your hypothesis throught it. If the original logs are insufficient to verify then add additional logging.
 - If an auto-test unrelated to your change does not work: fix it as well.
+- No auto-test should rely on actual clock (like waiting for an actual timeout).
+- Unit-tests must be deterministic.
 
 ## 6. Diagnostics and logging
 - If you cannot diagnose an issue, try adding logging (in an attempt to gather more info about the issue) and auto-tests (in an attempt to reproduce the issue).
@@ -58,11 +60,12 @@
 - When strong input expectations exist, validate inputs. If no error channel exists, use an assertion (or equivalent invariant enforcement).
 - Maintain internal semantic consistency: one source of truth for each piece of logic/constant, within the touched scope.
 - Split logic into distinct functions when there is an opportunity to do so. Prefer small functions, but do not split a self-sufficient thought into pieces that are no longer semantically self-sufficient.
+- Always satisfy the linter.
 
 ## 11. Output verbosity
 - If you designed something, build information-dense documentation in directory `doc` of the relevant project.
 - Keep outputs in the chat short.
-- Again: do not write long texts in the chat! Let me repeat: DO NOT WRITE LONG TEXTS IN THE CHAT!
+- Again: do not write long texts in the chat! Let me repeat: DO NOT WRITE LONG TEXTS IN THE CHAT! KEEP IT AS CONCISE AND INFORMATION DENSE AS POSSIBLE!
 - If you don't have anything conclusive then don't write more than 3 sentences per message.
 - On success, report only:
   - Status: DONE
