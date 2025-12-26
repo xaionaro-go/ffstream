@@ -1,5 +1,8 @@
 {
     "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+    "gopls": {
+        "build.buildFlags": ["-tags=with_libsrt,with_libav,with_libvlc,ffmpeg7"]
+    },
     "search.exclude": {
         "**/imports/**": true
     },
