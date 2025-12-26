@@ -27,14 +27,15 @@
   - Prefer OS packages via the detected system package manager (`apt`, `dnf`, `pacman`, `xbps`, etc.).
 
 ## 5. Testing policy
-- Before fixing a bug, prefer adding/adjusting a unit/integration test that reproduces it (when feasible and not prohibitively expensive).
+- Before fixing a bug, add/adjust a unit/integration test that reproduces it (when feasible and not prohibitively expensive).
 - After code changes, ensure relevant tests are updated and passing.
 - If tests are not feasible, document why and provide an alternative verification method.
 - If logs, stacktraces or whatnot were provided for diagnosis, use them as verification evidence: prove your hypothesis throught it. If the original logs are insufficient to verify then add additional logging.
 - If an auto-test unrelated to your change does not work: fix it as well.
 
 ## 6. Diagnostics and logging
-- When unsure, prefer more diagnostics.
+- If you cannot diagnose an issue, try adding logging (in an attempt to gather more info about the issue) and auto-tests (in an attempt to reproduce the issue).
+- When unsure, prefer more logging in the code.
 
 ## 7. Root cause and correctness checks
 - Fix both root causes and symptoms. Fixing symptoms alone is NOT SUFFICIENT.
@@ -44,6 +45,7 @@
 ## 8. Self-review and reversions
 - Critique analysis and address found incompletenesses of your analysis. Continue repeating this critique&fix cycles until nothing left to critique.
 - If a change you made is reverted, assume it was incorrect.
+- After each change ask yourself: "why what I did may not be what was requested?". If you find any reason, then go back to the "critique analysis" point.
 
 ## 9. Hints file usage
 - Every ~5 meaningful steps and before any major step, read `(ffstream/).github/instructions/hints.md`.

@@ -122,9 +122,10 @@ func (s *senderFactory) newOutputKernel(
 		}
 	}
 	cfg := kernel.OutputConfig{
-		CustomOptions:        outputTemplate.Options,
-		SendBufferSize:       bufSize,
-		WaitForOutputStreams: &waitForStreams,
+		CustomOptions:                 outputTemplate.Options,
+		SendBufferSize:                bufSize,
+		WaitForOutputStreams:          &waitForStreams,
+		IgnoreNoSourceFormatCtxErrors: true,
 	}
 	outputKernel, err := kernel.NewOutputFromURL(ctx, outputURL, secret.New(""), cfg)
 	switch {

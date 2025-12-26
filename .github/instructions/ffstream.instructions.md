@@ -36,3 +36,4 @@ A phone:
 ## 5. Rules
 
 - Do not edit/add/delete/rename/any-way-modify any files on a real phone, except files inside the termux home and files inside `ubuntu/tmp`
+- Every time you finish a change, make a git commit with proper description. If you made a change in avpipeline, then use script `ffstream/myscripts/push-avpipeline-and-test.sh`.
