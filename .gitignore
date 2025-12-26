@@ -5,5 +5,6 @@
 /.cache
 /.ccache
 /myscripts
-/.github/copilot-instructions.md
+/.github/instructions/hints.md
 /ffstream.code-workspace
+/.Android
