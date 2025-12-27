@@ -36,6 +36,7 @@ A phone:
 - When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
 - Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone.
 - To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
+- Use `DEBUG` logging in `ffstream`. Enable `TRACE` only when needed, as it can severely degrade performance and disrupt packet/frame processing.
 
 ## 5. Production environment
 
