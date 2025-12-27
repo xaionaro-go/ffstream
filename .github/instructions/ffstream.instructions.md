@@ -47,10 +47,9 @@ A phone:
 
 There are two ways how `ffstream` is launched:
 - Either via `mediamtx`.
-- Or directly using the script below:
-```sh
-exec taskset -c 6-7 ffstream -v "$FFSTREAM_LOG_LEVEL" -retry_input_timeout_on_failure 1s -retry_output_timeout_on_failure 0 -auto_bitrate "$FFSTREAM_AUTO_BITRATE" -auto_bitrate_max_height "$FFSTREAM_AUTOBITRATE_MAX_HEIGHT" -auto_bitrate_min_height "$FFSTREAM_AUTOBITRATE_MIN_HEIGHT" -auto_bitrate_auto_bypass "$FFSTREAM_AUTO_BYPASS" -hwaccel mediacodec -mux_mode different_outputs_same_tracks_split_av -listen_control 127.0.0.1:3593 -listen_net_pprof 0.0.0.0:8238 -itsoffset 00:00:00.000 -fflags nobuffer -flags low_delay -rtbufsize 5M -probesize 32768 -analyzeduration 200000 -video_size "$WIDTH"x"$HEIGHT" -i rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3 -fallback_priority 1 -video_size "$BUILTIN_CAM_WIDTH"x"$BUILTIN_CAM_HEIGHT" -camera_index "$BUILTIN_CAM_INDEX" -framerate "$BUILTIN_CAM_FPS" -f android_camera -i '' -fallback_priority 1 -f pulse -i default -s "$WIDTH"x"$HEIGHT" -c:v "$VCODEC" -ar 48000 -ac 1 -sample_fmt fltp -c:a "$ACODEC" -b:v 4M -bufsize 4M -g "$[ $FRAMERATE * $KEYFRAME_INTERVAL ]" -r "$FRAMERATE" -f flv "$DST"'/pixel/dji-osmo-pocket-3-${v:0:codec}${a:0:codec}-${v:0:height}${a:0:rate}/'
-```
+- Or directly using the script `/usr/local/bin/run-ffstream.sh` (on the phone).
+
+If you see evidences of `ffstream` running via `/tmp/mediamtx.log` (on the phone), then the first way is used (not the script)
 
 ## 6. Rules
 
