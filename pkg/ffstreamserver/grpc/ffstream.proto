@@ -63,6 +63,7 @@ message AudioCodecConfig {
   uint64                           averaging_period = 2;
   uint64                           average_bit_rate = 3;
   repeated avpipeline.CustomOption custom_options   = 4;
+  uint32                           sample_rate      = 5;
 }
 
 message VideoCodecConfig {

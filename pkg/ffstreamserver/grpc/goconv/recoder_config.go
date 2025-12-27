@@ -1,6 +1,7 @@
 package goconv
 
 import (
+	audiotypes "github.com/xaionaro-go/audio/pkg/audio/types"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -34,6 +35,7 @@ func TranscoderConfigFromGRPC(
 				AveragingPeriod: DurationFromGRPC(int64(req.GetAudio().GetAveragingPeriod())),
 				AverageBitRate:  req.GetAudio().GetAverageBitRate(),
 				CustomOptions:   CustomOptionsFromGRPC(req.GetAudio().GetCustomOptions()),
+				SampleRate:      audiotypes.SampleRate(req.GetAudio().GetSampleRate()),
 			}},
 		},
 	}
@@ -50,6 +52,7 @@ func TranscoderConfigToGRPC(
 			AveragingPeriod: uint64(DurationToGRPC(audio.AveragingPeriod)),
 			AverageBitRate:  audio.AverageBitRate,
 			CustomOptions:   CustomOptionsToGRPC(audio.CustomOptions),
+			SampleRate:      uint32(audio.SampleRate),
 		}
 	}
 	if len(cfg.Output.VideoTrackConfigs) > 0 {

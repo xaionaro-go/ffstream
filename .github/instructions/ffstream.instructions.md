@@ -28,20 +28,33 @@ A phone:
 - Do not edit `**/imports/**`, `**/import/**` -- these directories are not the source of truth for the source code.
 - Android SDK is in `ffstream/.Android`.
 - `ffmpeg/myscripts` you may find how to update ffstream on a real phone.
+- The base `Dockerfile` is available at `streamctl/docker/termux/Dockerfile`.
 
-## 4. Environment
+## 4. Test environment
 
-- The ADB server with the real phones is available at `172.17.0.1`.
+- The ADB server with the real test phones is available at `172.17.0.1` (see `adb -L tcp:172.17.0.1:5037 devices`). The IP address of the phone itself is `192.168.0.159`. There is direct access from dev environment to the phone, but not the other way.
+- Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone. Do not do manual port forwarding, forwarding is handled by nftables on the host system (you don't have access to).
+- When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
+- To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
+- Use `DEBUG` logging in `ffstream`. Enable `TRACE` only when needed, as it can severely degrade performance and disrupt packet/frame processing.
 
-## 5. Production use case
+## 5. Production environment
 
-This is a script from an Android phone:
-```
-exec taskset -c 6-7 ffstream -v "$FFSTREAM_LOG_LEVEL" -retry_input_timeout_on_failure 1s -retry_output_timeout_on_failure 0 -auto_bitrate "$FFSTREAM_AUTO_BITRATE" -auto_bitrate_max_height "$FFSTREAM_AUTOBITRATE_MAX_HEIGHT" -auto_bitrate_min_height "$FFSTREAM_AUTOBITRATE_MIN_HEIGHT" -auto_bitrate_auto_bypass "$FFSTREAM_AUTO_BYPASS" -hwaccel mediacodec -mux_mode different_outputs_same_tracks_split_av -listen_control 127.0.0.1:3593 -listen_net_pprof 0.0.0.0:8238 -itsoffset 00:00:00.000 -fflags nobuffer -flags low_delay -rtbufsize 5M -probesize 32768 -analyzeduration 200000 -video_size "$WIDTH"x"$HEIGHT" -i rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3 -fallback_priority 1 -video_size "$BUILTIN_CAM_WIDTH"x"$BUILTIN_CAM_HEIGHT" -camera_index "$BUILTIN_CAM_INDEX" -framerate "$BUILTIN_CAM_FPS" -f android_camera -i '' -fallback_priority 1 -f pulse -i default -s "$WIDTH"x"$HEIGHT" -c:v "$VCODEC" -ar 48000 -ac 1 -sample_fmt fltp -c:a "$ACODEC" -b:v 4M -bufsize 4M -g "$[ $FRAMERATE * $KEYFRAME_INTERVAL ]" -r "$FRAMERATE" -f flv "$DST"'/pixel/dji-osmo-pocket-3-${v:0:codec}${a:0:codec}-${v:0:height}${a:0:rate}/'
-```
+- There is a gRPC interface supported by `ffstream` (`172.29.170.2:3593`). If you need some specific debugging information that is not provided by the interface then add the required debugging capabilities into the gRPC interface (so that the next time a similar bug happens, it is easier to diagnose). One of the useful features that already exists is: `ffstreamctl --remote-addr tcp+ssl:172.29.170.2:3593 pipelines get` (to get the current avpipeline).
+- Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone. Do not do manual port forwarding, forwarding is handled by nftables on the host system (you don't have access to).
+- You may also get the logs in `/tmp/mediamtx.log` (via SSH to `root@172.29.170.2`). If some logs are missing, add more logging to `ffstream` so that next time it will be easier to diagnose. If you need to access normal Android file tree, it is in `/android/`.
+- When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
+- Do not change anything on the production phone, do not restart anything. You may "only look, not touch".
+
+There are two ways how `ffstream` is launched:
+- Either via `mediamtx`.
+- Or directly using the script `/usr/local/bin/run-ffstream.sh` (on the phone).
+
+If you see evidences of `ffstream` running via `/tmp/mediamtx.log` (on the phone), then the first way is used (not the script)
 
 ## 6. Rules
 
 - Do not edit/add/delete/rename/any-way-modify any files on a real phone, except files inside the termux home and files inside `ubuntu/tmp`
-- Every time you finish a change, make a git commit with proper description. If you made a change in avpipeline, then use script `ffstream/myscripts/push-avpipeline-and-test.sh`.
+- Every time you finish a change, make a git commit with proper description. All commits should be in a separate branch `drafts`. If you made a change in avpipeline then push the change to the public repository (as `drafts`) and pull the commit in `ffstream`.
 - a SEGFAULT is never fault of libav, it is always fault of our code and YOU MUST FIX IT.
+- No log should happen for each frame, unless it has logging level TRACE.

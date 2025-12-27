@@ -214,6 +214,16 @@ var (
 		Args: cobra.ExactArgs(2),
 		Run:  inputsSetStop,
 	}
+
+	Output = &cobra.Command{
+		Use: "output",
+	}
+
+	OutputSwitch = &cobra.Command{
+		Use:  "switch <video_codec> <video_width> <video_height> <video_bitrate> <audio_codec> <audio_sample_rate> <audio_bitrate> <max_bitrate>",
+		Args: cobra.ExactArgs(8),
+		Run:  outputSwitch,
+	}
 )
 
 func init() {
@@ -264,6 +274,9 @@ func init() {
 	Inputs.AddCommand(InputsInfo)
 	Inputs.AddCommand(InputsSetCustomOption)
 	Inputs.AddCommand(InputsSetStop)
+
+	Root.AddCommand(Output)
+	Output.AddCommand(OutputSwitch)
 
 	polyjson.AutoRegisterTypes = true
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorThresholds{})
@@ -657,4 +670,39 @@ func inputsSetStop(cmd *cobra.Command, args []string) {
 
 	err = client.SetStopInput(ctx, inputPriority, stop)
 	assertNoError(ctx, err)
+}
+
+func outputSwitch(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	videoCodecName := args[0]
+	videoWidth, err := strconv.ParseUint(args[1], 10, 32)
+	assertNoError(ctx, err)
+	videoHeight, err := strconv.ParseUint(args[2], 10, 32)
+	assertNoError(ctx, err)
+	videoAvgBitRate, err := strconv.ParseUint(args[3], 10, 64)
+	assertNoError(ctx, err)
+	audioCodecName := args[4]
+	audioSampleRate, err := strconv.ParseUint(args[5], 10, 32)
+	assertNoError(ctx, err)
+	audioAvgBitRate, err := strconv.ParseUint(args[6], 10, 64)
+	assertNoError(ctx, err)
+	maxBitRate, err := strconv.ParseUint(args[7], 10, 64)
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	logger.Infof(ctx, "switching output: video=%s@%dx%d:%d audio=%s@%d:%d max=%d",
+		videoCodecName, videoWidth, videoHeight, videoAvgBitRate,
+		audioCodecName, audioSampleRate, audioAvgBitRate, maxBitRate)
+
+	err = client.SwitchOutputByProps(ctx,
+		videoCodecName, uint32(videoWidth), uint32(videoHeight), videoAvgBitRate,
+		audioCodecName, uint32(audioSampleRate), audioAvgBitRate, maxBitRate)
+	assertNoError(ctx, err)
+
+	logger.Infof(ctx, "output switch completed successfully")
 }

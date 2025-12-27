@@ -6,5 +6,15 @@
 		"ghcr.io/devcontainers/features/nvidia-cuda:2": {},
 		"ghcr.io/iterative/features/nvtop:1": {},
 		"ghcr.io/devcontainers-extra/features/apt-get-packages:1": {}
-	}
+	},
+  "customizations": {
+    "vscode": {
+      "extensions": ["Continue.continue"],
+      "settings": {
+        "remote.extensionKind": {
+          "Continue.continue": ["workspace"]
+        }
+      }
+    }
+  }
 }

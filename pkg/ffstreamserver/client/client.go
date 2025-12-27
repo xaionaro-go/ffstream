@@ -549,3 +549,43 @@ func (c *Client) SetStopInput(
 
 	return nil
 }
+
+func (c *Client) SwitchOutputByProps(
+	ctx context.Context,
+	videoCodecName string,
+	videoWidth uint32,
+	videoHeight uint32,
+	videoAvgBitRate uint64,
+	audioCodecName string,
+	audioSampleRate uint32,
+	audioAvgBitRate uint64,
+	maxBitRate uint64,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SwitchOutputByProps(ctx, &ffstream_grpc.SwitchOutputByPropsRequest{
+		Config: &ffstream_grpc.TranscoderConfig{
+			Video: &ffstream_grpc.VideoCodecConfig{
+				CodecName:      videoCodecName,
+				Width:          videoWidth,
+				Height:         videoHeight,
+				AverageBitRate: videoAvgBitRate,
+			},
+			Audio: &ffstream_grpc.AudioCodecConfig{
+				CodecName:      audioCodecName,
+				SampleRate:     audioSampleRate,
+				AverageBitRate: audioAvgBitRate,
+			},
+		},
+		MaxBitRate: maxBitRate,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}

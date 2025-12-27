@@ -9,6 +9,7 @@ import (
 	"github.com/facebookincubator/go-belt"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -402,4 +403,19 @@ func (srv *GRPCServer) SetStopInput(
 	}
 
 	return &ffstream_grpc.SetStopInputReply{}, nil
+}
+
+func (srv *GRPCServer) SwitchOutputByProps(
+	ctx context.Context,
+	req *ffstream_grpc.SwitchOutputByPropsRequest,
+) (*ffstream_grpc.SwitchOutputByPropsReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "SwitchOutputByProps: %v", req)
+	props := streammuxtypes.SenderProps{
+		TranscoderConfig: goconv.TranscoderConfigFromGRPC(req.GetConfig()),
+	}
+	if err := srv.FFStream.SwitchOutputByProps(ctx, props); err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to switch output: %v", err)
+	}
+	return &ffstream_grpc.SwitchOutputByPropsReply{}, nil
 }

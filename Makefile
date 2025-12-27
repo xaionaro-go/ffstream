@@ -2,6 +2,7 @@
 ENABLE_VLC?=false
 ENABLE_LIBSRT?=false
 ENABLE_DEBUG_TRACE?=false
+ANDROID_NDK_VERSION?=r28-beta2
 
 GOTAGS:=$(GOTAGS),with_libav,ffmpeg7
 ifeq ($(ENABLE_LIBSRT), true)
@@ -38,6 +39,45 @@ bin/ffstreamctl-linux-amd64: build
 
 bin/ffstreamctl-linux-arm64: build
 	CGO_ENABLED=false GOOS=linux GOARCH=arm64 go build -o bin/ffstreamctl-linux-arm64 ./cmd/ffstreamctl
+
+bin/ffstreamctl-android-arm64: build
+	CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -o bin/ffstreamctl-android-arm64 ./cmd/ffstreamctl
+
+# pkg-config-wrapper for local builds
+$(GOPATH)/bin/pkg-config-wrapper:
+	go install github.com/xaionaro-go/pkg-config-wrapper@5dd443e6c18336416c49047e2ba0002e26a85278
+
+# Download Android NDK for local cross-compilation
+3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION):
+	mkdir -p 3rdparty/arm64
+	cd 3rdparty/arm64 && wget https://dl.google.com/android/repository/android-ndk-$(ANDROID_NDK_VERSION)-linux.zip && unzip android-ndk-$(ANDROID_NDK_VERSION)-linux.zip && rm -f android-ndk-$(ANDROID_NDK_VERSION)-linux.zip
+
+# Check for ffmpeg7 termux libraries (built via build/build-ffmpeg-for-android.sh)
+3rdparty/arm64/termux:
+	@if [ ! -f 3rdparty/arm64/termux/data/data/com.termux/files/usr/lib/libavcodec.a ]; then \
+		echo "ERROR: ffmpeg7 libraries not found. Please run: ./build/build-ffmpeg-for-android.sh"; \
+		exit 1; \
+	fi
+
+# Build ffstream for Android ARM64 without Docker (uses ffmpeg7 libraries built via build/build-ffmpeg-for-android.sh)
+# Key: Use -linkmode=external and -Wl,-Bdynamic to ensure dynamic linking of libc.so
+# This prevents static linking of bionic's getauxval which crashes on Android
+ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION) 3rdparty/arm64/termux
+	$(eval ANDROID_NDK_HOME=$(PWD)/3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION))
+	PKG_CONFIG_WRAPPER_LOG='/tmp/pkg_config_wrapper.log' \
+	PKG_CONFIG_WRAPPER_LOG_LEVEL='trace' \
+	PKG_CONFIG_LIBS_FORCE_STATIC='libav*,libsrt' \
+	PKG_CONFIG_ERASE="-fopenmp=*,-landroid,-lcamera2ndk,-lmediandk" \
+	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
+	PKG_CONFIG_PATH='$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib/pkgconfig' \
+	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
+	CGO_LDFLAGS='-Wl,-Bdynamic -llog -landroid -lmediandk -lcamera2ndk -ldl -lc -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib' \
+	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
+	CC="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang" \
+	CXX="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang++" \
+	CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
+	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags='-linkmode=external' -o bin/ffstream-android-arm64 ./cmd/ffstream
+	ls -ldh bin/ffstream-android-arm64
 
 DOCKER_IMAGE?=xaionaro2/streampanel-android-builder
 DOCKER_CONTAINER_NAME?=ffstream-android-builder
