@@ -34,10 +34,12 @@ A phone:
 
 - The ADB server with the real test phones is available at `172.17.0.1`. The IP address of the phone itself is 192.168.0.159.
 - When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
+- Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone.
+- To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
 
 ## 5. Production environment
 
-- There is a gRPC interface supported by `ffstream` (`172.29.170.2:3593`). If you need some specific debugging information that is not provided by the interface then add the required debugging capabilities into the gRPC interface (so that the next time a similar bug happens, it is easier to diagnose). One of the useful features that already exists is: `ffstreamctl --remote-addr tcp+ssl:<HOST>:3593 pipelines get` (to get the current avpipeline).
+- There is a gRPC interface supported by `ffstream` (`172.29.170.2:3593`). If you need some specific debugging information that is not provided by the interface then add the required debugging capabilities into the gRPC interface (so that the next time a similar bug happens, it is easier to diagnose). One of the useful features that already exists is: `ffstreamctl --remote-addr tcp+ssl:172.29.170.2:3593 pipelines get` (to get the current avpipeline).
 - You may also get the logs in `/tmp/mediamtx.log` (via SSH to `root@172.29.170.2`). If some logs are missing, add more logging to `ffstream` so that next time it will be easier to diagnose.
 - When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
 - Do not change anything on the production phone, do not restart anything. You may "only look, not touch".
