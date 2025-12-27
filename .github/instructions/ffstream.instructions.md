@@ -28,6 +28,7 @@ A phone:
 - Do not edit `**/imports/**`, `**/import/**` -- these directories are not the source of truth for the source code.
 - Android SDK is in `ffstream/.Android`.
 - `ffmpeg/myscripts` you may find how to update ffstream on a real phone.
+- The base `Dockerfile` is available at `streamctl/docker/termux/Dockerfile`.
 
 ## 4. Environment
 

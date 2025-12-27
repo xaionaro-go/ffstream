@@ -6,6 +6,8 @@
 3. Interface stability + minimal-diff policy
 
 ## 1. Completion and stopping
+- Always show your TODO list.
+- Keep updated description of the full tree of what needs to be done in `.github/instructions/todo.md`. Before finishing a task, ensure that all items in that file are addressed. If the file contains not what you expected, trust the file.
 - A task is **DONE** only with objective evidence. Do not infer, do not assume, only directly objectively confirm and prove.
 - If you cannot obtain objective evidence, the task is **NOT DONE**. State exactly what evidence is missing and why.
 - If absolutely blocked on required user input/permission/action, report **BLOCKED** with the fields listed below and run `sleep $[ 24 * 3600 ]` (after `sleep` is finished you need to recheck if you are unblocked, and if not, finish the execution):
@@ -25,6 +27,7 @@
 - When a dependency is missing:
   - Install it!
   - Prefer OS packages via the detected system package manager (`apt`, `dnf`, `pacman`, `xbps`, etc.).
+- Run all potentialy interactive (e.g. `patch`) commands with `timeout`.
 
 ## 5. Testing policy
 - Before fixing a bug, add/adjust a unit/integration test that reproduces it (when feasible and not prohibitively expensive).
@@ -62,6 +65,8 @@
 - Maintain internal semantic consistency: one source of truth for each piece of logic/constant, within the touched scope.
 - Split logic into distinct functions when there is an opportunity to do so. Prefer small functions, but do not split a self-sufficient thought into pieces that are no longer semantically self-sufficient.
 - Always satisfy the linter.
+- Do not make code racy unless explicitly instructed otherwise. Make logic event-driven, not clock/race-driven. For example:
+  - Do not rely on timeouts.
 
 ## 11. Output verbosity
 - If you designed something, build information-dense documentation in directory `doc` of the relevant project.
