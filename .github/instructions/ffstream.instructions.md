@@ -32,9 +32,9 @@ A phone:
 
 ## 4. Test environment
 
-- The ADB server with the real test phones is available at `172.17.0.1`. The IP address of the phone itself is 192.168.0.159.
+- The ADB server with the real test phones is available at `172.17.0.1`. The IP address of the phone itself is `192.168.0.159`. There is direct access from dev environment to the phone, but not the other way.
+- Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone. Do not do manual port forwarding, forwarding is handled by nftables on the host system (you don't have access to).
 - When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
-- Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone.
 - To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
 - Use `DEBUG` logging in `ffstream`. Enable `TRACE` only when needed, as it can severely degrade performance and disrupt packet/frame processing.
 
