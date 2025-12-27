@@ -8,6 +8,8 @@
 /.github/instructions/afk
 /.github/instructions/hints.md
 /.github/instructions/todo.md
+/.github/instructions/current_summary.md
+/.github/instructions/backlog_*.md
 /ffstream.code-workspace
 /.Android
 /3rdparty

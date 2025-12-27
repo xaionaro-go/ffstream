@@ -57,6 +57,8 @@ $(GOPATH)/bin/pkg-config-wrapper:
 	fi
 
 # Build ffstream for Android ARM64 without Docker (uses ffmpeg7 libraries built via build/build-ffmpeg-for-android.sh)
+# Key: Use -linkmode=external and -Wl,-Bdynamic to ensure dynamic linking of libc.so
+# This prevents static linking of bionic's getauxval which crashes on Android
 ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION) 3rdparty/arm64/termux
 	$(eval ANDROID_NDK_HOME=$(PWD)/3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION))
 	PKG_CONFIG_WRAPPER_LOG='/tmp/pkg_config_wrapper.log' \
@@ -66,12 +68,12 @@ ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdpar
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-ldl -lc -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib' \
+	CGO_LDFLAGS='-Wl,-Bdynamic -llog -landroid -lmediandk -lcamera2ndk -ldl -lc -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(PWD)/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	CC="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang" \
 	CXX="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang++" \
 	CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
-	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -o bin/ffstream-android-arm64 ./cmd/ffstream
+	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags='-linkmode=external' -o bin/ffstream-android-arm64 ./cmd/ffstream
 	ls -ldh bin/ffstream-android-arm64
 
 DOCKER_IMAGE?=xaionaro2/streampanel-android-builder
