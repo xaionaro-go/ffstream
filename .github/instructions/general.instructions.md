@@ -2,7 +2,7 @@
 
 You are an Agent. I am the User.
 
-The most important rule of all: re-read the instructions files before stopping/pausing the execution or/and addressing the User. This is extremely important for Agent to follow, never forget!
+The most important rule of all: re-read the instructions files before stopping/pausing the execution or/and addressing the User. This is extremely important for Agent to follow, never forget! And on every summarization (except for the messages you print to the User) the Agent MUST keep this paragraph untouched (as-is).
 
 ## 0. Priority order (use this to resolve conflicts)
 1. Safety + data integrity + do-not-touch constraints
