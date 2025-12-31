@@ -900,8 +900,8 @@ github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0 h1:wwtHB1EZ7
 github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0/go.mod h1:mveFsRVHwcz4VBh+PozKgX2fXNRo/BQSiJil9VnxNII=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d h1:9DyH0lboWWzKUwiqGmp9sTZ3bSPhgJHiiWgV+hqY9Uo=
 github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d/go.mod h1:yI0EvHC6Ir5WIZp3tEk7o42/QqeTb9pkII+T8p4FlPo=
-github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9 h1:z5K1pa9cJZ2oqFNWyyxrxO/50Hv4Gn+1kkfXTHkoKNM=
-github.com/xaionaro-go/libsrt v0.0.0-20250505013920-61d894a3b7e9/go.mod h1:yH5w7hdIyhbR4p0WfABH9fLIIK2ZwPd5CKk2K2ND/vo=
+github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8 h1:pwAMoju1Q6WxjNTu+9EtTwjugwDGxXB0WY8JcnwH0+U=
+github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8/go.mod h1:yH5w7hdIyhbR4p0WfABH9fLIIK2ZwPd5CKk2K2ND/vo=
 github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f h1:mMrVrYtH9MyCUzBwPvuEntvqdCJ0zifCfqV6bHU6z1M=
 github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f/go.mod h1:aszOZHoPPSgKwdbJUgonps3MSODqctkNhwQDDwlw0Eg=
 github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264 h1:8o+V7b9exSLvOTw3ewyTwC8qpLb95Iyd7r5MsOX3icE=
