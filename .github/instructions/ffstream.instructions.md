@@ -38,6 +38,12 @@ A phone:
 - To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
 - Use `DEBUG` logging in `ffstream`. Enable `TRACE` only when needed, as it can severely degrade performance and disrupt packet/frame processing.
 
+To make sure the phone won't go sleep:
+```
+adb -L tcp:172.17.0.1:5037 shell settings put system screen_off_timeout 2147483647
+adb -L tcp:172.17.0.1:5037 shell settings put global stay_on_while_plugged_in 7
+```
+
 ## 5. Production environment
 
 - There is a gRPC interface supported by `ffstream` (`172.29.170.2:3593`). If you need some specific debugging information that is not provided by the interface then add the required debugging capabilities into the gRPC interface (so that the next time a similar bug happens, it is easier to diagnose). One of the useful features that already exists is: `ffstreamctl --remote-addr tcp+ssl:172.29.170.2:3593 pipelines get` (to get the current avpipeline).

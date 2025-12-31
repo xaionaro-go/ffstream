@@ -12,10 +12,8 @@ import (
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/node"
-	framefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/framefilter/condition"
-	packetfiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetfilter/condition"
+	packetorframefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetorframefilter/condition"
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra"
-	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/packetorframe/filter/quality"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
@@ -227,8 +225,7 @@ func (s *FFStream) Start(
 		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", autoBitRateVideo, err)
 	}
 
-	s.Inputs.AddPushPacketsTo(ctx, s.StreamMux, packetfiltercondition.Function(s.onInputPacket))
-	s.Inputs.AddPushFramesTo(ctx, s.StreamMux, framefiltercondition.Function(s.onInputFrame))
+	s.Inputs.AddPushTo(ctx, s.StreamMux, packetorframefiltercondition.Function(s.onInput))
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		TranscoderConfig: transcoderConfig,
@@ -482,23 +479,11 @@ func (s *FFStream) GetLatencies(
 	return latencies, nil
 }
 
-func (s *FFStream) onInputPacket(
+func (s *FFStream) onInput(
 	ctx context.Context,
-	packet packetfiltercondition.Input,
+	input packetorframefiltercondition.Input,
 ) bool {
-	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, packetorframe.InputUnion{
-		Packet: &packet.Input,
-	})
-	return true
-}
-
-func (s *FFStream) onInputFrame(
-	ctx context.Context,
-	packet framefiltercondition.Input,
-) bool {
-	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, packetorframe.InputUnion{
-		Frame: &packet.Input,
-	})
+	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, input.Input)
 	return true
 }
 
