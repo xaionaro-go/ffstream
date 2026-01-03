@@ -1,3 +1,5 @@
+// input_factory.go implements InputFactory to create input chains and manage stream index mapping.
+
 package ffstream
 
 import (
@@ -31,8 +33,10 @@ type streamIndexKey struct {
 	Index  int
 }
 
-var _ inputwithfallback.InputFactory[*Input, *DecoderFactory, CustomData] = (*InputFactory)(nil)
-var _ kernel.StreamIndexAssigner = (*InputFactory)(nil)
+var (
+	_ inputwithfallback.InputFactory[*Input, *DecoderFactory, CustomData] = (*InputFactory)(nil)
+	_ kernel.StreamIndexAssigner                                          = (*InputFactory)(nil)
+)
 
 func newInputFactory(
 	ffstream *FFStream,

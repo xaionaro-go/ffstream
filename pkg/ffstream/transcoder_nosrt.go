@@ -1,6 +1,8 @@
 //go:build !with_libsrt
 // +build !with_libsrt
 
+// transcoder_nosrt.go is a stub implementation of SRT features for builds without libsrt.
+
 package ffstream
 
 import (

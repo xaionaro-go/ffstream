@@ -1,3 +1,8 @@
+// Package ffstream provides a high-level media streaming controller built on avpipeline.
+// It manages multiple prioritized inputs with automatic fallback, stream multiplexing,
+// and dynamic output generation with support for quality monitoring and SRT.
+//
+// ffstream.go defines the FFStream struct which coordinates inputs, multiplexing, and quality monitoring.
 package ffstream
 
 import (
@@ -26,8 +31,10 @@ import (
 	"github.com/xaionaro-go/observability"
 )
 
-type Inputs = inputwithfallback.InputWithFallback[*Input, *DecoderFactory, CustomData]
-type InputChain = inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData]
+type (
+	Inputs     = inputwithfallback.InputWithFallback[*Input, *DecoderFactory, CustomData]
+	InputChain = inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData]
+)
 
 type FFStream struct {
 	Config          Config

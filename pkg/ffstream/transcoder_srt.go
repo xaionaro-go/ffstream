@@ -1,6 +1,8 @@
 //go:build with_libsrt
 // +build with_libsrt
 
+// transcoder_srt.go implements SRT-specific functionality, allowing direct access to the underlying SRT socket.
+
 package ffstream
 
 import (

@@ -1,3 +1,5 @@
+// decoder_factory.go implements a DecoderFactory that wraps the naive decoder and adds audio normalization support.
+
 package ffstream
 
 import (

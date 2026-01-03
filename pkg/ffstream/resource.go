@@ -1,3 +1,5 @@
+// resource.go defines Resource (URL + config) and logic for handling fallback priorities.
+
 package ffstream
 
 import (

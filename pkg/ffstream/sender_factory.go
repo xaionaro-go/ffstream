@@ -1,3 +1,5 @@
+// sender_factory.go implements SenderFactory to create output nodes based on URL templates and bitrate configurations.
+
 package ffstream
 
 import (

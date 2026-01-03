@@ -1,3 +1,5 @@
+// option.go provides functional options for configuring FFStream.
+
 package ffstream
 
 import "time"
