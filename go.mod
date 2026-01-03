@@ -22,7 +22,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20250426140416-6a9b3f1c8737
-	github.com/xaionaro-go/avpipeline v0.0.0-20251231184858-46fa3653dbf5
+	github.com/xaionaro-go/avpipeline v0.0.0-20260103184121-627d34ae4806
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
@@ -32,7 +32,7 @@ require (
 	github.com/xaionaro-go/xgrpc v0.0.0-20251102160837-04b13583739a
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
 	github.com/xaionaro-go/xsync v0.0.0-20250928140805-f801683b71ba
-	golang.org/x/sys v0.38.0
+	golang.org/x/sys v0.39.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
@@ -85,17 +85,18 @@ require (
 	github.com/xaionaro-go/rpn v0.0.0-20250818130635-1419b5218722 // indirect
 	github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51 // indirect
 	github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 // indirect
+	github.com/xaionaro-go/tcp v0.0.0-20260103182510-2922303cf50d // indirect
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
 	github.com/xaionaro-go/unsafetools v0.0.0-20241024014258-a46e1ce3763e // indirect
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	gocv.io/x/gocv v0.41.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/image v0.27.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	gonum.org/v1/plot v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251111163417-95abcf5c77ba // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect

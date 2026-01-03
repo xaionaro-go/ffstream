@@ -4,9 +4,11 @@
         "build.buildFlags": ["-tags=with_libsrt,with_libav,with_libvlc,ffmpeg7"]
     },
     "search.exclude": {
+        "**/import/**": true,
         "**/imports/**": true
     },
     "files.exclude": {
+        "**/import/**": true,
         "**/imports/**": true
     },
     "protobuf.includes": [
