@@ -308,7 +308,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					if !k.KernelLocker.ManualTryLock(ctx) {
 						return nil
 					}
-					defer k.KernelLocker.ManualUnlock()
+					defer k.KernelLocker.ManualUnlock(ctx)
 					if k.Kernel == nil {
 						return nil
 					}

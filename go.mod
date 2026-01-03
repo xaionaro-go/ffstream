@@ -22,7 +22,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20250426140416-6a9b3f1c8737
-	github.com/xaionaro-go/avpipeline v0.0.0-20260103184121-627d34ae4806
+	github.com/xaionaro-go/avpipeline v0.0.0-20260103201601-78a5a9e7cc6a
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
@@ -31,7 +31,7 @@ require (
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
 	github.com/xaionaro-go/xgrpc v0.0.0-20251102160837-04b13583739a
 	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
-	github.com/xaionaro-go/xsync v0.0.0-20250928140805-f801683b71ba
+	github.com/xaionaro-go/xsync v0.0.0-20260103200624-2cd14b984747
 	golang.org/x/sys v0.39.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
@@ -83,9 +83,9 @@ require (
 	github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c // indirect
 	github.com/xaionaro-go/proxy v0.0.0-20250525144747-579f5a891c15 // indirect
 	github.com/xaionaro-go/rpn v0.0.0-20250818130635-1419b5218722 // indirect
-	github.com/xaionaro-go/sockopt v0.0.0-20250823181757-5c02c9cd7b51 // indirect
+	github.com/xaionaro-go/sockopt v0.0.0-20260103194101-61181aff0f9e // indirect
 	github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 // indirect
-	github.com/xaionaro-go/tcp v0.0.0-20260103182510-2922303cf50d // indirect
+	github.com/xaionaro-go/tcp v0.0.0-20260103194940-f10157ebd88d
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
 	github.com/xaionaro-go/unsafetools v0.0.0-20241024014258-a46e1ce3763e // indirect
 	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c // indirect
