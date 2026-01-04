@@ -32,7 +32,7 @@ func (n nodeSetDropOnCloserWrapper) SetDropOnClose(
 	logger.Debugf(ctx, "SetDropOnClose(ctx, %v)", dropOnClose)
 	defer func() { logger.Debugf(ctx, "/SetDropOnClose(ctx, %v): %v", dropOnClose, _err) }()
 
-	err := n.Processor.Kernel.UnsafeWithRawNetworkConn(ctx, func(
+	err := n.Processor.Kernel.WithRawNetworkConn(ctx, func(
 		ctx context.Context,
 		rc syscall.RawConn,
 		s string,
@@ -83,7 +83,7 @@ func (n nodeWithRetrySetDropOnCloserWrapper) SetDropOnClose(
 		if k == nil {
 			return fmt.Errorf("underlying kernel is nil")
 		}
-		err := k.UnsafeWithRawNetworkConn(ctx, func(
+		err := k.WithRawNetworkConn(ctx, func(
 			ctx context.Context,
 			rc syscall.RawConn,
 			s string,

@@ -246,28 +246,27 @@ func (s *FFStream) Start(
 		var wg sync.WaitGroup
 		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
 			senderKey.VideoResolution = output.Resolution
+			senderKey := senderKey
 			wg.Add(1)
-			go func(output streammuxtypes.SenderKey) {
+			observability.Go(ctx, func(ctx context.Context) {
 				defer wg.Done()
 				switch s.StreamMux.MuxMode {
 				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
 					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
-						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", output.VideoResolution, err)
+						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
 					}
 				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
 					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
 						VideoCodec:      senderKey.VideoCodec,
 						VideoResolution: senderKey.VideoResolution,
 					}); err != nil {
-						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", output.VideoResolution, err)
+						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
 					}
 				}
-			}(senderKey)
+			})
 		}
 		if autoBitRateVideo.AutoByPass {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				switch s.StreamMux.MuxMode {
 				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
 					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
@@ -284,7 +283,7 @@ func (s *FFStream) Start(
 						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
 					}
 				}
-			}()
+			})
 		}
 		wg.Wait()
 	}

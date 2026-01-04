@@ -22,7 +22,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20250426140416-6a9b3f1c8737
-	github.com/xaionaro-go/avpipeline v0.0.0-20260104113126-9fd6d5932165
+	github.com/xaionaro-go/avpipeline v0.0.0-20260104173328-442ed33836d5
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
@@ -83,7 +83,6 @@ require (
 	github.com/xaionaro-go/object v0.0.0-20241026212449-753ce10ec94c // indirect
 	github.com/xaionaro-go/proxy v0.0.0-20250525144747-579f5a891c15 // indirect
 	github.com/xaionaro-go/rpn v0.0.0-20250818130635-1419b5218722 // indirect
-	github.com/xaionaro-go/sockopt v0.0.0-20260103194101-61181aff0f9e // indirect
 	github.com/xaionaro-go/spinlock v0.0.0-20200518175509-30e6d1ce68a1 // indirect
 	github.com/xaionaro-go/tcp v0.0.0-20260103194940-f10157ebd88d
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
