@@ -10,6 +10,7 @@
 /.github/instructions/todo.md
 /.github/instructions/current_summary.md
 /.github/instructions/backlog_*.md
+/.github/backlog
 /ffstream.code-workspace
 /.Android
 /3rdparty

@@ -12,6 +12,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/codec"
@@ -242,50 +243,7 @@ func (s *FFStream) Start(
 	}
 
 	if autoBitRateVideo != nil {
-		senderKey := streammux.PartialSenderKeyFromTranscoderConfig(ctx, &transcoderConfig)
-		var wg sync.WaitGroup
-		for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
-			senderKey.VideoResolution = output.Resolution
-			senderKey := senderKey
-			wg.Add(1)
-			observability.Go(ctx, func(ctx context.Context) {
-				defer wg.Done()
-				switch s.StreamMux.MuxMode {
-				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
-					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
-						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
-					}
-				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
-					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
-						VideoCodec:      senderKey.VideoCodec,
-						VideoResolution: senderKey.VideoResolution,
-					}); err != nil {
-						logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
-					}
-				}
-			})
-		}
-		if autoBitRateVideo.AutoByPass {
-			wg.Go(func() {
-				switch s.StreamMux.MuxMode {
-				case streammuxtypes.MuxModeDifferentOutputsSameTracks:
-					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
-						AudioCodec:      senderKey.AudioCodec,
-						AudioSampleRate: senderKey.AudioSampleRate,
-						VideoCodec:      codectypes.NameCopy,
-					}); err != nil {
-						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
-					}
-				case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
-					if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
-						VideoCodec: codectypes.NameCopy,
-					}); err != nil {
-						logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
-					}
-				}
-			})
-		}
-		wg.Wait()
+		s.preemptivelyInitAutoBitRateOutputs(ctx, transcoderConfig, autoBitRateVideo)
 	}
 
 	errCh := make(chan node.Error, 100)
@@ -325,6 +283,53 @@ func (s *FFStream) Start(
 	}
 
 	return nil
+}
+
+func (s *FFStream) preemptivelyInitAutoBitRateOutputs(
+	ctx context.Context,
+	transcoderConfig streammuxtypes.TranscoderConfig,
+	autoBitRateVideo *streammuxtypes.AutoBitRateVideoConfig,
+) {
+	senderKey := streammux.PartialSenderKeyFromTranscoderConfig(ctx, &transcoderConfig)
+	for _, output := range s.StreamMux.AutoBitRateHandler.ResolutionsAndBitRates {
+		senderKey.VideoResolution = output.Resolution
+		senderKey := senderKey
+		observability.Go(ctx, func(ctx context.Context) {
+			switch s.StreamMux.MuxMode {
+			case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+				if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, senderKey); err != nil {
+					logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
+				}
+			case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+				if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					VideoCodec:      senderKey.VideoCodec,
+					VideoResolution: senderKey.VideoResolution,
+				}); err != nil {
+					logger.Errorf(ctx, "unable to create output for resolution %#+v: %v", senderKey.VideoResolution, err)
+				}
+			}
+		})
+	}
+	if autoBitRateVideo.AutoByPass {
+		observability.Go(ctx, func(ctx context.Context) {
+			switch s.StreamMux.MuxMode {
+			case streammuxtypes.MuxModeDifferentOutputsSameTracks:
+				if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					AudioCodec:      senderKey.AudioCodec,
+					AudioSampleRate: senderKey.AudioSampleRate,
+					VideoCodec:      codectypes.NameCopy,
+				}); err != nil {
+					logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
+				}
+			case streammuxtypes.MuxModeDifferentOutputsSameTracksSplitAV:
+				if _, _, err := s.StreamMux.GetOrCreateOutput(ctx, streammuxtypes.SenderKey{
+					VideoCodec: codectypes.NameCopy,
+				}); err != nil {
+					logger.Errorf(ctx, "unable to init output for the bypass: %v", err)
+				}
+			}
+		})
+	}
 }
 
 func (s *FFStream) Wait(
@@ -450,6 +455,8 @@ func (s *FFStream) SetFPSFraction(
 func (s *FFStream) GetBitRates(
 	ctx context.Context,
 ) (_ret *streammuxtypes.BitRates, err error) {
+	logger.Debugf(ctx, "GetBitRates")
+	defer func() { logger.Debugf(ctx, "/GetBitRates: %#+v, %v", _ret, err) }()
 	if s == nil {
 		return nil, fmt.Errorf("ffstream is nil")
 	}
@@ -459,11 +466,20 @@ func (s *FFStream) GetBitRates(
 		return nil, fmt.Errorf("it is allowed to use GetBitRates only after Start is invoked")
 	}
 
-	bitRates, err := s.StreamMux.GetBitRates(ctx)
+	bitRatesIn := s.Inputs.GetBitRates(ctx)
+
+	bitRatesOut, err := s.StreamMux.GetBitRates(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get bit rates: %w", err)
 	}
-	return bitRates, nil
+
+	logger.Debugf(ctx, "input=%s, output=%s", spew.Sdump(bitRatesIn), spew.Sdump(bitRatesOut))
+
+	return &streammuxtypes.BitRates{
+		Input:   bitRatesIn.Input,
+		Encoded: bitRatesOut.Encoded,
+		Output:  bitRatesOut.Output,
+	}, nil
 }
 
 func (s *FFStream) GetLatencies(
