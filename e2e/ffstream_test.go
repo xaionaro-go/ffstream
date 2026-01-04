@@ -1,3 +1,5 @@
+// ffstream_test.go contains end-to-end tests for ffstream on Android/Termux.
+
 package e2e
 
 import (

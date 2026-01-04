@@ -1,3 +1,4 @@
+// flag.go defines and parses command-line flags.
 package main
 
 import (

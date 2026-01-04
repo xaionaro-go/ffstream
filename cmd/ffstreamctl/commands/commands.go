@@ -1,3 +1,6 @@
+// commands.go defines the commands for ffstreamctl.
+
+// Package commands provides the command-line interface for ffstreamctl.
 package commands
 
 import (

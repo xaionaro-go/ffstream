@@ -1,3 +1,5 @@
+// grpc_server_monitor.go implements the Monitor gRPC method for real-time pipeline monitoring.
+
 package ffstreamserver
 
 import (

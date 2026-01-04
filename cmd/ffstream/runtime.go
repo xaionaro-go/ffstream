@@ -1,3 +1,4 @@
+// runtime.go provides runtime initialization and observability.
 package main
 
 import (

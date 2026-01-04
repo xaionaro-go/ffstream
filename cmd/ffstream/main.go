@@ -1,3 +1,6 @@
+// main.go is the entry point for the ffstream command-line tool.
+
+// Package main is the entry point for the ffstream command-line tool.
 package main
 
 import (

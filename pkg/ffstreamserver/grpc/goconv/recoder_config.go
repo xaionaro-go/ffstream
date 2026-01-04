@@ -1,3 +1,6 @@
+// recoder_config.go provides conversion functions for transcoder configuration between GRPC and Go.
+
+// Package goconv provides conversion functions between GRPC and Go for ffstreamserver.
 package goconv
 
 import (

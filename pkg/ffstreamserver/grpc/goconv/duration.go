@@ -1,3 +1,5 @@
+// duration.go provides conversion functions for time.Duration to GRPC types.
+
 package goconv
 
 import (

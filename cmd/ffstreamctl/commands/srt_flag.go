@@ -1,3 +1,4 @@
+// srt_flag.go SRT flag utilities.
 //go:build with_libsrt
 // +build with_libsrt
 

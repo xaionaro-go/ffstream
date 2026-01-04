@@ -1,3 +1,5 @@
+// grpc_server.go implements the gRPC service for FFStream.
+
 package ffstreamserver
 
 import (

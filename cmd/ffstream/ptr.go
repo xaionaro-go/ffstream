@@ -1,3 +1,4 @@
+// ptr.go provides a helper function to get a pointer to a value.
 package main
 
 func ptr[T any](in T) *T {

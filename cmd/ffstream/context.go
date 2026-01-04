@@ -1,3 +1,4 @@
+// context.go provides context and observability initialization.
 package main
 
 import (
@@ -93,7 +94,7 @@ func getContext(
 					closeFile()
 					closeFile = nil
 				}
-				f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0750)
+				f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o750)
 				if err != nil {
 					l.Errorf("failed to open log file '%s': %v", logPath, err)
 					return

@@ -1,3 +1,5 @@
+// emulator_test.go handles Android emulator lifecycle for end-to-end tests.
+
 package e2e
 
 import (

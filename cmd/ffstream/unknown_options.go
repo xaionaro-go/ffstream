@@ -1,3 +1,4 @@
+// unknown_options.go provides functions to handle unknown command-line options.
 package main
 
 import (

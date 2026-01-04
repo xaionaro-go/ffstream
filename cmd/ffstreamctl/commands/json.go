@@ -1,3 +1,5 @@
+// json.go JSON output utilities.
+
 package commands
 
 import (

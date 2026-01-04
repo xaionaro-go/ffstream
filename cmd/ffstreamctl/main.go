@@ -1,3 +1,5 @@
+// main.go main entry point of ffstreamctl.
+
 package main
 
 import (

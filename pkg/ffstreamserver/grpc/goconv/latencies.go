@@ -1,3 +1,5 @@
+// latencies.go provides conversion functions for latencies between Go and GRPC types.
+
 package goconv
 
 import (

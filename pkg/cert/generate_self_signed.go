@@ -1,3 +1,6 @@
+// Package cert provides utilities for generating and managing TLS certificates.
+//
+// generate_self_signed.go provides a function to generate self-signed certificates for development.
 package cert
 
 import (

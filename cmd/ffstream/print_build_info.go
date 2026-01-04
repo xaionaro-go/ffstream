@@ -1,3 +1,4 @@
+// print_build_info.go provides functions to print build information.
 package main
 
 import (

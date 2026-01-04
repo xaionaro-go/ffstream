@@ -1,15 +1,21 @@
 {
+    "go.toolsEnvVars": {
+        "GOOS": "linux",
+        "GOARCH": "amd64"
+    },
     "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
     "gopls": {
-        "build.buildFlags": ["-tags=with_libsrt,with_libav,with_libvlc,ffmpeg7"]
-    },
-    "search.exclude": {
-        "**/import/**": true,
-        "**/imports/**": true
-    },
-    "files.exclude": {
-        "**/import/**": true,
-        "**/imports/**": true
+        "build.buildFlags": [
+            "-tags=with_libsrt,with_libav+/with_libvlc,ffmpeg7"
+        ],
+        "build.directoryFilters": [
+                "-**/node_modules",
+                "-**/.git",
+                "-**/vendor",
+                
+                
+                "-pkg/ffstreamserver/grpc/imports"
+        ]
     },
     "protobuf.includes": [
         "./pkg/ffstreamserver/grpc",

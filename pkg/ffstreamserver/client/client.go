@@ -1,3 +1,6 @@
+// client.go implements a client for the ffstreamserver.
+
+// Package client provides a client for the ffstreamserver.
 package client
 
 import (
@@ -24,8 +27,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type InputID uint64
-type OutputID uint64
+type (
+	InputID  uint64
+	OutputID uint64
+)
 
 type Client struct {
 	Target string

@@ -1,3 +1,5 @@
+// full_e2e_test.go implements full end-to-end test scenarios.
+
 package e2e
 
 import (
@@ -347,7 +349,7 @@ func (s *E2ETestSuite) StartAVD() error {
 
 	// Write config to file
 	configPath := filepath.Join(s.tempDir, "avd.yaml")
-	if err := os.WriteFile(configPath, []byte(s.avdConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(s.avdConfig), 0o644); err != nil {
 		return fmt.Errorf("failed to write avd config: %w", err)
 	}
 

@@ -1,3 +1,4 @@
+// demuxers.go provides functions to print available demuxers.
 package main
 
 import (

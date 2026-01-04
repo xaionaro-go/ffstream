@@ -1,3 +1,4 @@
+// codecs.go provides functions to print available codecs.
 package main
 
 import (

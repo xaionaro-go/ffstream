@@ -1,3 +1,4 @@
+// listener.go provides functions to create network listeners.
 package main
 
 import (

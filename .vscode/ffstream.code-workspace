@@ -1,26 +1,50 @@
 {
-	"folders": [
-		{
-			"path": ".."
-		},
-		{
-			"path": "../../avpipeline"
-		}
-	],
-	"settings": {
-		"go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
-		"search.exclude": {
-			"**/import/**": true,
-			"**/imports/**": true
-		},
-		"files.exclude": {
-			"**/import/**": true,
-			"**/imports/**": true
-		},
-		"protobuf.includes": [
-			"./pkg/ffstreamserver/grpc",
-			"./pkg/ffstreamserver/grpc/imports/avpipeline/protobuf"
-		],
-		"protobuf.diagnostics.documentationComments": false
-	}
+    "folders": [
+        {
+            "path": ".."
+        },
+        {
+            "path": "../../avpipeline"
+        }
+    ],
+    "settings": {
+        "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+        "search.exclude": {
+            "**/import": true,
+            "**/import/**": true,
+            "**/imports": true,
+            "**/imports/**": true,
+            "**/pkg/ffstreamserver/grpc/imports/**": true
+        },
+        "protobuf.includes": [
+            "./pkg/ffstreamserver/grpc",
+            "./pkg/ffstreamserver/grpc/imports/avpipeline/protobuf"
+        ],
+        "protobuf.diagnostics.documentationComments": false,
+        "files.exclude": {
+            "**/import": true,
+            "**/import/**": true,
+            "**/imports": true,
+            "**/imports/**": true,
+            "**/pkg/ffstreamserver/grpc/imports/**": true
+        },
+        "files.watcherExclude": {
+            "**/import": true,
+            "**/import/**": true,
+            "**/imports": true,
+            "**/imports/**": true
+        },
+        "search.useIgnoreFiles": true,
+        "search.useParentIgnoreFiles": true,
+        "gopls": {
+            "build.directoryFilters": [
+                "-**/node_modules",
+                "-**/.git",
+                "-**/vendor",
+                "-**/imports",
+                "-**/import",
+                "-pkg/ffstreamserver/grpc/imports"
+            ]
+        }
+    }
 }

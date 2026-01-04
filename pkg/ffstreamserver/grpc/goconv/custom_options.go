@@ -1,3 +1,5 @@
+// custom_options.go provides conversion functions for custom options between Go and GRPC types.
+
 package goconv
 
 import (

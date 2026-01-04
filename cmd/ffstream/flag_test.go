@@ -1,3 +1,4 @@
+// flag_test.go contains tests for command-line flags.
 package main
 
 import (

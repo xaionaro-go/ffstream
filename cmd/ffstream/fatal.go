@@ -1,3 +1,4 @@
+// fatal.go provides error handling and fatal exit functions.
 package main
 
 import (

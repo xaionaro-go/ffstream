@@ -1,3 +1,5 @@
+// stream_quality.go provides conversion functions for stream quality between Go and GRPC types.
+
 package goconv
 
 import (

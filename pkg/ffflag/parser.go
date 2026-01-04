@@ -1,3 +1,5 @@
+// parser.go implements the Parser struct for processing command-line arguments.
+
 package ffflag
 
 import (

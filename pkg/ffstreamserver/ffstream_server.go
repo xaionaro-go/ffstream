@@ -1,3 +1,6 @@
+// Package ffstreamserver provides a gRPC server for controlling and monitoring FFStream.
+//
+// ffstream_server.go defines the main FFStreamServer struct and its serving logic.
 package ffstreamserver
 
 import (

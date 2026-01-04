@@ -1,6 +1,8 @@
 //go:build with_libsrt
 // +build with_libsrt
 
+// grpc_server_libsrt.go implements SRT-specific gRPC methods for the FFStream server.
+
 package ffstreamserver
 
 import (

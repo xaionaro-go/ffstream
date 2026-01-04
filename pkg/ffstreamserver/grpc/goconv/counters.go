@@ -1,3 +1,5 @@
+// counters.go provides conversion functions for node counters between Go and GRPC types.
+
 package goconv
 
 import (

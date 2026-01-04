@@ -1,3 +1,5 @@
+// input_factory_test.go provides tests for the input factory.
+
 package ffstream
 
 import (

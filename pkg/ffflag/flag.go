@@ -1,3 +1,6 @@
+// Package ffflag provides a custom command-line flag parser designed for ffmpeg-like arguments.
+//
+// flag.go defines the core flag types and their parsing logic.
 package ffflag
 
 import (

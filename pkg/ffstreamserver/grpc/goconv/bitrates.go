@@ -1,3 +1,5 @@
+// bitrates.go provides conversion functions for bitrates between Go and GRPC types.
+
 package goconv
 
 import (

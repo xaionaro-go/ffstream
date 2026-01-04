@@ -1,3 +1,4 @@
+// commands_srt.go SRT related commands.
 //go:build with_libsrt
 // +build with_libsrt
 
