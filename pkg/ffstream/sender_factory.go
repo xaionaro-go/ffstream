@@ -7,17 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/codec"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/net/raw"
 	"github.com/xaionaro-go/avpipeline/node"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
+	tcpopt "github.com/xaionaro-go/tcp/opt"
 )
 
 type SenderTemplate struct {
@@ -140,6 +143,20 @@ func (s *senderFactory) newOutputKernel(
 		return nil, fmt.Errorf("unable to create output from URL %q: %w", outputURL, err)
 	}
 
+	err = outputKernel.WithRawNetworkConn(ctx, func(ctx context.Context, rawConn syscall.RawConn, netName string) error {
+		switch netName {
+		case "tcp", "tcp4", "tcp6":
+			return raw.SetTCPSockOptions(ctx, rawConn, []tcpopt.Option{
+				tcpopt.ThinLinearTimeouts(true),
+				tcpopt.ThinDupAck(true),
+			})
+		default:
+			return nil
+		}
+	})
+	if err != nil {
+		logger.Errorf(ctx, "unable to set raw network connection options: %v", err)
+	}
 	outputKernel.Filter = s.OutputQualityMeasurer
 	return outputKernel, nil
 }
