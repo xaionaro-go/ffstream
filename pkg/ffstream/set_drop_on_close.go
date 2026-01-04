@@ -37,7 +37,7 @@ func (n nodeSetDropOnCloserWrapper) SetDropOnClose(
 		rc syscall.RawConn,
 		s string,
 	) error {
-		return netraw.SetOption(rc, tcpopt.Linger{
+		return netraw.SetOption(ctx, rc, tcpopt.Linger{
 			OnOff: dropOnClose,
 		})
 	})
@@ -88,7 +88,7 @@ func (n nodeWithRetrySetDropOnCloserWrapper) SetDropOnClose(
 			rc syscall.RawConn,
 			s string,
 		) error {
-			return netraw.SetOption(rc, tcpopt.Linger{
+			return netraw.SetOption(ctx, rc, tcpopt.Linger{
 				OnOff: dropOnClose,
 			})
 		})

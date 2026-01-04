@@ -16,6 +16,7 @@ import (
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
+	_ "github.com/xaionaro-go/ffstream/pkg/pulse"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/xsync"
 )
