@@ -1,6 +1,8 @@
 package ffmonitor
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/xaionaro-go/avpipeline/monitor"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
@@ -13,6 +15,7 @@ type Config struct {
 	DoDecode             bool
 	Format               string
 	InputFormat          string
+	HighlightMissed      time.Duration
 }
 
 func AddFlags(cmd *cobra.Command) {
@@ -21,6 +24,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("do-decode", false, "do decode of packets/frames for monitor events")
 	cmd.Flags().String("format", "plaintext", "output format (plaintext|json)")
 	cmd.Flags().StringP("input-format", "f", "", "force input format")
+	cmd.Flags().Duration("highlight-missed", 0, "highlight missed frames (if the gap is greater than the specified duration)")
 }
 
 func ParseFlags(cmd *cobra.Command) (Config, error) {
@@ -29,6 +33,7 @@ func ParseFlags(cmd *cobra.Command) (Config, error) {
 	doDecode, _ := cmd.Flags().GetBool("do-decode")
 	format, _ := cmd.Flags().GetString("format")
 	inputFormat, _ := cmd.Flags().GetString("input-format")
+	highlightMissed, _ := cmd.Flags().GetDuration("highlight-missed")
 
 	return Config{
 		IncludePacketPayload: includePacketPayload,
@@ -36,6 +41,7 @@ func ParseFlags(cmd *cobra.Command) (Config, error) {
 		DoDecode:             doDecode,
 		Format:               format,
 		InputFormat:          inputFormat,
+		HighlightMissed:      highlightMissed,
 	}, nil
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/spf13/cobra"
 	"github.com/xaionaro-go/avpipeline/indicator"
+	"github.com/xaionaro-go/avpipeline/monitor"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -194,7 +195,7 @@ var (
 	Monitor = &cobra.Command{
 		Use:  "monitor",
 		Args: cobra.RangeArgs(1, 2),
-		Run:  monitor,
+		Run:  monitorCommand,
 	}
 
 	Inputs = &cobra.Command{
@@ -533,7 +534,7 @@ func autoBitRateConfigSet(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 }
 
-func monitor(cmd *cobra.Command, args []string) {
+func monitorCommand(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
@@ -558,7 +559,10 @@ func monitor(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	logger.Infof(ctx, "monitoring started for object ID %d, event type %s", objID, evenType.String())
-	err = ffmonitor.PrintMonitorEvents(ctx, eventsCh, mcfg.Format)
+	err = ffmonitor.PrintMonitorEvents(ctx, eventsCh, monitor.PrintOptions{
+		Format:          mcfg.Format,
+		HighlightMissed: mcfg.HighlightMissed,
+	})
 	assertNoError(ctx, err)
 }
 

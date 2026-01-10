@@ -69,7 +69,10 @@ func run(cmd *cobra.Command, args []string) {
 		n.Serve(ctx, node.ServeConfig{}, nil)
 	}()
 
-	err = ffmonitor.PrintMonitorEvents(ctx, m.Events, mcfg.Format)
+	err = ffmonitor.PrintMonitorEvents(ctx, m.Events, monitor.PrintOptions{
+		Format:          mcfg.Format,
+		HighlightMissed: mcfg.HighlightMissed,
+	})
 	if err != nil {
 		logger.Fatalf(ctx, "failed to print monitor events: %v", err)
 	}
