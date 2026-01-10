@@ -11,7 +11,6 @@
 /.github/instructions/current_summary.md
 /.github/instructions/backlog_*.md
 /.github/backlog
-/ffstream.code-workspace
 /.Android
 /3rdparty
 /.bug
@@ -19,3 +18,4 @@
 /.github/instructions/test_plan*.md
 /.continue
 *.log
+/ff*
