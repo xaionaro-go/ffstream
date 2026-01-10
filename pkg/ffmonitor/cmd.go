@@ -9,13 +9,13 @@ import (
 )
 
 type Config struct {
-	EventType            avpipeline_proto.MonitorEventType
-	IncludePacketPayload bool
-	IncludeFramePayload  bool
-	DoDecode             bool
-	Format               string
-	InputFormat          string
-	HighlightMissed      time.Duration
+	EventType              avpipeline_proto.MonitorEventType
+	IncludePacketPayload   bool
+	IncludeFramePayload    bool
+	DoDecode               bool
+	Format                 string
+	InputFormat            string
+	HighlightDiscontinuity time.Duration
 }
 
 func AddFlags(cmd *cobra.Command) {
@@ -24,7 +24,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("do-decode", false, "do decode of packets/frames for monitor events")
 	cmd.Flags().String("format", "plaintext", "output format (plaintext|json)")
 	cmd.Flags().StringP("input-format", "f", "", "force input format")
-	cmd.Flags().Duration("highlight-missed", 0, "highlight missed frames (if the gap is greater than the specified duration)")
+	cmd.Flags().Duration("highlight-discontinuity", 0, "highlight discontinuities (if the gap is greater than the specified duration)")
 }
 
 func ParseFlags(cmd *cobra.Command) (Config, error) {
@@ -33,15 +33,15 @@ func ParseFlags(cmd *cobra.Command) (Config, error) {
 	doDecode, _ := cmd.Flags().GetBool("do-decode")
 	format, _ := cmd.Flags().GetString("format")
 	inputFormat, _ := cmd.Flags().GetString("input-format")
-	highlightMissed, _ := cmd.Flags().GetDuration("highlight-missed")
+	highlightDiscontinuity, _ := cmd.Flags().GetDuration("highlight-discontinuity")
 
 	return Config{
-		IncludePacketPayload: includePacketPayload,
-		IncludeFramePayload:  includeFramePayload,
-		DoDecode:             doDecode,
-		Format:               format,
-		InputFormat:          inputFormat,
-		HighlightMissed:      highlightMissed,
+		IncludePacketPayload:   includePacketPayload,
+		IncludeFramePayload:    includeFramePayload,
+		DoDecode:               doDecode,
+		Format:                 format,
+		InputFormat:            inputFormat,
+		HighlightDiscontinuity: highlightDiscontinuity,
 	}, nil
 }
 
