@@ -71,6 +71,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
 	retryInputTimeoutOnFailure := flag.AddParameter(p, "retry_input_timeout_on_failure", false, ptr(flag.Duration(ffstream.DefaultConfig().InputRetryInterval)))
 	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, ptr(flag.Duration(0)))
+	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
 	demuxers := flag.AddFlag(p, "demuxers", false)
@@ -146,6 +147,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		inputs = append(inputs, ffstream.Resource{
 			URL: input,
 			InputConfig: kernel.InputConfig{
+				ForceRealTime: ptr(reFlag.Value()),
 				CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
 			},
 		})
@@ -205,7 +207,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		flags.VideoEncoder = Encoder{
 			Codec:   codec.Name(v),
 			BitRate: bitrateVideoFlag.Value(),
-			Options: encoderVideoFlag.CollectedUnknownOptions[0],
+			Options: indexSafe(encoderVideoFlag.CollectedUnknownOptions, 0),
 		}
 	}
 
@@ -213,7 +215,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		flags.AudioEncoder = Encoder{
 			Codec:   codec.Name(v),
 			BitRate: bitrateAudioFlag.Value(),
-			Options: encoderAudioFlag.CollectedUnknownOptions[0],
+			Options: indexSafe(encoderAudioFlag.CollectedUnknownOptions, 0),
 		}
 	}
 

@@ -37,6 +37,8 @@ service FFStream {
   rpc GetInputsInfo(GetInputsInfoRequest) returns (GetInputsInfoReply) {}
   rpc SetInputCustomOption(SetInputCustomOptionRequest) returns (SetInputCustomOptionReply) {}
   rpc SetStopInput(SetStopInputRequest) returns (SetStopInputReply) {}
+  rpc InjectSubtitles(InjectSubtitlesRequest) returns (InjectSubtitlesReply) {}
+  rpc InjectData(InjectDataRequest) returns (InjectDataReply) {}
 }
 
 enum LoggingLevel {
@@ -341,3 +343,17 @@ message SetStopInputRequest {
 }
 
 message SetStopInputReply {}
+
+message InjectSubtitlesRequest {
+  bytes data = 1;
+  uint64 duration_ns = 2;
+}
+
+message InjectSubtitlesReply {}
+
+message InjectDataRequest {
+  bytes data = 1;
+  uint64 duration_ns = 2;
+}
+
+message InjectDataReply {}

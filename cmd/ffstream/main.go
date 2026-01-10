@@ -63,8 +63,8 @@ func main() {
 		assertNoError(ctx, err)
 	}
 
-	var resolution codec.Resolution
-	var audioSampleRate audio.SampleRate
+	var resolution codec.Resolution = codec.Resolution{Width: 160, Height: 90}
+	var audioSampleRate audio.SampleRate = 48000
 
 	var encoderVideoOptions avptypes.DictionaryItems
 	encoderVideoOptions = append(encoderVideoOptions,
@@ -116,6 +116,7 @@ func main() {
 				outputFormat = v.Value
 			}
 		}
+		// adding options required for fragmentation (that is a streaming-specific issue)
 		if outputFormat == "mpegts" {
 			var movFlags *avptypes.DictionaryItem
 			for idx, item := range outputOptions {
@@ -133,7 +134,6 @@ func main() {
 			}
 			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
 		}
-
 		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
 			URLTemplate:                 outputParams.URL,
 			Options:                     outputOptions,

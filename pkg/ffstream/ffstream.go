@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
+	"github.com/asticode/go-astiav"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline"
@@ -19,11 +21,14 @@ import (
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/node"
 	packetorframefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetorframefilter/condition"
+	"github.com/xaionaro-go/avpipeline/packet"
 	"github.com/xaionaro-go/avpipeline/packet/condition/extra"
+	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/packetorframe/filter/quality"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	"github.com/xaionaro-go/avpipeline/processor"
 	avpipeline_grpc "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	goconvavp "github.com/xaionaro-go/avpipeline/protobuf/goconv/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -280,6 +285,108 @@ func (s *FFStream) Start(
 	err = s.StreamMux.WaitForStart(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to wait for streammux's start: %w", err)
+	}
+
+	return nil
+}
+
+func (s *FFStream) InjectSubtitles(
+	ctx context.Context,
+	data []byte,
+	duration time.Duration,
+) error {
+	logger.Debugf(ctx, "InjectSubtitles(ctx, %d bytes, %v)", len(data), duration)
+	if s.StreamMux == nil {
+		return fmt.Errorf("ffstream is not started")
+	}
+
+	pkt := packet.Pool.Get()
+	// Do not free pkt here, it will be freed by the pipeline
+
+	if err := pkt.AllocPayload(len(data)); err != nil {
+		packet.Pool.Put(pkt)
+		return fmt.Errorf("unable to allocate payload for subtitle packet: %w", err)
+	}
+	copy(pkt.Data(), data)
+
+	// Use the last seen audio DTS as the base for PTS/DTS
+	dts := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
+	if dts == 0 {
+		dts = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
+	}
+
+	pkt.SetPts(int64(dts))
+	pkt.SetDts(int64(dts))
+	pkt.SetDuration(int64(duration / time.Millisecond))
+
+	source := any(s.StreamMux.InputAll.Node.Processor).(processor.GetPacketSourcer).GetPacketSource()
+	streamInfo := &packet.StreamInfo{
+		CodecParameters: astiav.AllocCodecParameters(),
+		TimeBase:        astiav.NewRational(1, 1000), // milliseconds
+		StreamIndex:     2,
+	}
+	streamInfo.CodecParameters.SetCodecID(astiav.CodecIDText)
+	streamInfo.CodecParameters.SetMediaType(astiav.MediaTypeSubtitle)
+
+	inputPkt := packet.BuildInput(pkt, streamInfo)
+	inputPkt.SetStreamIndex(2)
+	inputPkt.Source = source
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
+	}
+
+	return nil
+}
+
+func (s *FFStream) InjectData(
+	ctx context.Context,
+	data []byte,
+	duration time.Duration,
+) error {
+	logger.Debugf(ctx, "InjectData(ctx, %d bytes, %v)", len(data), duration)
+	if s.StreamMux == nil {
+		return fmt.Errorf("ffstream is not started")
+	}
+
+	pkt := packet.Pool.Get()
+	// Do not free pkt here, it will be freed by the pipeline
+
+	if err := pkt.AllocPayload(len(data)); err != nil {
+		packet.Pool.Put(pkt)
+		return fmt.Errorf("unable to allocate payload for data packet: %w", err)
+	}
+	copy(pkt.Data(), data)
+
+	// Use the last seen audio DTS as the base for PTS/DTS
+	dts := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
+	if dts == 0 {
+		dts = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
+	}
+
+	pkt.SetPts(int64(dts))
+	pkt.SetDts(int64(dts))
+	pkt.SetDuration(int64(duration / time.Millisecond))
+
+	source := any(s.StreamMux.InputAll.Node.Processor).(processor.GetPacketSourcer).GetPacketSource()
+	streamInfo := &packet.StreamInfo{
+		CodecParameters: astiav.AllocCodecParameters(),
+		TimeBase:        astiav.NewRational(1, 1000), // milliseconds
+		StreamIndex:     3,
+	}
+	streamInfo.CodecParameters.SetCodecID(astiav.CodecIDBinData)
+	streamInfo.CodecParameters.SetMediaType(astiav.MediaTypeData)
+
+	inputPkt := packet.BuildInput(pkt, streamInfo)
+	inputPkt.SetStreamIndex(3)
+	inputPkt.Source = source
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
 	}
 
 	return nil

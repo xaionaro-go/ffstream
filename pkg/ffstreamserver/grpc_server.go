@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/facebookincubator/go-belt"
@@ -420,4 +421,28 @@ func (srv *GRPCServer) SwitchOutputByProps(
 		return nil, status.Errorf(codes.Unknown, "unable to switch output: %v", err)
 	}
 	return &ffstream_grpc.SwitchOutputByPropsReply{}, nil
+}
+
+func (srv *GRPCServer) InjectSubtitles(
+	ctx context.Context,
+	req *ffstream_grpc.InjectSubtitlesRequest,
+) (*ffstream_grpc.InjectSubtitlesReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "InjectSubtitles: %v", req)
+	if err := srv.FFStream.InjectSubtitles(ctx, req.GetData(), time.Duration(req.GetDurationNs())); err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to inject subtitles: %v", err)
+	}
+	return &ffstream_grpc.InjectSubtitlesReply{}, nil
+}
+
+func (srv *GRPCServer) InjectData(
+	ctx context.Context,
+	req *ffstream_grpc.InjectDataRequest,
+) (*ffstream_grpc.InjectDataReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "InjectData: %v", req)
+	if err := srv.FFStream.InjectData(ctx, req.GetData(), time.Duration(req.GetDurationNs())); err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to inject data: %v", err)
+	}
+	return &ffstream_grpc.InjectDataReply{}, nil
 }

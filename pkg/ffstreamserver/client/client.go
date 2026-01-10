@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	quality "github.com/xaionaro-go/avpipeline/packetorframe/filter/quality/types"
@@ -547,6 +548,50 @@ func (c *Client) SetStopInput(
 	_, err = client.SetStopInput(ctx, &ffstream_grpc.SetStopInputRequest{
 		InputPriority: inputPriority,
 		Stop:          stop,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) InjectSubtitles(
+	ctx context.Context,
+	text string,
+	duration time.Duration,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.InjectSubtitles(ctx, &ffstream_grpc.InjectSubtitlesRequest{
+		Data:       []byte(text),
+		DurationNs: uint64(duration),
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) InjectData(
+	ctx context.Context,
+	data []byte,
+	duration time.Duration,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.InjectData(ctx, &ffstream_grpc.InjectDataRequest{
+		Data:       data,
+		DurationNs: uint64(duration),
 	})
 	if err != nil {
 		return fmt.Errorf("query error: %w", err)

@@ -6,6 +6,7 @@ package commands
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -227,6 +228,18 @@ var (
 		Args: cobra.ExactArgs(8),
 		Run:  outputSwitch,
 	}
+
+	InjectSubtitles = &cobra.Command{
+		Use:  "inject_subtitles <text>",
+		Args: cobra.ExactArgs(1),
+		Run:  injectSubtitles,
+	}
+
+	InjectData = &cobra.Command{
+		Use:  "inject_data <hex_data>",
+		Args: cobra.ExactArgs(1),
+		Run:  injectData,
+	}
 )
 
 func init() {
@@ -280,6 +293,12 @@ func init() {
 
 	Root.AddCommand(Output)
 	Output.AddCommand(OutputSwitch)
+
+	Root.AddCommand(InjectSubtitles)
+	InjectSubtitles.Flags().Duration("duration", time.Second, "the duration of the subtitle")
+
+	Root.AddCommand(InjectData)
+	InjectData.Flags().Duration("duration", time.Second, "the duration of the data")
 
 	polyjson.AutoRegisterTypes = true
 	polyjson.RegisterType(streammuxtypes.AutoBitrateCalculatorThresholds{})
@@ -708,4 +727,42 @@ func outputSwitch(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	logger.Infof(ctx, "output switch completed successfully")
+}
+
+func injectSubtitles(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+	defer cancel()
+
+	text := args[0]
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	duration, err := cmd.Flags().GetDuration("duration")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	err = client.InjectSubtitles(ctx, text, duration)
+	assertNoError(ctx, err)
+}
+
+func injectData(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+	defer cancel()
+
+	hexData := args[0]
+	data, err := hex.DecodeString(hexData)
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	duration, err := cmd.Flags().GetDuration("duration")
+	assertNoError(ctx, err)
+
+	client := client.New(remoteAddr)
+
+	err = client.InjectData(ctx, data, duration)
+	assertNoError(ctx, err)
 }

@@ -16,5 +16,6 @@
 /3rdparty
 /.bug
 /.roo
-/.github/instructions/test_plan.md
+/.github/instructions/test_plan*.md
 /.continue
+*.log

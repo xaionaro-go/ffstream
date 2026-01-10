@@ -13,11 +13,18 @@ func convertUnknownOptionsToCustomOptions(
 ) streammuxtypes.DictionaryItems {
 	var result streammuxtypes.DictionaryItems
 
-	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
+	for idx := 0; idx < len(unknownOpts); idx++ {
 		arg := unknownOpts[idx]
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
 
 		opt := strings.TrimPrefix(arg, "-")
-		value := unknownOpts[idx+1]
+		var value string
+		if idx+1 < len(unknownOpts) && !strings.HasPrefix(unknownOpts[idx+1], "-") {
+			value = unknownOpts[idx+1]
+			idx++
+		}
 
 		result = append(result, streammuxtypes.DictionaryItem{
 			Key:   opt,
@@ -33,11 +40,18 @@ func convertUnknownOptionsToAVPCustomOptions(
 ) avptypes.DictionaryItems {
 	var result avptypes.DictionaryItems
 
-	for idx := 0; idx < len(unknownOpts)-1; idx += 2 {
+	for idx := 0; idx < len(unknownOpts); idx++ {
 		arg := unknownOpts[idx]
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
 
 		opt := strings.TrimPrefix(arg, "-")
-		value := unknownOpts[idx+1]
+		var value string
+		if idx+1 < len(unknownOpts) && !strings.HasPrefix(unknownOpts[idx+1], "-") {
+			value = unknownOpts[idx+1]
+			idx++
+		}
 
 		result = append(result, avptypes.DictionaryItem{
 			Key:   opt,
