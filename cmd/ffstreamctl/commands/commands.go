@@ -560,8 +560,9 @@ func monitorCommand(cmd *cobra.Command, args []string) {
 
 	logger.Infof(ctx, "monitoring started for object ID %d, event type %s", objID, evenType.String())
 	err = ffmonitor.PrintMonitorEvents(ctx, eventsCh, monitor.PrintOptions{
-		Format:          mcfg.Format,
-		HighlightMissed: mcfg.HighlightMissed,
+		Format:                 mcfg.Format,
+		HighlightDiscontinuity: mcfg.HighlightDiscontinuity,
+		StreamIndices:          mcfg.StreamIndices,
 	})
 	assertNoError(ctx, err)
 }

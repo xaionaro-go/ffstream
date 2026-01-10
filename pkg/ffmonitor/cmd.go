@@ -16,6 +16,7 @@ type Config struct {
 	Format                 string
 	InputFormat            string
 	HighlightDiscontinuity time.Duration
+	StreamIndices          []int
 }
 
 func AddFlags(cmd *cobra.Command) {
@@ -25,6 +26,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String("format", "plaintext", "output format (plaintext|json)")
 	cmd.Flags().StringP("input-format", "f", "", "force input format")
 	cmd.Flags().Duration("highlight-discontinuity", 0, "highlight discontinuities (if the gap is greater than the specified duration)")
+	cmd.Flags().IntSlice("stream-indices", nil, "filter by stream indices")
 }
 
 func ParseFlags(cmd *cobra.Command) (Config, error) {
@@ -34,6 +36,10 @@ func ParseFlags(cmd *cobra.Command) (Config, error) {
 	format, _ := cmd.Flags().GetString("format")
 	inputFormat, _ := cmd.Flags().GetString("input-format")
 	highlightDiscontinuity, _ := cmd.Flags().GetDuration("highlight-discontinuity")
+	streamIndices, _ := cmd.Flags().GetIntSlice("stream-indices")
+	if len(streamIndices) == 0 {
+		streamIndices = nil
+	}
 
 	return Config{
 		IncludePacketPayload:   includePacketPayload,
@@ -42,6 +48,7 @@ func ParseFlags(cmd *cobra.Command) (Config, error) {
 		Format:                 format,
 		InputFormat:            inputFormat,
 		HighlightDiscontinuity: highlightDiscontinuity,
+		StreamIndices:          streamIndices,
 	}, nil
 }
 
