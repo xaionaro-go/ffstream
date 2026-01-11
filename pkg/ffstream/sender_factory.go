@@ -15,6 +15,8 @@ import (
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/net/raw"
 	"github.com/xaionaro-go/avpipeline/node"
+	packetcondition "github.com/xaionaro-go/avpipeline/packet/condition"
+	"github.com/xaionaro-go/avpipeline/packet/filter/removefiller"
 	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/avpipeline/processor"
@@ -157,7 +159,10 @@ func (s *senderFactory) newOutputKernel(
 	if err != nil {
 		logger.Errorf(ctx, "unable to set raw network connection options: %v", err)
 	}
-	outputKernel.Filter = s.OutputQualityMeasurer
+	outputKernel.Filter = packetcondition.And{
+		removefiller.New(),
+		s.OutputQualityMeasurer,
+	}
 	return outputKernel, nil
 }
 
