@@ -1,3 +1,5 @@
+//go:build test_e2e
+
 // ffstream_test.go contains end-to-end tests for ffstream on Android/Termux.
 
 package e2e

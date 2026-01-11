@@ -12,12 +12,13 @@ import (
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/preset/streammux"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 	flag "github.com/xaionaro-go/ffstream/pkg/ffflag"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 )
 
 type Flags struct {
-	HWAccelGlobal               string
+	HWAccelGlobal               avptypes.HardwareDeviceType
 	Inputs                      ffstream.Resources
 	ListenControlSocket         string
 	ListenNetPprof              string
@@ -170,6 +171,12 @@ func parseFlags(args []string) (context.Context, Flags) {
 		fatal(ctx, "unable to parse the mux mode", muxModeString)
 	}
 
+	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(hwAccelFlag.Value())
+	if hardwareDeviceType == -1 {
+		logger.Errorf(ctx, "unknown hardware acceleration type %q, disabling hardware acceleration", hwAccelFlag.Value())
+		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
+	}
+
 	flags := Flags{
 		ListenControlSocket: listenControlSocket.Value(),
 		ListenNetPprof:      listenNetPprof.Value(),
@@ -186,7 +193,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
-		HWAccelGlobal: hwAccelFlag.Value(),
+		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,
 		Outputs:       outputs,
 	}

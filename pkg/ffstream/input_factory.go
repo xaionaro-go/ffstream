@@ -19,9 +19,10 @@ import (
 type Input = kernel.ChainOfTwo[kernel.Tee[*kernel.Input], *kernel.MapStreamIndices]
 
 type InputFactory struct {
-	FFStream         *FFStream
-	FallbackPriority uint
-	Locker           xsync.Mutex
+	FFStream                  *FFStream
+	FallbackPriority          uint
+	DecoderHardwareDeviceType avptypes.HardwareDeviceType
+	Locker                    xsync.Mutex
 
 	streamIndexNext int
 	streamIndexMap  map[streamIndexKey]int
@@ -41,11 +42,13 @@ var (
 func newInputFactory(
 	ffstream *FFStream,
 	priority uint,
+	decoderHWAccel avptypes.HardwareDeviceType,
 ) *InputFactory {
 	return &InputFactory{
-		FFStream:         ffstream,
-		FallbackPriority: priority,
-		sourceIndex:      make(map[packetorframe.AbstractSource]int),
+		FFStream:                  ffstream,
+		FallbackPriority:          priority,
+		DecoderHardwareDeviceType: decoderHWAccel,
+		sourceIndex:               make(map[packetorframe.AbstractSource]int),
 	}
 }
 

@@ -1,3 +1,6 @@
+//go:build test_e2e && test_real_phone
+// +build test_e2e,test_real_phone
+
 // build_verify_test.go verifies the build process and configuration for end-to-end tests.
 
 package e2e

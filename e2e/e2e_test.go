@@ -1,3 +1,5 @@
+//go:build test_e2e
+
 // e2e_test.go provides end-to-end tests for ffstream.
 
 // Package e2e provides end-to-end tests for ffstream.

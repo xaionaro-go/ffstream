@@ -1,3 +1,6 @@
+//go:build test_e2e && test_emulator
+// +build test_e2e,test_emulator
+
 // emulator_test.go handles Android emulator lifecycle for end-to-end tests.
 
 package e2e

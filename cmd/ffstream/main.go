@@ -59,7 +59,7 @@ func main() {
 	}
 
 	for _, inputInfo := range flags.Inputs {
-		err = s.AddInput(ctx, inputInfo)
+		err = s.AddInput(ctx, inputInfo, flags.HWAccelGlobal)
 		assertNoError(ctx, err)
 	}
 
@@ -142,10 +142,6 @@ func main() {
 		assertNoError(ctx, err)
 	}
 
-	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(flags.HWAccelGlobal)
-	if hardwareDeviceType == -1 {
-		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
-	}
 	transcoderConfig := streammuxtypes.TranscoderConfig{
 		Output: streammuxtypes.TranscoderOutputConfig{
 			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
@@ -154,7 +150,7 @@ func main() {
 				CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
 				AverageBitRate:     flags.VideoEncoder.BitRate,
 				CustomOptions:      encoderVideoOptions,
-				HardwareDeviceType: hardwareDeviceType,
+				HardwareDeviceType: flags.HWAccelGlobal,
 				Resolution: codec.Resolution{
 					Width:  resolution.Width,
 					Height: resolution.Height,

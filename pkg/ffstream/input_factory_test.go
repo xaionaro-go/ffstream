@@ -31,7 +31,7 @@ func TestInputFactory_NewInput_MultipleResourcesSamePriority(t *testing.T) {
 		},
 	}
 
-	f := newInputFactory(s, 0)
+	f := newInputFactory(s, 0, 0)
 	tee, err := f.NewInput(ctx, nil)
 	if err == nil {
 		t.Fatalf("expected error opening non-existing inputs, got nil")

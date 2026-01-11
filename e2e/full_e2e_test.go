@@ -1,3 +1,6 @@
+//go:build test_e2e && test_real_phone
+// +build test_e2e,test_real_phone
+
 // full_e2e_test.go implements full end-to-end test scenarios.
 
 package e2e

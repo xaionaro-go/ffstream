@@ -24,9 +24,11 @@ func (f *InputFactory) newDecoderFactory(
 	ctx context.Context,
 ) *DecoderFactory {
 	return &DecoderFactory{
-		NaiveDecoderFactory: codec.NewNaiveDecoderFactory(ctx, nil),
-		InputFactory:        f,
-		AudioNormalize:      make(map[int]*audionormalize.AudioNormalize),
+		NaiveDecoderFactory: codec.NewNaiveDecoderFactory(ctx, &codec.NaiveDecoderFactoryParams{
+			HardwareDeviceType: f.DecoderHardwareDeviceType,
+		}),
+		InputFactory:   f,
+		AudioNormalize: make(map[int]*audionormalize.AudioNormalize),
 	}
 }
 

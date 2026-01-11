@@ -94,6 +94,7 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 func (s *FFStream) AddInput(
 	ctx context.Context,
 	resource Resource,
+	decoderHWAccel avptypes.HardwareDeviceType,
 ) (_err error) {
 	logger.Debugf(ctx, "AddInput(ctx, %#+v)", resource)
 	defer func() { logger.Debugf(ctx, "/AddInput(ctx, %#+v): %v", resource, _err) }()
@@ -105,7 +106,7 @@ func (s *FFStream) AddInput(
 	}
 	priority := resource.GetFallbackPriority(ctx)
 	for p := len(s.Inputs.InputChains); p <= int(priority); p++ {
-		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p)))
+		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p), decoderHWAccel))
 		s.InputsInfo = append(s.InputsInfo, nil)
 	}
 	s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
