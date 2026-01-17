@@ -60,6 +60,7 @@ The most important rule of all: re-read the instructions files (`*.instruction.m
 ## 6. Logging
 - If Agent cannot diagnose an issue, try adding logging (in an attempt to gather more info about the issue) and auto-tests (in an attempt to reproduce the issue).
 - When unsure, prefer more logging in the code.
+- Do not change the logging level of the existing code lines. Instead modify the logging level in the context of your auto-tests.
 
 ## 7. Root cause and correctness checks
 - Fix both root causes and symptoms. Fixing symptoms alone is NOT SUFFICIENT.

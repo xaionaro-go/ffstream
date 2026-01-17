@@ -22,8 +22,8 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.0
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/audio v0.0.0-20250426140416-6a9b3f1c8737
-	github.com/xaionaro-go/avpipeline v0.0.0-20260111201412-5ad71c039f0e
+	github.com/xaionaro-go/audio v0.0.0-20260117175055-f7091fc3002b
+	github.com/xaionaro-go/avpipeline v0.0.0-20260117175604-14f4ec89391d
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
@@ -38,7 +38,10 @@ require (
 	google.golang.org/protobuf v1.36.10
 )
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require (
+	github.com/brettbuddin/fourier v0.1.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
 
 require (
 	codeberg.org/go-fonts/liberation v0.5.0 // indirect
