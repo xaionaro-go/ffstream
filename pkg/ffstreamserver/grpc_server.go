@@ -318,7 +318,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					if len(k.Kernel.Kernel0) < idx {
 						return nil
 					}
-					return k.Kernel.Kernel0[idx]
+					return k.Kernel.Kernel0[idx].Kernel0
 				}()
 				result = append(result, &ffstream_grpc.InputInfo{
 					Id:          uint64(inputKernel.GetObjectID()),

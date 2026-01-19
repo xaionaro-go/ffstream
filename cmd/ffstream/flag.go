@@ -130,12 +130,19 @@ func parseFlags(args []string) (context.Context, Flags) {
 		unknownNonOptions = append(unknownNonOptions, opt)
 	}
 
+	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(hwAccelFlag.Value())
+	if hardwareDeviceType == -1 {
+		logger.Errorf(ctx, "unknown hardware acceleration type %q, disabling hardware acceleration", hwAccelFlag.Value())
+		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
+	}
+
 	logger.Debugf(ctx, "unknownNonOptions: %#+v", unknownNonOptions)
 	logger.Debugf(ctx, "unknownOptions: %#+v", unknownOptions)
 	var outputs ffstream.Resources
 	for idx, nonFlag := range unknownNonOptions {
 		outputs = append(outputs, ffstream.Resource{
-			URL: nonFlag,
+			URL:          nonFlag,
+			CodecHWAccel: hardwareDeviceType,
 			InputConfig: kernel.InputConfig{
 				CustomOptions: convertUnknownOptionsToAVPCustomOptions(unknownOptions[idx]),
 			},
@@ -146,7 +153,8 @@ func parseFlags(args []string) (context.Context, Flags) {
 	for idx, input := range inputsFlag.Value() {
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
 		inputs = append(inputs, ffstream.Resource{
-			URL: input,
+			URL:          input,
+			CodecHWAccel: hardwareDeviceType,
 			InputConfig: kernel.InputConfig{
 				ForceRealTime: ptr(reFlag.Value()),
 				CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
@@ -169,12 +177,6 @@ func parseFlags(args []string) (context.Context, Flags) {
 	muxMode := streammuxtypes.MuxModeFromString(muxModeString.Value())
 	if muxMode == streammuxtypes.UndefinedMuxMode {
 		fatal(ctx, "unable to parse the mux mode", muxModeString)
-	}
-
-	hardwareDeviceType := avptypes.HardwareDeviceTypeFromString(hwAccelFlag.Value())
-	if hardwareDeviceType == -1 {
-		logger.Errorf(ctx, "unknown hardware acceleration type %q, disabling hardware acceleration", hwAccelFlag.Value())
-		hardwareDeviceType = avptypes.HardwareDeviceTypeNone
 	}
 
 	flags := Flags{

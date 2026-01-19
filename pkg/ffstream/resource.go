@@ -9,10 +9,12 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
 type Resource struct {
-	URL string
+	URL          string
+	CodecHWAccel avptypes.HardwareDeviceType
 	kernel.InputConfig
 }
 

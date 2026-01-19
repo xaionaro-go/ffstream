@@ -10,23 +10,25 @@ import (
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
+	"github.com/xaionaro-go/avpipeline/packetorframe/filter/addpipelinesidedata"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xsync"
 )
 
-type Input = kernel.ChainOfTwo[kernel.Tee[*kernel.Input], *kernel.MapStreamIndices]
+type Input = kernel.ChainOfTwo[
+	kernel.Tee[*kernel.ChainOfTwo[*kernel.Input, *kernel.Filter]],
+	*kernel.MapStreamIndices,
+]
 
 type InputFactory struct {
-	FFStream                  *FFStream
-	FallbackPriority          uint
-	DecoderHardwareDeviceType avptypes.HardwareDeviceType
-	Locker                    xsync.Mutex
+	FFStream         *FFStream
+	FallbackPriority uint
+	Locker           xsync.Mutex
 
 	streamIndexNext int
 	streamIndexMap  map[streamIndexKey]int
-	sourceIndex     map[packetorframe.AbstractSource]int
 }
 
 type streamIndexKey struct {
@@ -42,13 +44,10 @@ var (
 func newInputFactory(
 	ffstream *FFStream,
 	priority uint,
-	decoderHWAccel avptypes.HardwareDeviceType,
 ) *InputFactory {
 	return &InputFactory{
-		FFStream:                  ffstream,
-		FallbackPriority:          priority,
-		DecoderHardwareDeviceType: decoderHWAccel,
-		sourceIndex:               make(map[packetorframe.AbstractSource]int),
+		FFStream:         ffstream,
+		FallbackPriority: priority,
 	}
 }
 
@@ -82,7 +81,11 @@ func (f *InputFactory) streamIndexAssignLocked(
 		return nil, fmt.Errorf("StreamIndexAssign: input source is nil")
 	}
 
-	srcIdx := f.sourceIndex[src]
+	srcIdx, ok := avptypes.PipelineSideDataLatest[ResourceIndex](in.GetPipelineSideData())
+	if !ok {
+		return nil, fmt.Errorf("StreamIndexAssign: no ResourceIndex in input source pipeline side data")
+	}
+
 	if srcIdx == 0 && streamIdx == 0 {
 		// there are protocols where the order of streams is important,
 		// so we are doing our best to make sure we won't break that,
@@ -119,6 +122,10 @@ func (f *InputFactory) GetResources(
 	return f.FFStream.InputsInfo[f.FallbackPriority], nil
 }
 
+// ResourceIndex is used as side data key to indicate which resource index
+// the packet or frame came from within a specific fallback priority.
+type ResourceIndex int
+
 func (f *InputFactory) NewInput(
 	ctx context.Context,
 	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
@@ -134,7 +141,7 @@ func (f *InputFactory) NewInput(
 	}
 	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d): %d resources", f.FallbackPriority, len(resources))
 
-	var inputs kernel.Tee[*kernel.Input]
+	var inputs kernel.Tee[*kernel.ChainOfTwo[*kernel.Input, *kernel.Filter]]
 	defer func() {
 		if _err != nil {
 			for _, in := range inputs {
@@ -142,7 +149,7 @@ func (f *InputFactory) NewInput(
 			}
 		}
 	}()
-	for _, res := range resources {
+	for idx, res := range resources {
 		cfg := kernel.InputConfig{
 			CustomOptions: res.CustomOptions,
 		}
@@ -176,21 +183,21 @@ func (f *InputFactory) NewInput(
 		if err != nil {
 			return nil, fmt.Errorf("unable to create input from URL %q: %w", res.URL, err)
 		}
-		inputs = append(inputs, in)
+		inputs = append(inputs, kernel.NewChainOfTwo(
+			in,
+			kernel.NewFilter(addpipelinesidedata.New(ResourceIndex(idx))),
+		))
 	}
 
 	f.Locker.Do(ctx, func() {
 		f.streamIndexNext = 1
 		f.streamIndexMap = make(map[streamIndexKey]int)
-		for k := range f.sourceIndex {
-			delete(f.sourceIndex, k)
-		}
-		for idx, in := range inputs {
-			f.sourceIndex[packetorframe.AbstractSource(in)] = idx
-		}
 	})
 
-	return kernel.NewChainOfTwo(inputs, kernel.NewMapStreamIndices(ctx, f)), nil
+	return kernel.NewChainOfTwo(
+		inputs,
+		kernel.NewMapStreamIndices(ctx, f),
+	), nil
 }
 
 func (f *InputFactory) NewDecoderFactory(
