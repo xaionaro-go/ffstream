@@ -104,3 +104,20 @@ func TestResourcesByFallbackPriority(t *testing.T) {
 		}
 	})
 }
+
+func TestParseFlags_Suppressed(t *testing.T) {
+	args := []string{"ffstream", "-suppressed", "true", "-i", "rtsp://input1", "rtmp://output"}
+	_, flags := parseFlags(args)
+
+	if len(flags.Inputs) != 1 {
+		t.Fatalf("expected 1 input, got %d", len(flags.Inputs))
+	}
+
+	if !flags.Inputs[0].Suppressed {
+		t.Errorf("expected Suppressed to be true for input1")
+	}
+
+	if flags.Inputs[0].URL != "rtsp://input1" {
+		t.Errorf("expected URL to be rtsp://input1, got %q", flags.Inputs[0].URL)
+	}
+}

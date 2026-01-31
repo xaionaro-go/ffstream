@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
@@ -142,11 +144,34 @@ func main() {
 		assertNoError(ctx, err)
 	}
 
+	var videoInputTrackIDs []int
+	var audioInputTrackIDs []int
+	if len(flags.Maps) > 0 {
+		for _, m := range flags.Maps {
+			// for now we only support simple numeric mapping for "analog"
+			idx, err := strconv.Atoi(m)
+			if err == nil {
+				videoInputTrackIDs = append(videoInputTrackIDs, idx)
+				audioInputTrackIDs = append(audioInputTrackIDs, idx)
+			} else {
+				logger.Warnf(ctx, "unsupported map format %q: only numeric indices are supported for now", m)
+			}
+		}
+	}
+	if len(videoInputTrackIDs) == 0 {
+		videoInputTrackIDs = []int{0, 1, 2, 3, 4, 5, 6, 7}
+	}
+	if len(audioInputTrackIDs) == 0 {
+		audioInputTrackIDs = []int{0, 1, 2, 3, 4, 5, 6, 7}
+	}
+
 	transcoderConfig := streammuxtypes.TranscoderConfig{
 		Output: streammuxtypes.TranscoderOutputConfig{
+			FilterComplex: strings.Join(flags.FiltersComplex, ","),
 			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
-				InputTrackIDs:      []int{0, 1, 2, 3, 4, 5, 6, 7},
+				InputTrackIDs:      videoInputTrackIDs,
 				OutputTrackIDs:     []int{0},
+				Filters:            flags.FiltersVideo,
 				CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
 				AverageBitRate:     flags.VideoEncoder.BitRate,
 				CustomOptions:      encoderVideoOptions,
@@ -157,8 +182,9 @@ func main() {
 				},
 			}},
 			AudioTrackConfigs: []streammuxtypes.OutputAudioTrackConfig{{
-				InputTrackIDs:  []int{0, 1, 2, 3, 4, 5, 6, 7},
+				InputTrackIDs:  audioInputTrackIDs,
 				OutputTrackIDs: []int{1},
+				Filters:        flags.FiltersAudio,
 				CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
 				AverageBitRate: flags.AudioEncoder.BitRate,
 				CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),

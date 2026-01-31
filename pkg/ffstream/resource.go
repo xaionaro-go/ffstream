@@ -13,8 +13,10 @@ import (
 )
 
 type Resource struct {
-	URL          string
-	CodecHWAccel avptypes.HardwareDeviceType
+	URL                     string
+	CodecHWAccel            avptypes.HardwareDeviceType
+	SyncUsingReferenceAudio *int
+	Suppressed              bool
 	kernel.InputConfig
 }
 

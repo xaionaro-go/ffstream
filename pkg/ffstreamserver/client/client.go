@@ -556,6 +556,30 @@ func (c *Client) SetStopInput(
 	return nil
 }
 
+func (c *Client) SetInputSuppressed(
+	ctx context.Context,
+	priority uint64,
+	num uint64,
+	suppressed bool,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetInputSuppressed(ctx, &ffstream_grpc.SetInputSuppressedRequest{
+		InputPriority: priority,
+		InputNum:      num,
+		Suppressed:    suppressed,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) InjectSubtitles(
 	ctx context.Context,
 	text string,

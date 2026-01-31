@@ -4,8 +4,6 @@ go 1.25.5
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20251221215811-398e1d68b2e9
-
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250811230008-5f3141c8851a
 
 require (
@@ -22,12 +20,12 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.0
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/audio v0.0.0-20260117175055-f7091fc3002b
-	github.com/xaionaro-go/avpipeline v0.0.0-20260119013305-456f16847708
+	github.com/xaionaro-go/audio v0.0.0-20260124161002-bd5e1d855f00
+	github.com/xaionaro-go/avpipeline v0.0.0-20260131195157-d22e491c459f
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
-	github.com/xaionaro-go/observability v0.0.0-20250622130956-24b7017284e4
+	github.com/xaionaro-go/observability v0.0.0-20251102143534-3aeb2a25e57d
 	github.com/xaionaro-go/polyjson v0.0.0-20250825191950-a2ce35ee07f0
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
 	github.com/xaionaro-go/xgrpc v0.0.0-20251102160837-04b13583739a
@@ -40,6 +38,9 @@ require (
 
 require (
 	github.com/brettbuddin/fourier v0.1.1 // indirect
+	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
+	github.com/jfreymuth/vorbis v1.0.2 // indirect
+	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

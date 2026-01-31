@@ -318,7 +318,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					if len(k.Kernel.Kernel0) < idx {
 						return nil
 					}
-					return k.Kernel.Kernel0[idx].Kernel0
+					return k.Kernel.Kernel0[idx]
 				}()
 				result = append(result, &ffstream_grpc.InputInfo{
 					Id:          uint64(inputKernel.GetObjectID()),
@@ -327,6 +327,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					Url:         res.URL,
 					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
 					IsActive:    k.KernelIsSet,
+					Suppressed:  res.Suppressed,
 				})
 			}
 		}
@@ -406,6 +407,26 @@ func (srv *GRPCServer) SetStopInput(
 	}
 
 	return &ffstream_grpc.SetStopInputReply{}, nil
+}
+
+func (srv *GRPCServer) SetInputSuppressed(
+	ctx context.Context,
+	req *ffstream_grpc.SetInputSuppressedRequest,
+) (*ffstream_grpc.SetInputSuppressedReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "SetInputSuppressed: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/SetInputSuppressed: %s", spew.Sdump(req)) }()
+
+	if err := srv.FFStream.SetSuppressed(
+		ctx,
+		uint(req.GetInputPriority()),
+		ffstream.ResourceIndex(req.GetInputNum()),
+		req.GetSuppressed(),
+	); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to set input suppressed: %v", err)
+	}
+
+	return &ffstream_grpc.SetInputSuppressedReply{}, nil
 }
 
 func (srv *GRPCServer) SwitchOutputByProps(

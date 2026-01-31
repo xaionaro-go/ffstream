@@ -10,7 +10,6 @@ import (
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
-	"github.com/xaionaro-go/avpipeline/packetorframe/filter/addpipelinesidedata"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/secret"
@@ -18,7 +17,7 @@ import (
 )
 
 type Input = kernel.ChainOfTwo[
-	kernel.Tee[*kernel.ChainOfTwo[*kernel.Input, *kernel.Filter]],
+	kernel.Tee[*kernel.Input],
 	*kernel.MapStreamIndices,
 ]
 
@@ -72,7 +71,7 @@ func (f *InputFactory) StreamIndexAssign(
 }
 
 func (f *InputFactory) streamIndexAssignLocked(
-	_ context.Context,
+	ctx context.Context,
 	in packetorframe.InputUnion,
 ) ([]int, error) {
 	streamIdx := in.GetStreamIndex()
@@ -101,6 +100,9 @@ func (f *InputFactory) streamIndexAssignLocked(
 	out := f.streamIndexNext
 	f.streamIndexNext++
 	f.streamIndexMap[key] = out
+
+	f.FFStream.onStreamMapped(ctx, f.FallbackPriority, srcIdx, in.GetMediaType(), out)
+
 	return []int{out}, nil
 }
 
@@ -126,6 +128,10 @@ func (f *InputFactory) GetResources(
 // the packet or frame came from within a specific fallback priority.
 type ResourceIndex int
 
+// FallbackPriority is used as side data key to indicate the fallback priority
+// level.
+type FallbackPriority uint
+
 func (f *InputFactory) NewInput(
 	ctx context.Context,
 	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
@@ -141,7 +147,7 @@ func (f *InputFactory) NewInput(
 	}
 	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d): %d resources", f.FallbackPriority, len(resources))
 
-	var inputs kernel.Tee[*kernel.ChainOfTwo[*kernel.Input, *kernel.Filter]]
+	var inputs kernel.Tee[*kernel.Input]
 	defer func() {
 		if _err != nil {
 			for _, in := range inputs {
@@ -183,10 +189,12 @@ func (f *InputFactory) NewInput(
 		if err != nil {
 			return nil, fmt.Errorf("unable to create input from URL %q: %w", res.URL, err)
 		}
-		inputs = append(inputs, kernel.NewChainOfTwo(
-			in,
-			kernel.NewFilter(addpipelinesidedata.New(ResourceIndex(idx))),
-		))
+		in.PipelineSideData = append(
+			in.PipelineSideData,
+			FallbackPriority(f.FallbackPriority),
+			ResourceIndex(idx),
+		)
+		inputs = append(inputs, in)
 	}
 
 	f.Locker.Do(ctx, func() {

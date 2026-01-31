@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,10 @@ type Flags struct {
 	RemoveSecretsFromLogs       bool
 	VideoEncoder                Encoder
 	AudioEncoder                Encoder
+	FiltersVideo                []string
+	FiltersAudio                []string
+	FiltersComplex              []string
+	Maps                        []string
 	MuxMode                     streammuxtypes.MuxMode
 	AutoBitRate                 *streammuxtypes.AutoBitRateVideoConfig
 	RetryInputTimeoutOnFailure  time.Duration
@@ -62,6 +67,8 @@ func parseFlags(args []string) (context.Context, Flags) {
 	lockTimeout := flag.AddParameter(p, "lock_timeout", false, ptr(flag.Duration(time.Minute)))
 	insecureDebug := flag.AddParameter(p, "insecure_debug", false, ptr(flag.Bool(false)))
 	removeSecretsFromLogs := flag.AddParameter(p, "remove_secrets_from_logs", false, ptr(flag.Bool(false)))
+	vfFlag := flag.AddParameter(p, "vf", false, ptr(flag.StringsAsSeparateFlags(nil)))
+	afFlag := flag.AddParameter(p, "af", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	filterFlag := flag.AddParameter(p, "filter", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	filterComplexFlag := flag.AddParameter(p, "filter_complex", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
@@ -152,26 +159,39 @@ func parseFlags(args []string) (context.Context, Flags) {
 	var inputs ffstream.Resources
 	for idx, input := range inputsFlag.Value() {
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
+		inputConfig := kernel.InputConfig{
+			ForceRealTime: ptr(reFlag.Value()),
+			CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
+		}
+		var syncUsingReferenceAudio *int
+		var suppressed bool
+		for _, opt := range inputConfig.CustomOptions {
+			if opt.Key == "sync_using_reference_audio" {
+				val, err := strconv.Atoi(opt.Value)
+				if err != nil {
+					fatal(ctx, "unable to parse sync_using_reference_audio value %q: %v", opt.Value, err)
+				}
+				syncUsingReferenceAudio = &val
+			}
+			if opt.Key == "suppressed" {
+				val, err := strconv.ParseBool(opt.Value)
+				if err != nil {
+					fatal(ctx, "unable to parse suppressed value %q: %v", opt.Value, err)
+				}
+				suppressed = val
+			}
+		}
 		inputs = append(inputs, ffstream.Resource{
-			URL:          input,
-			CodecHWAccel: hardwareDeviceType,
-			InputConfig: kernel.InputConfig{
-				ForceRealTime: ptr(reFlag.Value()),
-				CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
-			},
+			URL:                     input,
+			CodecHWAccel:            hardwareDeviceType,
+			SyncUsingReferenceAudio: syncUsingReferenceAudio,
+			Suppressed:              suppressed,
+			InputConfig:             inputConfig,
 		})
 	}
 
-	if len(mapFlag.Value()) != 0 {
-		fatal(ctx, "mapping is not supported yet")
-	}
-
 	if len(filterFlag.Value()) != 0 {
-		fatal(ctx, "filters are not supported yet")
-	}
-
-	if len(filterComplexFlag.Value()) != 0 {
-		fatal(ctx, "filters are not supported yet")
+		fatal(ctx, "-filter is not supported yet, use -vf/-af/-filter_complex")
 	}
 
 	muxMode := streammuxtypes.MuxModeFromString(muxModeString.Value())
@@ -190,6 +210,10 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 		InsecureDebug:         insecureDebug.Value(),
 		RemoveSecretsFromLogs: removeSecretsFromLogs.Value(),
+		FiltersVideo:          vfFlag.Value(),
+		FiltersAudio:          afFlag.Value(),
+		FiltersComplex:        filterComplexFlag.Value(),
+		Maps:                  mapFlag.Value(),
 		MuxMode:               muxMode,
 
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),

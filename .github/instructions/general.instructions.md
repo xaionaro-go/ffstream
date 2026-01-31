@@ -33,9 +33,11 @@ The most important rule of all: re-read the instructions files (`*.instruction.m
 - terminal vs file-edit:
   - Prefer terminal batch tools (sed/perl/rg + apply) for mechanical, uniform edits, especially across multiple files.
   - Use file-edit tool for semantic/context-dependent edits.
+- Do not use `grep` to scan source codes, use the search tool, instead.
 - Keep changes as local as possible: smallest scope, shortest lifetime, minimal visibility.
 - Do not introduce new entities unless they remove duplication or improve single-source-of-truth in the touched scope.
 - If you read file and it looks empty, maybe your path is wrong.
+- Never create files or directories with unspecific names (like "utils", "helpers", "misc", etc). Always be very specific about the content, if necessary split into multiple specific files/directories. Be consistent in naming, prefer patterns that group files with similar content together if seen in the alphabetical order.
 
 ## 4. Commands, installs, and environment
 
@@ -95,6 +97,7 @@ The most important rule of all: re-read the instructions files (`*.instruction.m
   - Near-simultaneous/atomic events are not simultaneous/atomic.
 - If there is something slightly weird about a function name, then don't assume what it does: check the implementation to be sure.
 - Before reporting DONE Agent must have re-read all changed code and confirmed it is correct.
+- Never remove safety checks&locks unless you can prove they are unnecessary. If you can prove that, then leave the proof as a comment in the code.
 
 ## 12. Output verbosity
 - If Agent designed something, build information-dense documentation in directory `doc` of the relevant project.

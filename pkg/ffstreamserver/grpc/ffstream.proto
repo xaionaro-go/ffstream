@@ -37,6 +37,7 @@ service FFStream {
   rpc GetInputsInfo(GetInputsInfoRequest) returns (GetInputsInfoReply) {}
   rpc SetInputCustomOption(SetInputCustomOptionRequest) returns (SetInputCustomOptionReply) {}
   rpc SetStopInput(SetStopInputRequest) returns (SetStopInputReply) {}
+  rpc SetInputSuppressed(SetInputSuppressedRequest) returns (SetInputSuppressedReply) {}
   rpc InjectSubtitles(InjectSubtitlesRequest) returns (InjectSubtitlesReply) {}
   rpc InjectData(InjectDataRequest) returns (InjectDataReply) {}
 }
@@ -320,12 +321,13 @@ message GetInputsInfoReply {
 }
 
 message InputInfo {
-  uint64                 id           = 1;
-  uint64                 priority     = 2;
-  uint64                 num          = 3;
-  string                 url          = 4;
-  avpipeline.InputConfig input_config = 5;
-  bool                   is_active    = 6;
+  uint64                 id              = 1;
+  uint64                 priority        = 2;
+  uint64                 num             = 3;
+  string                 url             = 4;
+  avpipeline.InputConfig input_config    = 5;
+  bool                   is_active       = 6;
+  bool                   suppressed      = 7;
 }
 
 message SetInputCustomOptionRequest {
@@ -343,6 +345,14 @@ message SetStopInputRequest {
 }
 
 message SetStopInputReply {}
+
+message SetInputSuppressedRequest {
+  uint64 input_priority = 1;
+  uint64 input_num      = 2;
+  bool   suppressed     = 3;
+}
+
+message SetInputSuppressedReply {}
 
 message InjectSubtitlesRequest {
   bytes data = 1;

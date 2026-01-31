@@ -19,6 +19,7 @@ import (
 	"github.com/xaionaro-go/avpipeline"
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
 	packetorframefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetorframefilter/condition"
 	"github.com/xaionaro-go/avpipeline/packet"
@@ -53,8 +54,17 @@ type FFStream struct {
 	InputQualityMeasurer  *quality.Measurements
 	OutputQualityMeasurer *extra.QualityT
 
+	audioSync *kernel.AudioSync
+
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
+
+	audioStreamIndices map[fallbackResourceKey]int
+}
+
+type fallbackResourceKey struct {
+	Priority    uint
+	ResourceIdx ResourceIndex
 }
 
 func New(
@@ -74,6 +84,7 @@ func New(
 		Inputs:                inputs,
 		InputQualityMeasurer:  quality.NewMeasurements(),
 		OutputQualityMeasurer: extra.NewQuality(),
+		audioStreamIndices:    make(map[fallbackResourceKey]int),
 	}
 	return s, nil
 }
@@ -242,7 +253,15 @@ func (s *FFStream) Start(
 		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", autoBitRateVideo, err)
 	}
 
-	s.Inputs.AddPushTo(ctx, s.StreamMux, packetorframefiltercondition.Function(s.onInput))
+	s.audioSync = kernel.NewAudioSync(ctx, nil)
+	syncNode := node.NewFromKernel(ctx, s.audioSync)
+	gapCfg := kernel.DefaultGapFillerConfig()
+	gapCfg.OverlapStrategyAudio = kernel.OverlapStrategyAudioSpeedUp
+	gapFillerNode := node.NewFromKernel(ctx, kernel.NewGapFiller(ctx, &gapCfg))
+
+	s.Inputs.AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
+	syncNode.AddPushTo(ctx, gapFillerNode, packetorframefiltercondition.Function(s.shouldForwardToOutput))
+	gapFillerNode.AddPushTo(ctx, s.StreamMux)
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		TranscoderConfig: transcoderConfig,
@@ -260,7 +279,7 @@ func (s *FFStream) Start(
 		defer close(errCh)
 		avpipeline.Serve(ctx, avpipeline.ServeConfig{
 			EachNode: node.ServeConfig{},
-		}, errCh, s.Inputs)
+		}, errCh, []node.Abstract{s.Inputs, syncNode, gapFillerNode}...)
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
@@ -563,6 +582,26 @@ func (s *FFStream) SetFPSFraction(
 	return nil
 }
 
+func (s *FFStream) SetSuppressed(
+	ctx context.Context,
+	priority uint,
+	num ResourceIndex,
+	suppressed bool,
+) error {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+
+	if int(priority) >= len(s.InputsInfo) {
+		return fmt.Errorf("input priority %d is out of range", priority)
+	}
+	if int(num) >= len(s.InputsInfo[priority]) {
+		return fmt.Errorf("input num %d is out of range at priority %d", num, priority)
+	}
+
+	s.InputsInfo[priority][num].Suppressed = suppressed
+	return nil
+}
+
 func (s *FFStream) GetBitRates(
 	ctx context.Context,
 ) (_ret *streammuxtypes.BitRates, err error) {
@@ -618,6 +657,75 @@ func (s *FFStream) onInput(
 ) bool {
 	s.InputQualityMeasurer.ObservePacketOrFrame(ctx, input.Input)
 	return true
+}
+
+func (s *FFStream) shouldForwardToOutput(
+	ctx context.Context,
+	input packetorframefiltercondition.Input,
+) bool {
+	priority, ok1 := avptypes.PipelineSideDataLatest[FallbackPriority](input.Input.GetPipelineSideData())
+	idx, ok2 := avptypes.PipelineSideDataLatest[ResourceIndex](input.Input.GetPipelineSideData())
+	if !ok1 || !ok2 {
+		return true
+	}
+
+	// TODO: refactor this, to avoid the locking to decide if a frame/packet should be suppressed.
+	s.locker.Lock()
+	defer s.locker.Unlock()
+
+	if int(priority) >= len(s.InputsInfo) || int(idx) >= len(s.InputsInfo[priority]) {
+		return true
+	}
+
+	return !s.InputsInfo[priority][idx].Suppressed
+}
+
+func (s *FFStream) onStreamMapped(
+	ctx context.Context,
+	priority uint,
+	resourceIdx ResourceIndex,
+	mediaType astiav.MediaType,
+	globalIdx int,
+) {
+	if mediaType != astiav.MediaTypeAudio {
+		return
+	}
+
+	s.locker.Lock()
+	defer s.locker.Unlock()
+
+	key := fallbackResourceKey{Priority: priority, ResourceIdx: resourceIdx}
+	if oldIdx, ok := s.audioStreamIndices[key]; ok && oldIdx == globalIdx {
+		return
+	}
+	s.audioStreamIndices[key] = globalIdx
+	logger.Infof(ctx, "ffstream: detected audio stream for input (priority=%d, resource=%d) at global index %d", priority, resourceIdx, globalIdx)
+
+	resource := &s.InputsInfo[priority][resourceIdx]
+
+	// Check if this input is a reference for others
+	for otherIdx, r := range s.InputsInfo[priority] {
+		if r.SyncUsingReferenceAudio != nil && *r.SyncUsingReferenceAudio == int(resourceIdx) {
+			// Target input needs this reference. Check if target audio is already known.
+			if targetGlobalIdx, ok := s.audioStreamIndices[fallbackResourceKey{Priority: priority, ResourceIdx: ResourceIndex(otherIdx)}]; ok {
+				s.audioSync.AddTrackConfig(ctx, targetGlobalIdx, kernel.AudioSyncTrackConfig{
+					ReferenceStreamIndex: globalIdx,
+					MovingAverageCount:   10,
+				})
+			}
+		}
+	}
+
+	// Check if THIS input needs a reference
+	if resource.SyncUsingReferenceAudio != nil {
+		refResourceIdx := ResourceIndex(*resource.SyncUsingReferenceAudio)
+		if refGlobalIdx, ok := s.audioStreamIndices[fallbackResourceKey{Priority: priority, ResourceIdx: refResourceIdx}]; ok {
+			s.audioSync.AddTrackConfig(ctx, globalIdx, kernel.AudioSyncTrackConfig{
+				ReferenceStreamIndex: refGlobalIdx,
+				MovingAverageCount:   10,
+			})
+		}
+	}
 }
 
 func (s *FFStream) GetInputQuality(

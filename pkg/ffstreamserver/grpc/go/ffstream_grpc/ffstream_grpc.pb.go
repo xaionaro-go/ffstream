@@ -45,6 +45,7 @@ const (
 	FFStream_GetInputsInfo_FullMethodName                 = "/ffstream_grpc.FFStream/GetInputsInfo"
 	FFStream_SetInputCustomOption_FullMethodName          = "/ffstream_grpc.FFStream/SetInputCustomOption"
 	FFStream_SetStopInput_FullMethodName                  = "/ffstream_grpc.FFStream/SetStopInput"
+	FFStream_SetInputSuppressed_FullMethodName            = "/ffstream_grpc.FFStream/SetInputSuppressed"
 	FFStream_InjectSubtitles_FullMethodName               = "/ffstream_grpc.FFStream/InjectSubtitles"
 	FFStream_InjectData_FullMethodName                    = "/ffstream_grpc.FFStream/InjectData"
 )
@@ -78,6 +79,7 @@ type FFStreamClient interface {
 	GetInputsInfo(ctx context.Context, in *GetInputsInfoRequest, opts ...grpc.CallOption) (*GetInputsInfoReply, error)
 	SetInputCustomOption(ctx context.Context, in *SetInputCustomOptionRequest, opts ...grpc.CallOption) (*SetInputCustomOptionReply, error)
 	SetStopInput(ctx context.Context, in *SetStopInputRequest, opts ...grpc.CallOption) (*SetStopInputReply, error)
+	SetInputSuppressed(ctx context.Context, in *SetInputSuppressedRequest, opts ...grpc.CallOption) (*SetInputSuppressedReply, error)
 	InjectSubtitles(ctx context.Context, in *InjectSubtitlesRequest, opts ...grpc.CallOption) (*InjectSubtitlesReply, error)
 	InjectData(ctx context.Context, in *InjectDataRequest, opts ...grpc.CallOption) (*InjectDataReply, error)
 }
@@ -386,6 +388,16 @@ func (c *fFStreamClient) SetStopInput(ctx context.Context, in *SetStopInputReque
 	return out, nil
 }
 
+func (c *fFStreamClient) SetInputSuppressed(ctx context.Context, in *SetInputSuppressedRequest, opts ...grpc.CallOption) (*SetInputSuppressedReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetInputSuppressedReply)
+	err := c.cc.Invoke(ctx, FFStream_SetInputSuppressed_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fFStreamClient) InjectSubtitles(ctx context.Context, in *InjectSubtitlesRequest, opts ...grpc.CallOption) (*InjectSubtitlesReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InjectSubtitlesReply)
@@ -435,6 +447,7 @@ type FFStreamServer interface {
 	GetInputsInfo(context.Context, *GetInputsInfoRequest) (*GetInputsInfoReply, error)
 	SetInputCustomOption(context.Context, *SetInputCustomOptionRequest) (*SetInputCustomOptionReply, error)
 	SetStopInput(context.Context, *SetStopInputRequest) (*SetStopInputReply, error)
+	SetInputSuppressed(context.Context, *SetInputSuppressedRequest) (*SetInputSuppressedReply, error)
 	InjectSubtitles(context.Context, *InjectSubtitlesRequest) (*InjectSubtitlesReply, error)
 	InjectData(context.Context, *InjectDataRequest) (*InjectDataReply, error)
 	mustEmbedUnimplementedFFStreamServer()
@@ -518,6 +531,9 @@ func (UnimplementedFFStreamServer) SetInputCustomOption(context.Context, *SetInp
 }
 func (UnimplementedFFStreamServer) SetStopInput(context.Context, *SetStopInputRequest) (*SetStopInputReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetStopInput not implemented")
+}
+func (UnimplementedFFStreamServer) SetInputSuppressed(context.Context, *SetInputSuppressedRequest) (*SetInputSuppressedReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetInputSuppressed not implemented")
 }
 func (UnimplementedFFStreamServer) InjectSubtitles(context.Context, *InjectSubtitlesRequest) (*InjectSubtitlesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InjectSubtitles not implemented")
@@ -994,6 +1010,24 @@ func _FFStream_SetStopInput_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_SetInputSuppressed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetInputSuppressedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetInputSuppressed(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetInputSuppressed_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetInputSuppressed(ctx, req.(*SetInputSuppressedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FFStream_InjectSubtitles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(InjectSubtitlesRequest)
 	if err := dec(in); err != nil {
@@ -1128,6 +1162,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetStopInput",
 			Handler:    _FFStream_SetStopInput_Handler,
+		},
+		{
+			MethodName: "SetInputSuppressed",
+			Handler:    _FFStream_SetInputSuppressed_Handler,
 		},
 		{
 			MethodName: "InjectSubtitles",
