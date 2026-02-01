@@ -38,6 +38,10 @@ import (
 	"github.com/xaionaro-go/observability"
 )
 
+const (
+	enableGapFiller = false
+)
+
 type (
 	Inputs     = inputwithfallback.InputWithFallback[*Input, *DecoderFactory, CustomData]
 	InputChain = inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData]
@@ -255,13 +259,17 @@ func (s *FFStream) Start(
 
 	s.audioSync = kernel.NewAudioSync(ctx, nil)
 	syncNode := node.NewFromKernel(ctx, s.audioSync)
-	gapCfg := kernel.DefaultGapFillerConfig()
-	gapCfg.OverlapStrategyAudio = kernel.OverlapStrategyAudioSpeedUp
-	gapFillerNode := node.NewFromKernel(ctx, kernel.NewGapFiller(ctx, &gapCfg))
-
 	s.Inputs.AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
-	syncNode.AddPushTo(ctx, gapFillerNode, packetorframefiltercondition.Function(s.shouldForwardToOutput))
-	gapFillerNode.AddPushTo(ctx, s.StreamMux)
+
+	if enableGapFiller {
+		gapCfg := kernel.DefaultGapFillerConfig()
+		gapCfg.OverlapStrategyAudio = kernel.OverlapStrategyAudioSpeedUp
+		gapFillerNode := node.NewFromKernel(ctx, kernel.NewGapFiller(ctx, &gapCfg))
+		syncNode.AddPushTo(ctx, gapFillerNode, packetorframefiltercondition.Function(s.shouldForwardToOutput))
+		gapFillerNode.AddPushTo(ctx, s.StreamMux)
+	} else {
+		syncNode.AddPushTo(ctx, s.StreamMux, packetorframefiltercondition.Function(s.shouldForwardToOutput))
+	}
 
 	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
 		TranscoderConfig: transcoderConfig,
@@ -279,7 +287,7 @@ func (s *FFStream) Start(
 		defer close(errCh)
 		avpipeline.Serve(ctx, avpipeline.ServeConfig{
 			EachNode: node.ServeConfig{},
-		}, errCh, []node.Abstract{s.Inputs, syncNode, gapFillerNode}...)
+		}, errCh, []node.Abstract{s.Inputs}...)
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
