@@ -21,7 +21,8 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20260124161002-bd5e1d855f00
-	github.com/xaionaro-go/avpipeline v0.0.0-20260201220228-ecdd29f1557c
+	github.com/xaionaro-go/avd v0.0.0-20260104210934-af571b0e52da
+	github.com/xaionaro-go/avpipeline v0.0.0-20260215180403-57903ccb8003
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20251109211112-251265903264
@@ -38,9 +39,11 @@ require (
 
 require (
 	github.com/brettbuddin/fourier v0.1.1 // indirect
+	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12 // indirect
+	github.com/xaionaro-go/datacounter v1.0.4 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -63,7 +66,7 @@ require (
 	github.com/go-ng/xsort v0.0.0-20250330112557-d2ee7f01661c // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/huandu/go-tls v1.0.1 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
