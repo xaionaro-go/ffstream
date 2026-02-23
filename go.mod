@@ -4,6 +4,10 @@ go 1.25.5
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20260222232736-ea032799baeb
+
+replace github.com/xaionaro-go/avpipeline v0.0.0-20260215180403-57903ccb8003 => github.com/xaionaro-go/avpipeline v0.0.0-20260223000047-5b78bc404c57
+
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250811230008-5f3141c8851a
 
 require (
