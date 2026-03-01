@@ -115,16 +115,17 @@ func (s *FFStream) AddInput(
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
-	if len(s.Inputs.InputChains) != len(s.InputsInfo) {
-		return fmt.Errorf("internal error: len(s.Inputs.InputChains) != len(s.InputsInfo): %d != %d", len(s.Inputs.InputChains), len(s.InputsInfo))
-	}
 	priority := resource.GetFallbackPriority(ctx)
 
 	// If the requested priority level doesn't exist yet, create new input factories
 	// for all missing priority levels up to the requested one.
+	startLen := len(s.InputsInfo)
 	for p := len(s.Inputs.InputChains); p <= int(priority); p++ {
-		s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p)))
 		s.InputsInfo = append(s.InputsInfo, nil)
+		if err := s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p))); err != nil {
+			s.InputsInfo = s.InputsInfo[:startLen]
+			return fmt.Errorf("failed to add input factory: %w", err)
+		}
 	}
 
 	s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
@@ -259,7 +260,20 @@ func (s *FFStream) Start(
 
 	s.audioSync = kernel.NewAudioSync(ctx, nil)
 	syncNode := node.NewFromKernel(ctx, s.audioSync)
-	s.Inputs.AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
+
+	// Attach quality measurement to each input chain's output BEFORE AudioSync.
+	// AudioSync only processes audio frames and doesn't properly track video frames,
+	// so we need to measure quality at the input level.
+	// We also need to keep the combined output connection for data flow.
+	// InputChains may be empty if no inputs have been added yet (e.g., during initialization).
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		for _, inputChain := range s.Inputs.InputChains {
+			inputChain.GetOutput().AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
+		}
+	})
+
+	// Also attach to the combined inputs output for quality measurement
+	s.Inputs.AddPushTo(ctx, syncNode)
 
 	if enableGapFiller {
 		gapCfg := kernel.DefaultGapFillerConfig()

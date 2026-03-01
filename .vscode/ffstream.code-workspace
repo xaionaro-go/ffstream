@@ -8,7 +8,7 @@
         }
     ],
     "settings": {
-        "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+        "go.buildTags": "with_libsrt,with_libav,with_libvlc",
         "search.exclude": {
             "**/import": true,
             "**/import/**": true,

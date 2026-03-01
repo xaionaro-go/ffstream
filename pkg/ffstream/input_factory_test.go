@@ -6,7 +6,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/kernel/android"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
@@ -40,5 +42,83 @@ func TestInputFactory_NewInput_MultipleResourcesSamePriority(t *testing.T) {
 		// On partial success implementations might return a partially built tee;
 		// we don't rely on that and keep the assertion minimal.
 		_ = tee
+	}
+}
+
+func TestInputFormatFromResource(t *testing.T) {
+	tests := []struct {
+		name string
+		res  Resource
+		want string
+	}{
+		{
+			name: "format present",
+			res: Resource{
+				InputConfig: kernel.InputConfig{
+					CustomOptions: avptypes.DictionaryItems{
+						{Key: "f", Value: "mpegts"},
+					},
+				},
+			},
+			want: "mpegts",
+		},
+		{
+			name: "format with whitespace trimmed",
+			res: Resource{
+				InputConfig: kernel.InputConfig{
+					CustomOptions: avptypes.DictionaryItems{
+						{Key: "f", Value: " flv "},
+					},
+				},
+			},
+			want: "flv",
+		},
+		{
+			name: "no format option",
+			res:  Resource{},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := inputFormatFromResource(tt.res)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestHasMicrophoneInputs(t *testing.T) {
+	micRes := Resource{
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: android.MicrophoneInputFormat},
+			},
+		},
+	}
+	nonMicRes := Resource{
+		URL: "rtmp://server/stream",
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: "flv"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		resources Resources
+		wantMic   bool
+		wantNon   bool
+	}{
+		{"empty", Resources{}, false, false},
+		{"mic only", Resources{micRes}, true, false},
+		{"non-mic only", Resources{nonMicRes}, false, true},
+		{"mixed", Resources{micRes, nonMicRes}, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantMic, hasMicrophoneInputs(tt.resources))
+			assert.Equal(t, tt.wantNon, hasNonMicrophoneInputs(tt.resources))
+		})
 	}
 }

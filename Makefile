@@ -4,7 +4,7 @@ ENABLE_LIBSRT?=false
 ENABLE_DEBUG_TRACE?=false
 ANDROID_NDK_VERSION?=r28-beta2
 
-GOTAGS:=$(GOTAGS),with_libav,ffmpeg7
+GOTAGS:=$(GOTAGS),with_libav
 ifeq ($(ENABLE_LIBSRT), true)
 	GOTAGS:=$(GOTAGS),with_libsrt
 endif
@@ -52,14 +52,14 @@ $(GOPATH)/bin/pkg-config-wrapper:
 	mkdir -p 3rdparty/arm64
 	cd 3rdparty/arm64 && wget https://dl.google.com/android/repository/android-ndk-$(ANDROID_NDK_VERSION)-linux.zip && unzip android-ndk-$(ANDROID_NDK_VERSION)-linux.zip && rm -f android-ndk-$(ANDROID_NDK_VERSION)-linux.zip
 
-# Check for ffmpeg7 termux libraries (built via build/build-ffmpeg-for-android.sh)
+# Check for ffmpeg8 termux libraries (built via build/build-ffmpeg-for-android.sh)
 3rdparty/arm64/termux:
 	@if [ ! -f 3rdparty/arm64/termux/data/data/com.termux/files/usr/lib/libavcodec.a ]; then \
-		echo "ERROR: ffmpeg7 libraries not found. Please run: ./build/build-ffmpeg-for-android.sh"; \
+		echo "ERROR: ffmpeg8 libraries not found. Please run: ./build/build-ffmpeg-for-android.sh"; \
 		exit 1; \
 	fi
 
-# Build ffstream for Android ARM64 without Docker (uses ffmpeg7 libraries built via build/build-ffmpeg-for-android.sh)
+# Build ffstream for Android ARM64 without Docker (uses ffmpeg8 libraries built via build/build-ffmpeg-for-android.sh)
 # Key: Use -linkmode=external and -Wl,-Bdynamic to ensure dynamic linking of libc.so
 # This prevents static linking of bionic's getauxval which crashes on Android
 ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION) 3rdparty/arm64/termux

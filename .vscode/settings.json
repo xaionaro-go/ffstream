@@ -3,10 +3,10 @@
         "GOOS": "linux",
         "GOARCH": "amd64"
     },
-    "go.buildTags": "with_libsrt,with_libav,with_libvlc,ffmpeg7",
+    "go.buildTags": "with_libsrt,with_libav,with_libvlc",
     "gopls": {
         "build.buildFlags": [
-            "-tags=with_libsrt,with_libav+/with_libvlc,ffmpeg7"
+            "-tags=with_libsrt,with_libav+/with_libvlc"
         ],
         "build.directoryFilters": [
                 "-**/node_modules",

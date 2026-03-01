@@ -218,7 +218,7 @@ func (s *E2ETestSuite) ensureAVDBinary() error {
 	ctx, cancel := context.WithTimeout(s.ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-tags=with_libav,ffmpeg7", "-o", avdBin, "./cmd/avd")
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-tags=with_libav", "-o", avdBin, "./cmd/avd")
 	cmd.Dir = "/workspaces/xaionaro-go/avd"
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build ffmpeg7 with MediaCodec patches for Android arm64 (termux)
+# Build ffmpeg8 with MediaCodec patches for Android arm64 (termux)
 # This script automates the entire ffmpeg build process for ffstream
 #
 # Prerequisites:
@@ -38,7 +38,7 @@ for arg in "$@"; do
     esac
 done
 
-echo "=== Building ffmpeg7 for Android arm64 (termux) ==="
+echo "=== Building ffmpeg8 for Android arm64 (termux) ==="
 echo "FFSTREAM_DIR: $FFSTREAM_DIR"
 echo "TERMUX_PACKAGES_DIR: $TERMUX_PACKAGES_DIR"
 echo "OUTPUT_DIR: $OUTPUT_DIR"
@@ -88,7 +88,7 @@ else
     echo "WARNING: mediacodec_set_parameters.patch not found at $FFSTREAM_DIR/build/termux/"
 fi
 
-# NOTE: mediacodec_q_params.patch is NOT needed for ffmpeg 7.1+
+# NOTE: mediacodec_q_params.patch is NOT needed for ffmpeg 8+
 # The qp_i_min, qp_p_min, qp_b_min parameters were upstreamed
 
 # Step 5: Modify ffmpeg build.sh to disable external libraries we don't have
@@ -248,7 +248,7 @@ fi
 echo ""
 echo "=== Build Complete ==="
 echo ""
-echo "ffmpeg7 with MediaCodec patches has been built and installed to:"
+echo "ffmpeg8 with MediaCodec patches has been built and installed to:"
 echo "  $OUTPUT_DIR"
 echo ""
 echo "You can now build ffstream for Android with:"
