@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/xaionaro-go/avpipeline/kernel"
-	"github.com/xaionaro-go/avpipeline/kernel/android"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
@@ -87,38 +86,3 @@ func TestInputFormatFromResource(t *testing.T) {
 	}
 }
 
-func TestHasMicrophoneInputs(t *testing.T) {
-	micRes := Resource{
-		InputConfig: kernel.InputConfig{
-			CustomOptions: avptypes.DictionaryItems{
-				{Key: "f", Value: android.MicrophoneInputFormat},
-			},
-		},
-	}
-	nonMicRes := Resource{
-		URL: "rtmp://server/stream",
-		InputConfig: kernel.InputConfig{
-			CustomOptions: avptypes.DictionaryItems{
-				{Key: "f", Value: "flv"},
-			},
-		},
-	}
-
-	tests := []struct {
-		name      string
-		resources Resources
-		wantMic   bool
-		wantNon   bool
-	}{
-		{"empty", Resources{}, false, false},
-		{"mic only", Resources{micRes}, true, false},
-		{"non-mic only", Resources{nonMicRes}, false, true},
-		{"mixed", Resources{micRes, nonMicRes}, true, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantMic, hasMicrophoneInputs(tt.resources))
-			assert.Equal(t, tt.wantNon, hasNonMicrophoneInputs(tt.resources))
-		})
-	}
-}

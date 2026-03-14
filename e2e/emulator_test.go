@@ -32,7 +32,6 @@ func startEmulator(ctx context.Context) (*EmulatorManager, error) {
 	cmd := exec.CommandContext(ctx, emulatorPath,
 		"-avd", testAVDName,
 		"-no-window",
-		"-no-audio",
 		"-no-boot-anim",
 		"-gpu", "swiftshader_indirect",
 	)

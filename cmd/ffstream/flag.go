@@ -262,16 +262,18 @@ func parseFlags(args []string) (context.Context, Flags) {
 		if err != nil {
 			fatal(ctx, "unable to get default auto-bitrate config: %v", err)
 		}
-		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MaxHeight(uint32(autoBitrateMaxHeight.Value()))
-		cfg.ResolutionsAndBitRates = cfg.ResolutionsAndBitRates.MinHeight(uint32(autoBitrateMinHeight.Value()))
+		cfg.MaxResolution = codec.Resolution{Height: uint32(autoBitrateMaxHeight.Value())}
+		cfg.MinResolution = codec.Resolution{Height: uint32(autoBitrateMinHeight.Value())}
 		if flags.MuxMode == streammuxtypes.MuxModeForbid {
+			allowed := cfg.AllowedResolutionsAndBitRates()
 			cfg.ResolutionsAndBitRates = streammuxtypes.AutoBitRateResolutionAndBitRateConfigs{
-				*cfg.ResolutionsAndBitRates.Best(),
+				*allowed.Best(),
 			}
 		}
 		cfg.AutoByPass = autoBitrateAutoBypass.Value()
-		cfg.MaxBitRate = cfg.ResolutionsAndBitRates.Best().BitrateHigh
-		cfg.MinBitRate = cfg.ResolutionsAndBitRates.Worst().BitrateLow
+		allowed := cfg.AllowedResolutionsAndBitRates()
+		cfg.MaxBitRate = allowed.Best().BitrateHigh
+		cfg.MinBitRate = allowed.Worst().BitrateLow
 		flags.AutoBitRate = &cfg
 	}
 

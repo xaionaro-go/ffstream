@@ -261,19 +261,8 @@ func (s *FFStream) Start(
 	s.audioSync = kernel.NewAudioSync(ctx, nil)
 	syncNode := node.NewFromKernel(ctx, s.audioSync)
 
-	// Attach quality measurement to each input chain's output BEFORE AudioSync.
-	// AudioSync only processes audio frames and doesn't properly track video frames,
-	// so we need to measure quality at the input level.
-	// We also need to keep the combined output connection for data flow.
-	// InputChains may be empty if no inputs have been added yet (e.g., during initialization).
-	s.Inputs.InputChainsLocker.Do(ctx, func() {
-		for _, inputChain := range s.Inputs.InputChains {
-			inputChain.GetOutput().AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
-		}
-	})
-
-	// Also attach to the combined inputs output for quality measurement
-	s.Inputs.AddPushTo(ctx, syncNode)
+	// Observe quality metrics and forward all inputs to AudioSync.
+	s.Inputs.AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
 
 	if enableGapFiller {
 		gapCfg := kernel.DefaultGapFillerConfig()

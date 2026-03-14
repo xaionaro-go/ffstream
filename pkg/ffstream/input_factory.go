@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asticode/go-astiav"
 	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/kernel/android"
+	"github.com/xaionaro-go/avpipeline/kernel/v4l2"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/packetorframe/condition"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
@@ -155,10 +155,6 @@ func (f *InputFactory) NewInput(
 	}
 	logger.Debugf(ctx, "inputFactory.NewInput(priority=%d): %d resources", f.FallbackPriority, len(resources))
 
-	if hasMicrophoneInputs(resources) && hasNonMicrophoneInputs(resources) {
-		return nil, fmt.Errorf("android_microphone inputs cannot be mixed with non-microphone inputs in the same fallback priority")
-	}
-
 	var inputs kernel.Tee[kernel.Abstract]
 	defer func() {
 		if _err != nil {
@@ -221,12 +217,33 @@ func (f *InputFactory) newInputKernel(
 	resourceIdx int,
 	res Resource,
 	cfg kernel.InputConfig,
-) (kernel.Abstract, error) {
+) (_ret kernel.Abstract, _err error) {
 	formatName := inputFormatFromResource(res)
-	if formatName == android.MicrophoneInputFormat {
-		return f.newMicrophoneInput(ctx, resourceIdx, cfg)
+	logger.Debugf(ctx, "inputFactory.newInputKernel(priority=%d, resourceIdx=%d): format=%q, url=%q", f.FallbackPriority, resourceIdx, formatName, res.URL)
+	defer func() {
+		logger.Debugf(ctx, "/inputFactory.newInputKernel(priority=%d, resourceIdx=%d): %v, %v", f.FallbackPriority, resourceIdx, _ret, _err)
+	}()
+	switch {
+	case formatName == android.MicrophoneInputFormat:
+		return f.newMicrophoneInput(ctx, resourceIdx, res.URL, cfg)
+	case v4l2.IsV4L2Format(formatName) && strings.HasPrefix(res.URL, "name:"):
+		var matchIndex *int
+		if v := res.CustomOptions.GetFirst("match_index"); v != nil {
+			idx, err := strconv.Atoi(strings.TrimSpace(*v))
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse match_index %q: %w", *v, err)
+			}
+			matchIndex = &idx
+		}
+		devicePath, err := v4l2.ResolveDeviceByName(ctx, strings.TrimPrefix(res.URL, "name:"), matchIndex)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve V4L2 device: %w", err)
+		}
+		res.URL = devicePath
+		return f.newURLInput(ctx, resourceIdx, res, cfg)
+	default:
+		return f.newURLInput(ctx, resourceIdx, res, cfg)
 	}
-	return f.newURLInput(ctx, resourceIdx, res, cfg)
 }
 
 func (f *InputFactory) newURLInput(
@@ -250,9 +267,10 @@ func (f *InputFactory) newURLInput(
 func (f *InputFactory) newMicrophoneInput(
 	ctx context.Context,
 	resourceIdx int,
+	inputURL string,
 	cfg kernel.InputConfig,
 ) (kernel.Abstract, error) {
-	micCfg, err := parseMicrophoneConfig(cfg.CustomOptions)
+	micCfg, err := parseMicrophoneConfig(inputURL, cfg.CustomOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -277,15 +295,28 @@ func (f *InputFactory) newMicrophoneInput(
 	), nil
 }
 
-func parseMicrophoneConfig(opts avptypes.DictionaryItems) (android.MicrophoneConfig, error) {
+func parseMicrophoneConfig(inputURL string, opts avptypes.DictionaryItems) (android.MicrophoneConfig, error) {
 	var cfg android.MicrophoneConfig
+	if inputURL != "" {
+		trimmed := strings.TrimSpace(inputURL)
+		switch {
+		case strings.HasPrefix(trimmed, "name:"):
+			cfg.DeviceNamePattern = strings.TrimPrefix(trimmed, "name:")
+		default:
+			id, err := strconv.ParseInt(trimmed, 10, 32)
+			if err != nil {
+				return android.MicrophoneConfig{}, fmt.Errorf(
+					"invalid microphone input %q: use a numeric device ID or \"name:<pattern>\"",
+					inputURL,
+				)
+			}
+			devID := int32(id)
+			cfg.DeviceID = &devID
+		}
+	}
 	for _, opt := range opts {
 		value := strings.TrimSpace(opt.Value)
 		switch opt.Key {
-		case "device_name":
-			cfg.DeviceName = value
-		case "library_path":
-			cfg.LibraryPath = value
 		case "sample_rate":
 			if value == "" {
 				continue
@@ -331,29 +362,22 @@ func parseMicrophoneConfig(opts avptypes.DictionaryItems) (android.MicrophoneCon
 				return android.MicrophoneConfig{}, fmt.Errorf("unable to parse poll_interval %q: %v", opt.Value, err)
 			}
 			cfg.PollInterval = dur
-		case "sample_format":
+		case "disable_sensor_privacy_on_start":
+			cfg.DisableSensorPrivacyOnStart = value == "1" || value == "true"
+		case "disable_sensor_privacy_on_silence":
+			cfg.DisableSensorPrivacyOnSilence = value == "1" || value == "true"
+		case "input_preset":
 			if value == "" {
 				continue
 			}
-			sampleFmt, err := parseSampleFormat(value)
+			preset, err := strconv.Atoi(value)
 			if err != nil {
-				return android.MicrophoneConfig{}, fmt.Errorf("unable to parse sample_format %q: %v", opt.Value, err)
+				return android.MicrophoneConfig{}, fmt.Errorf("unable to parse input_preset %q: %v", opt.Value, err)
 			}
-			cfg.SampleFormat = sampleFmt
+			cfg.InputPreset = android.InputPreset(preset)
 		}
 	}
 	return cfg, nil
-}
-
-func parseSampleFormat(s string) (astiav.SampleFormat, error) {
-	s = strings.TrimSpace(strings.ToLower(s))
-	switch s {
-	case "u8":
-		return astiav.SampleFormatU8, nil
-	case "s16":
-		return astiav.SampleFormatS16, nil
-	}
-	return astiav.SampleFormatNone, fmt.Errorf("unsupported sample format '%s' (supported: u8, s16)", s)
 }
 
 func inputFormatFromResource(res Resource) string {
@@ -361,24 +385,6 @@ func inputFormatFromResource(res Resource) string {
 		return strings.TrimSpace(*v)
 	}
 	return ""
-}
-
-func hasMicrophoneInputs(resources Resources) bool {
-	for _, res := range resources {
-		if inputFormatFromResource(res) == android.MicrophoneInputFormat {
-			return true
-		}
-	}
-	return false
-}
-
-func hasNonMicrophoneInputs(resources Resources) bool {
-	for _, res := range resources {
-		if inputFormatFromResource(res) != android.MicrophoneInputFormat {
-			return true
-		}
-	}
-	return false
 }
 
 func (f *InputFactory) NewDecoderFactory(

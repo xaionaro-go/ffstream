@@ -156,7 +156,12 @@ func (s *senderFactory) newOutputKernel(
 			return nil
 		}
 	})
-	if err != nil {
+	switch {
+	case err == nil:
+	case errors.As(err, &kernel.ErrNoRawNetworkConn{}):
+		// Non-network outputs (files, null) have no raw connection; this is expected.
+		logger.Debugf(ctx, "unable to set raw network connection options: %v", err)
+	default:
 		logger.Errorf(ctx, "unable to set raw network connection options: %v", err)
 	}
 	outputKernel.Filter = packetcondition.And{

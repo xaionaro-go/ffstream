@@ -55,6 +55,7 @@ type E2ETestSuite struct {
 	device       *DeviceInfo
 	deviceHelper *deviceTestHelper
 	avdProcess   *exec.Cmd
+	avdLogWg     sync.WaitGroup
 	avdConfig    string
 	tempDir      string
 	hostIP       string
@@ -309,6 +310,12 @@ func (s *E2ETestSuite) DeployFFstream() error {
 
 // generateAVDConfig generates a minimal AVD configuration for testing.
 func (s *E2ETestSuite) generateAVDConfig() string {
+	return s.generateAVDConfigWithAudio(0)
+}
+
+// generateAVDConfigWithAudio generates an AVD configuration expecting the given
+// number of audio tracks on the consumer port.
+func (s *E2ETestSuite) generateAVDConfigWithAudio(audioTrackCount int) string {
 	return fmt.Sprintf(`ports_service:
 - address: tcp:0.0.0.0:%d
   service:
@@ -336,10 +343,20 @@ ports_streaming:
   on_end: "close_consumers"
   wait_until:
     video_track_count: 1
-    audio_track_count: 0
+    audio_track_count: %d
 endpoints:
   test/stream: {}
-`, avdManagementPort, avdPublisherPort, avdConsumerPort)
+`, avdManagementPort, avdPublisherPort, avdConsumerPort, audioTrackCount)
+}
+
+// StartAVDWithAudio starts the AVD server configured to expect audio tracks.
+func (s *E2ETestSuite) StartAVDWithAudio(audioTrackCount int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	avdBin := s.getAVDBinaryPath()
+	s.avdConfig = s.generateAVDConfigWithAudio(audioTrackCount)
+	return s.startAVDLocked(avdBin)
 }
 
 // StartAVD starts the AVD server to receive streams.
@@ -349,6 +366,10 @@ func (s *E2ETestSuite) StartAVD() error {
 
 	avdBin := s.getAVDBinaryPath()
 	s.avdConfig = s.generateAVDConfig()
+	return s.startAVDLocked(avdBin)
+}
+
+func (s *E2ETestSuite) startAVDLocked(avdBin string) error {
 
 	// Write config to file
 	configPath := filepath.Join(s.tempDir, "avd.yaml")
@@ -370,8 +391,12 @@ func (s *E2ETestSuite) StartAVD() error {
 		return fmt.Errorf("failed to start avd: %w", err)
 	}
 
-	// Log output in background
+	// Log output in background; tracked by avdLogWg so StopAVD can wait
+	// for the goroutines to finish before the test returns (prevents
+	// "Log called after test finished" panics).
+	s.avdLogWg.Add(2)
 	go func() {
+		defer s.avdLogWg.Done()
 		buf := make([]byte, 4096)
 		for {
 			n, err := stdout.Read(buf)
@@ -384,6 +409,7 @@ func (s *E2ETestSuite) StartAVD() error {
 		}
 	}()
 	go func() {
+		defer s.avdLogWg.Done()
 		buf := make([]byte, 4096)
 		for {
 			n, err := stderr.Read(buf)
@@ -426,6 +452,7 @@ func (s *E2ETestSuite) StopAVD() {
 		s.t.Log("Stopping AVD...")
 		s.avdProcess.Process.Kill()
 		s.avdProcess.Wait()
+		s.avdLogWg.Wait() // drain log goroutines before test returns
 		s.avdProcess = nil
 	}
 }
@@ -818,4 +845,188 @@ func TestFFstreamBasicFunctionality(t *testing.T) {
 	}
 
 	t.Log("Basic functionality tests completed")
+}
+
+// countDTSErrors counts occurrences of DTS monotonicity errors in ffstream log
+// output. Returns the count and the matching lines for diagnostics.
+func countDTSErrors(output string) (int, []string) {
+	var count int
+	var matches []string
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "DTS from the stream's past") ||
+			strings.Contains(line, "received too old item") {
+			count++
+			matches = append(matches, line)
+		}
+	}
+	return count, matches
+}
+
+// runAudioDTSMonotonicityTest is the shared implementation for both
+// android_camera and V4L2 MJPEG DTS monotonicity tests.
+// videoInputFlags contains the ffstream flags for the video input source.
+func (s *E2ETestSuite) runAudioDTSMonotonicityTest(
+	videoInputFlags string,
+	duration time.Duration,
+) (dtsErrorCount int, dtsErrorLines []string) {
+	rtmpURL := fmt.Sprintf("rtmp://127.0.0.1:%d/test/stream", avdPublisherPort)
+	s.t.Logf("Testing audio DTS monotonicity, streaming to %s (via ADB reverse)", rtmpURL)
+
+	var cmdBuilder strings.Builder
+	cmdBuilder.WriteString(fmt.Sprintf("timeout %d ffstream -v info ", int(duration.Seconds())+5))
+	cmdBuilder.WriteString("-retry_input_timeout_on_failure 1s ")
+	cmdBuilder.WriteString("-retry_output_timeout_on_failure 0 ")
+	cmdBuilder.WriteString("-hwaccel mediacodec ")
+	cmdBuilder.WriteString("-mux_mode different_outputs_same_tracks_split_av ")
+
+	// Video input (caller-provided)
+	cmdBuilder.WriteString(videoInputFlags)
+	cmdBuilder.WriteString(" ")
+
+	// Audio input: android_microphone
+	cmdBuilder.WriteString("-sample_rate 48000 -f android_microphone -i 0 ")
+
+	// Video encoder settings
+	cmdBuilder.WriteString("-s 640x480 -c:v hevc_mediacodec ")
+	cmdBuilder.WriteString("-b:v 4M -bufsize 4M -g 60 -r 30 ")
+
+	// Audio encoder settings
+	cmdBuilder.WriteString("-ar 48000 -ac 1 -sample_fmt fltp -c:a aac ")
+
+	// Output
+	cmdBuilder.WriteString("-f flv ")
+	cmdBuilder.WriteString(fmt.Sprintf("'%s' 2>&1", rtmpURL))
+
+	s.t.Logf("Running ffstream command on device...")
+	out, err := s.deviceHelper.termuxCmd(cmdBuilder.String())
+	s.t.Logf("ffstream output:\n%s", out)
+
+	// Check for fatal setup errors (skip rather than fail)
+	switch {
+	case strings.Contains(out, "CANNOT LINK"):
+		s.t.Skipf("Library linking error: %s", out)
+	case strings.Contains(out, "Connection refused"):
+		s.t.Skipf("AVD not reachable at %s", rtmpURL)
+	case strings.Contains(out, "Permission denied"):
+		s.t.Skipf("Permission denied (check camera/microphone permissions for Termux): %s", out)
+	case strings.Contains(out, "No cameras") || strings.Contains(out, "no camera"):
+		s.t.Skipf("No cameras available on device")
+	case strings.Contains(out, "android_camera") && strings.Contains(out, "not found"):
+		s.t.Skipf("android_camera input not supported in this build")
+	case strings.Contains(out, "android_microphone") && strings.Contains(out, "not found"):
+		s.t.Skipf("android_microphone input not supported in this build")
+	}
+
+	// Verify that streaming actually happened (at least some frames processed)
+	if !strings.Contains(out, "frame=") && !strings.Contains(out, "Output") {
+		if err != nil {
+			s.t.Fatalf("Streaming did not start: %v, output: %s", err, out)
+		}
+	}
+
+	dtsErrorCount, dtsErrorLines = countDTSErrors(out)
+	return dtsErrorCount, dtsErrorLines
+}
+
+// TestE2E_AndroidCamera_AudioDTSMonotonicity tests that audio DTS values remain
+// monotonically increasing when using android_camera video + android_microphone
+// audio with mux_mode different_outputs_same_tracks_split_av.
+// This reproduces the production "DTS from the stream's past" error.
+// Agent-generated test.
+func TestE2E_AndroidCamera_AudioDTSMonotonicity(t *testing.T) {
+	suite := NewE2ETestSuite(t)
+	defer suite.Teardown()
+
+	if err := suite.Setup(); err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	if err := suite.CheckPrerequisites(); err != nil {
+		t.Skipf("Prerequisites not met: %v", err)
+	}
+
+	if err := suite.DeployFFstream(); err != nil {
+		t.Fatalf("Deploy failed: %v", err)
+	}
+
+	if err := suite.StartAVDWithAudio(1); err != nil {
+		t.Fatalf("Failed to start AVD: %v", err)
+	}
+
+	if err := suite.SetupReversePortForwarding(); err != nil {
+		t.Fatalf("Failed to set up reverse port forwarding: %v", err)
+	}
+
+	videoFlags := "-video_size 640x480 -camera_index 0 -framerate 30 -f android_camera -i ''"
+
+	dtsErrorCount, dtsErrorLines := suite.runAudioDTSMonotonicityTest(
+		videoFlags,
+		20*time.Second,
+	)
+
+	for _, line := range dtsErrorLines {
+		t.Logf("DTS error: %s", line)
+	}
+	t.Logf("Total DTS monotonicity errors: %d", dtsErrorCount)
+
+	if dtsErrorCount > 0 {
+		t.Errorf("detected %d 'DTS from the stream's past' errors in ffstream log (expected 0)", dtsErrorCount)
+	}
+}
+
+// TestE2E_V4L2MJPEG_AudioDTSMonotonicity tests that audio DTS values remain
+// monotonically increasing when using V4L2 MJPEG video + android_microphone
+// audio with mux_mode different_outputs_same_tracks_split_av.
+// This requires a real device with /dev/video0 available.
+// Agent-generated test.
+func TestE2E_V4L2MJPEG_AudioDTSMonotonicity(t *testing.T) {
+	suite := NewE2ETestSuite(t)
+	defer suite.Teardown()
+
+	if err := suite.Setup(); err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	// V4L2 only works on real devices, not emulators
+	if suite.device.IsEmulator {
+		t.Skip("V4L2 not available on emulator")
+	}
+
+	// Check if /dev/video0 exists on the device
+	out, _ := suite.deviceHelper.termuxCmd("ls /dev/video0 2>/dev/null && echo EXISTS")
+	if !strings.Contains(out, "EXISTS") {
+		t.Skip("no V4L2 device (/dev/video0) available, skipping V4L2 MJPEG test")
+	}
+
+	if err := suite.CheckPrerequisites(); err != nil {
+		t.Skipf("Prerequisites not met: %v", err)
+	}
+
+	if err := suite.DeployFFstream(); err != nil {
+		t.Fatalf("Deploy failed: %v", err)
+	}
+
+	if err := suite.StartAVDWithAudio(1); err != nil {
+		t.Fatalf("Failed to start AVD: %v", err)
+	}
+
+	if err := suite.SetupReversePortForwarding(); err != nil {
+		t.Fatalf("Failed to set up reverse port forwarding: %v", err)
+	}
+
+	videoFlags := "-video_size 1920x1080 -input_format mjpeg -framerate 30 -f video4linux2 -i /dev/video0"
+
+	dtsErrorCount, dtsErrorLines := suite.runAudioDTSMonotonicityTest(
+		videoFlags,
+		20*time.Second,
+	)
+
+	for _, line := range dtsErrorLines {
+		t.Logf("DTS error: %s", line)
+	}
+	t.Logf("Total DTS monotonicity errors: %d", dtsErrorCount)
+
+	if dtsErrorCount > 0 {
+		t.Errorf("detected %d 'DTS from the stream's past' errors in ffstream log (expected 0)", dtsErrorCount)
+	}
 }

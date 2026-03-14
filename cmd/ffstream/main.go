@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	child_process_manager "github.com/AgustinSRG/go-child-process-manager"
@@ -33,10 +35,16 @@ func main() {
 	}
 	defer child_process_manager.DisposeChildProcessManager()
 
+	codec.FallbackToSoftwareOnNoHWCodec = true
+
 	ctx, flags := parseFlags(os.Args)
 
 	ctx, cancelFunc := initRuntime(ctx, flags)
 	defer cancelFunc()
+
+	ctx, sigStop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer sigStop()
+
 	ctx = xsync.WithNoLogging(ctx, true)
 
 	logger.Debugf(ctx, "flags == %#+v", flags)
@@ -65,7 +73,22 @@ func main() {
 		assertNoError(ctx, err)
 	}
 
-	var resolution codec.Resolution = codec.Resolution{Width: 160, Height: 90}
+	// When no explicit output resolution (-s WxH) is given, default to the
+	// first input's video_size so the encoder matches the source resolution.
+	var resolution codec.Resolution
+	for _, inputInfo := range flags.Inputs {
+		for _, opt := range inputInfo.CustomOptions {
+			if opt.Key == "video_size" {
+				_, err := fmt.Sscanf(opt.Value, "%dx%d", &resolution.Width, &resolution.Height)
+				assertNoError(ctx, err)
+				break
+			}
+		}
+		if resolution != (codec.Resolution{}) {
+			break
+		}
+	}
+
 	var audioSampleRate audio.SampleRate = 48000
 
 	var encoderVideoOptions avptypes.DictionaryItems
@@ -84,6 +107,7 @@ func main() {
 		}
 		switch v.Key {
 		case "s":
+			// Explicit -s overrides the input-derived default.
 			_, err := fmt.Sscanf(v.Value, "%dx%d", &resolution.Width, &resolution.Height)
 			assertNoError(ctx, err)
 			logger.Debugf(ctx, "parsed resolution: %dx%d", resolution.Width, resolution.Height)
