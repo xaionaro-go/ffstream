@@ -43,31 +43,31 @@ func NewBuildManager(t *testing.T, ctx context.Context) *BuildManager {
 	}
 }
 
-// CheckDebPackageExists checks if the Android deb package exists.
-func (b *BuildManager) CheckDebPackageExists() bool {
-	debPath := filepath.Join(b.repoDir, ffstreamDebPath)
-	_, err := os.Stat(debPath)
+// CheckBinaryExists checks if the Android binary exists.
+func (b *BuildManager) CheckBinaryExists() bool {
+	binPath := filepath.Join(b.repoDir, ffstreamBinaryRelPath)
+	_, err := os.Stat(binPath)
 	return err == nil
 }
 
-// GetDebPackagePath returns the path to the deb package.
-func (b *BuildManager) GetDebPackagePath() string {
-	return filepath.Join(b.repoDir, ffstreamDebPath)
+// GetBinaryPath returns the path to the binary.
+func (b *BuildManager) GetBinaryPath() string {
+	return filepath.Join(b.repoDir, ffstreamBinaryRelPath)
 }
 
-// GetDebPackageInfo returns information about the deb package.
-func (b *BuildManager) GetDebPackageInfo() (map[string]string, error) {
-	debPath := b.GetDebPackagePath()
-	if _, err := os.Stat(debPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("deb package not found at %s", debPath)
+// GetBinaryInfo returns information about the binary.
+func (b *BuildManager) GetBinaryInfo() (map[string]string, error) {
+	binPath := b.GetBinaryPath()
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("binary not found at %s", binPath)
 	}
 
 	info := map[string]string{
-		"path": debPath,
+		"path": binPath,
 	}
 
 	// Get file size
-	stat, err := os.Stat(debPath)
+	stat, err := os.Stat(binPath)
 	if err == nil {
 		info["size"] = fmt.Sprintf("%d bytes", stat.Size())
 		info["modified"] = stat.ModTime().Format(time.RFC3339)
@@ -76,10 +76,10 @@ func (b *BuildManager) GetDebPackageInfo() (map[string]string, error) {
 	return info, nil
 }
 
-// BuildDebPackage builds the Android deb package.
+// BuildBinary builds the Android binary.
 // Note: This requires the Docker builder to be available.
-func (b *BuildManager) BuildDebPackage() error {
-	b.t.Log("Building ffstream Android deb package...")
+func (b *BuildManager) BuildBinary() error {
+	b.t.Log("Building ffstream Android binary...")
 	b.t.Log("This requires Docker and the Android builder image.")
 
 	// Check if Docker is available
@@ -107,9 +107,9 @@ func (b *BuildManager) BuildDebPackage() error {
 
 	b.t.Logf("Build output: %s", output)
 
-	// Verify the package was created
-	if !b.CheckDebPackageExists() {
-		return fmt.Errorf("deb package not created after build")
+	// Verify the binary was created
+	if !b.CheckBinaryExists() {
+		return fmt.Errorf("binary not created after build")
 	}
 
 	return nil
@@ -122,17 +122,17 @@ func TestBuildStatus(t *testing.T) {
 
 	bm := NewBuildManager(t, ctx)
 
-	if bm.CheckDebPackageExists() {
-		info, err := bm.GetDebPackageInfo()
+	if bm.CheckBinaryExists() {
+		info, err := bm.GetBinaryInfo()
 		if err != nil {
-			t.Fatalf("Failed to get package info: %v", err)
+			t.Fatalf("Failed to get binary info: %v", err)
 		}
-		t.Logf("ffstream deb package exists:")
+		t.Logf("ffstream binary exists:")
 		for k, v := range info {
 			t.Logf("  %s: %s", k, v)
 		}
 	} else {
-		t.Logf("ffstream deb package not found at %s", bm.GetDebPackagePath())
+		t.Logf("ffstream binary not found at %s", bm.GetBinaryPath())
 		t.Log("Run 'make bin/ffstream-android-arm64' to build it")
 	}
 }

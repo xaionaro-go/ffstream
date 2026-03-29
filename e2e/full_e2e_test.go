@@ -139,13 +139,8 @@ func (s *E2ETestSuite) Teardown() {
 
 // CheckPrerequisites verifies all prerequisites are met.
 func (s *E2ETestSuite) CheckPrerequisites() error {
-	// Check termux is installed
-	if !s.deviceHelper.checkTermuxInstalled() {
-		return fmt.Errorf("termux not installed on device")
-	}
-
-	// Build ffstream Android deb package
-	if err := s.buildFFstreamDeb(); err != nil {
+	// Build ffstream binary if needed
+	if err := s.buildFFstream(); err != nil {
 		return fmt.Errorf("ffstream build failed: %w", err)
 	}
 
@@ -157,35 +152,28 @@ func (s *E2ETestSuite) CheckPrerequisites() error {
 	return nil
 }
 
-// buildFFstreamDeb builds the ffstream Android deb package using Docker.
-// Also checks for direct binary at bin/ffstream-android-arm64.
-func (s *E2ETestSuite) buildFFstreamDeb() error {
-	debPath := filepath.Join(findRepoRoot(s.t), ffstreamDebPath)
-	binPath := filepath.Join(findRepoRoot(s.t), "bin/ffstream-android-arm64")
+// buildFFstream ensures the ffstream Android binary is available.
+func (s *E2ETestSuite) buildFFstream() error {
+	binPath := filepath.Join(findRepoRoot(s.t), ffstreamBinaryRelPath)
 
-	// First check if direct binary exists (built via make ffstream-android-arm64-static-cgo)
+	// Check if binary already exists
 	if _, err := os.Stat(binPath); err == nil {
-		s.t.Log("Using existing ffstream binary at bin/ffstream-android-arm64")
+		s.t.Log("Using existing ffstream binary at " + ffstreamBinaryRelPath)
 		return nil
 	}
 
-	// Check if Docker is available
+	// Check if Docker is available to build
 	cmd := exec.CommandContext(s.ctx, "docker", "info")
 	if err := cmd.Run(); err != nil {
-		// Docker not available, check if deb already exists
-		if _, err := os.Stat(debPath); err == nil {
-			s.t.Log("Docker not available, using existing deb package")
-			return nil
-		}
-		return fmt.Errorf("Docker not available and no existing deb package or binary: %w", err)
+		return fmt.Errorf("Docker not available and no existing binary at %s: %w", ffstreamBinaryRelPath, err)
 	}
 
-	s.t.Log("Building ffstream Android deb package...")
+	s.t.Log("Building ffstream Android binary...")
 	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Minute)
 	defer cancel()
 
-	// Run make target to build the deb package
-	cmd = exec.CommandContext(ctx, "make", "bin/ffstream-android-termux.deb")
+	// Run make target to build the binary
+	cmd = exec.CommandContext(ctx, "make", "bin/ffstream-android-arm64")
 	cmd.Dir = findRepoRoot(s.t)
 	cmd.Env = os.Environ()
 
@@ -197,9 +185,9 @@ func (s *E2ETestSuite) buildFFstreamDeb() error {
 
 	s.t.Logf("Build completed successfully")
 
-	// Verify the package was created
-	if _, err := os.Stat(debPath); os.IsNotExist(err) {
-		return fmt.Errorf("deb package not created after build at %s", debPath)
+	// Verify the binary was created
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		return fmt.Errorf("binary not created after build at %s", binPath)
 	}
 
 	return nil
@@ -244,59 +232,30 @@ func (s *E2ETestSuite) DeployFFstream() error {
 		return nil
 	}
 
-	// Try direct binary deployment first (from make ffstream-android-arm64-static-cgo)
-	binPath := filepath.Join(findRepoRoot(s.t), "bin/ffstream-android-arm64")
-	if _, err := os.Stat(binPath); err == nil {
-		s.t.Log("Found direct binary, deploying via adb...")
-		tmpPath := "/data/local/tmp/ffstream"
-		if err := s.deviceHelper.push(binPath, tmpPath); err != nil {
-			return fmt.Errorf("failed to push binary: %w", err)
-		}
-
-		// Copy to termux using run-as
-		termuxBinPath := termuxUsrBin + "/ffstream"
-		cpCmd := fmt.Sprintf("run-as com.termux /data/data/com.termux/files/usr/bin/bash -c 'rm -f %s && cp %s %s && chmod +x %s'",
-			termuxBinPath, tmpPath, termuxBinPath, termuxBinPath)
-		if _, err := s.deviceHelper.shell(cpCmd); err != nil {
-			return fmt.Errorf("failed to copy binary to termux: %w", err)
-		}
-
-		// Verify installation
-		if err := s.deviceHelper.checkFfstreamRunnable(); err != nil {
-			return fmt.Errorf("ffstream installed but not runnable: %w", err)
-		}
-
-		s.t.Log("ffstream deployed via direct binary successfully")
-		return nil
+	// Push binary to device
+	binPath := filepath.Join(findRepoRoot(s.t), ffstreamBinaryRelPath)
+	if _, err := os.Stat(binPath); err != nil {
+		return fmt.Errorf("ffstream binary not found at %s", binPath)
 	}
 
-	// Fall back to deb package deployment
-	debPath := filepath.Join(findRepoRoot(s.t), ffstreamDebPath)
-	sdcardPath := "/sdcard/Download/ffstream-android-termux-arm64.deb"
-
-	s.t.Logf("Pushing deb to %s", sdcardPath)
-	if err := s.deviceHelper.push(debPath, sdcardPath); err != nil {
-		return fmt.Errorf("failed to push deb: %w", err)
+	s.t.Logf("Pushing binary to %s", ffstreamDevicePath)
+	if err := s.deviceHelper.push(binPath, ffstreamDevicePath); err != nil {
+		return fmt.Errorf("failed to push binary: %w", err)
 	}
 
-	// Copy to termux home
-	termuxDebPath := termuxHome + "/ffstream.deb"
-	s.t.Logf("Copying deb to %s", termuxDebPath)
-	if err := s.deviceHelper.copyDebToTermux(sdcardPath, termuxDebPath); err != nil {
-		return fmt.Errorf("failed to copy deb to termux: %w", err)
-	}
-
-	// Set up library symlinks
-	if err := s.deviceHelper.setupLibrarySymlinks(); err != nil {
-		s.t.Logf("Warning: failed to setup library symlinks: %v", err)
-	}
-
-	// Check if dpkg is available and install
-	if _, err := s.deviceHelper.termuxCmd("which dpkg"); err == nil {
-		s.t.Log("Installing ffstream via dpkg...")
-		if err := s.deviceHelper.installDebInTermux(termuxDebPath); err != nil {
-			s.t.Logf("Warning: dpkg install failed: %v", err)
+	// Push libc++_shared.so from NDK (required dynamic library)
+	repoRoot := findRepoRoot(s.t)
+	libcxxGlob, _ := filepath.Glob(filepath.Join(repoRoot, "3rdparty/*/android-ndk-*/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"))
+	if len(libcxxGlob) > 0 {
+		s.t.Log("Pushing libc++_shared.so")
+		if err := s.deviceHelper.push(libcxxGlob[0], androidBinDir+"/libc++_shared.so"); err != nil {
+			s.t.Logf("Warning: failed to push libc++_shared.so: %v", err)
 		}
+	}
+
+	// Make it executable
+	if _, err := s.deviceHelper.shell("chmod", "+x", ffstreamDevicePath); err != nil {
+		return fmt.Errorf("failed to chmod binary: %w", err)
 	}
 
 	// Verify installation
@@ -483,8 +442,7 @@ func (s *E2ETestSuite) RunStreamTest(testName string, duration time.Duration) er
 
 	// Build ffstream command
 	// Using testsrc since camera may not be available on all devices
-	// For real production test, use android_camera
-	cmdStr := fmt.Sprintf(`timeout %d ffstream -v info \
+	cmdStr := fmt.Sprintf(`timeout %d %s -v info \
 		-hwaccel mediacodec \
 		-f lavfi -i 'testsrc=duration=%d:size=640x480:rate=30' \
 		-f lavfi -i 'sine=frequency=1000:duration=%d:sample_rate=48000' \
@@ -497,12 +455,13 @@ func (s *E2ETestSuite) RunStreamTest(testName string, duration time.Duration) er
 		-f flv \
 		'%s' 2>&1`,
 		int(duration.Seconds())+5,
+		ffstreamDevicePath,
 		int(duration.Seconds()),
 		int(duration.Seconds()),
 		rtmpURL)
 
 	s.t.Logf("Running ffstream command on device...")
-	out, err := s.deviceHelper.termuxCmd(cmdStr)
+	out, err := s.deviceHelper.runCmd(cmdStr)
 	s.t.Logf("ffstream output:\n%s", out)
 
 	// Check for errors
@@ -534,13 +493,13 @@ func (s *E2ETestSuite) RunCameraStreamTest(duration time.Duration) error {
 
 	// Check if pulse audio is available
 	hasPulse := true
-	if _, err := s.deviceHelper.termuxCmd("pulseaudio --check 2>&1 || pulseaudio --start 2>&1"); err != nil {
+	if _, err := s.deviceHelper.runCmd("pulseaudio --check 2>&1 || pulseaudio --start 2>&1"); err != nil {
 		s.t.Log("PulseAudio not available - testing video only")
 		hasPulse = false
 	}
 
 	var cmdBuilder strings.Builder
-	cmdBuilder.WriteString(fmt.Sprintf("timeout %d ffstream -v info ", int(duration.Seconds())+5))
+	cmdBuilder.WriteString(fmt.Sprintf("timeout %d %s -v info ", int(duration.Seconds())+5, ffstreamDevicePath))
 	cmdBuilder.WriteString("-retry_input_timeout_on_failure 1s ")
 	cmdBuilder.WriteString("-retry_output_timeout_on_failure 0 ")
 	cmdBuilder.WriteString("-hwaccel mediacodec ")
@@ -570,7 +529,7 @@ func (s *E2ETestSuite) RunCameraStreamTest(duration time.Duration) error {
 	cmdBuilder.WriteString(fmt.Sprintf("'%s' 2>&1", rtmpURL))
 
 	s.t.Logf("Running camera stream command...")
-	out, err := s.deviceHelper.termuxCmd(cmdBuilder.String())
+	out, err := s.deviceHelper.runCmd(cmdBuilder.String())
 	s.t.Logf("Camera stream output:\n%s", out)
 
 	// Check for camera-specific errors
@@ -581,7 +540,7 @@ func (s *E2ETestSuite) RunCameraStreamTest(duration time.Duration) error {
 		return fmt.Errorf("android_camera input not supported in this build")
 	}
 	if strings.Contains(out, "CAMERA") && strings.Contains(out, "Permission") {
-		return fmt.Errorf("camera permission not granted to Termux")
+		return fmt.Errorf("camera permission not granted")
 	}
 
 	if err != nil && !strings.Contains(out, "frame=") {
@@ -746,7 +705,7 @@ func TestE2EProductionConfig(t *testing.T) {
 	rtmpURL := fmt.Sprintf("rtmp://127.0.0.1:%d/test/prod-stream", avdPublisherPort)
 
 	// Production-like command with multiple inputs and fallbacks
-	cmdStr := fmt.Sprintf(`timeout 20 ffstream -v info \
+	cmdStr := fmt.Sprintf(`timeout 20 %s -v info \
 		-retry_input_timeout_on_failure 1s \
 		-retry_output_timeout_on_failure 0 \
 		-hwaccel mediacodec \
@@ -761,9 +720,9 @@ func TestE2EProductionConfig(t *testing.T) {
 		-b:v 4M -bufsize 4M \
 		-g 60 -r 30 \
 		-f flv \
-		'%s' 2>&1`, rtmpURL)
+		'%s' 2>&1`, ffstreamDevicePath, rtmpURL)
 
-	out, err := suite.deviceHelper.termuxCmd(cmdStr)
+	out, err := suite.deviceHelper.runCmd(cmdStr)
 	t.Logf("Production config output:\n%s", out)
 
 	if err != nil && !strings.Contains(out, "frame=") {
@@ -800,19 +759,19 @@ func TestFFstreamBasicFunctionality(t *testing.T) {
 
 	// Test 1: Verify ffstream binary exists and is executable
 	t.Log("Verifying ffstream installation...")
-	out, err := suite.deviceHelper.termuxCmd("which ffstream && ffstream -version 2>&1 || echo 'version check failed'")
+	out, err := suite.deviceHelper.runCmd(fmt.Sprintf("test -x %s && %s -version 2>&1 || echo 'version check failed'", ffstreamDevicePath, ffstreamDevicePath))
 	if err != nil {
 		t.Fatalf("ffstream not found or not executable: %v, output: %s", err, out)
 	}
-	t.Logf("ffstream location and version:\n%s", out)
+	t.Logf("ffstream version:\n%s", out)
 
-	if !strings.Contains(out, "ffstream") {
-		t.Fatalf("ffstream binary not found in PATH")
+	if strings.Contains(out, "version check failed") {
+		t.Fatalf("ffstream binary not found or not executable at %s", ffstreamDevicePath)
 	}
 
 	// Test 2: Verify ffstream can list available codecs
 	t.Log("Checking available encoders...")
-	out, err = suite.deviceHelper.termuxCmd("ffstream -encoders 2>&1 | head -20")
+	out, err = suite.deviceHelper.runCmd(ffstreamDevicePath + " -encoders 2>&1 | head -20")
 	if err != nil {
 		t.Logf("Warning: encoder list failed: %v", err)
 	} else {
@@ -823,12 +782,12 @@ func TestFFstreamBasicFunctionality(t *testing.T) {
 	t.Log("Running local transcode test (no network)...")
 
 	// Generate 2 seconds of test video and encode to a file
-	transcodeCmd := `timeout 10 ffstream -v info \
+	transcodeCmd := fmt.Sprintf(`timeout 10 %s -v info \
 		-f lavfi -i 'testsrc=duration=2:size=320x240:rate=15' \
 		-c copy \
-		-f null - 2>&1`
+		-f null - 2>&1`, ffstreamDevicePath)
 
-	out, err = suite.deviceHelper.termuxCmd(transcodeCmd)
+	out, err = suite.deviceHelper.runCmd(transcodeCmd)
 	t.Logf("Transcode test output:\n%s", out)
 
 	// Check for success indicators
@@ -873,7 +832,7 @@ func (s *E2ETestSuite) runAudioDTSMonotonicityTest(
 	s.t.Logf("Testing audio DTS monotonicity, streaming to %s (via ADB reverse)", rtmpURL)
 
 	var cmdBuilder strings.Builder
-	cmdBuilder.WriteString(fmt.Sprintf("timeout %d ffstream -v info ", int(duration.Seconds())+5))
+	cmdBuilder.WriteString(fmt.Sprintf("timeout %d %s -v info ", int(duration.Seconds())+5, ffstreamDevicePath))
 	cmdBuilder.WriteString("-retry_input_timeout_on_failure 1s ")
 	cmdBuilder.WriteString("-retry_output_timeout_on_failure 0 ")
 	cmdBuilder.WriteString("-hwaccel mediacodec ")
@@ -898,7 +857,7 @@ func (s *E2ETestSuite) runAudioDTSMonotonicityTest(
 	cmdBuilder.WriteString(fmt.Sprintf("'%s' 2>&1", rtmpURL))
 
 	s.t.Logf("Running ffstream command on device...")
-	out, err := s.deviceHelper.termuxCmd(cmdBuilder.String())
+	out, err := s.deviceHelper.runCmd(cmdBuilder.String())
 	s.t.Logf("ffstream output:\n%s", out)
 
 	// Check for fatal setup errors (skip rather than fail)
@@ -908,7 +867,7 @@ func (s *E2ETestSuite) runAudioDTSMonotonicityTest(
 	case strings.Contains(out, "Connection refused"):
 		s.t.Skipf("AVD not reachable at %s", rtmpURL)
 	case strings.Contains(out, "Permission denied"):
-		s.t.Skipf("Permission denied (check camera/microphone permissions for Termux): %s", out)
+		s.t.Skipf("Permission denied (check camera/microphone permissions): %s", out)
 	case strings.Contains(out, "No cameras") || strings.Contains(out, "no camera"):
 		s.t.Skipf("No cameras available on device")
 	case strings.Contains(out, "android_camera") && strings.Contains(out, "not found"):
@@ -993,8 +952,8 @@ func TestE2E_V4L2MJPEG_AudioDTSMonotonicity(t *testing.T) {
 	}
 
 	// Check if /dev/video0 exists on the device
-	out, _ := suite.deviceHelper.termuxCmd("ls /dev/video0 2>/dev/null && echo EXISTS")
-	if !strings.Contains(out, "EXISTS") {
+	out, _ := suite.deviceHelper.shell("ls", "/dev/video0")
+	if !strings.Contains(out, "video0") {
 		t.Skip("no V4L2 device (/dev/video0) available, skipping V4L2 MJPEG test")
 	}
 

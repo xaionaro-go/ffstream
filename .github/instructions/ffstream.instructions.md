@@ -18,9 +18,8 @@ Currently the scheme we have is:
 
 A phone:
 * Is rooted with Magisk or with a custom userdebug build.
-* Has termux installed
 * Has custom Ubuntu environment rolled out to `/data/ubuntu` (that is auto-executed by Magisk or by custom init)
-* Any orchestration is generally handled by the Ubuntu environment, but `ffstream` is running from termux to get access to MediaCodec.
+* `ffstream` runs as a standalone binary at `/data/local/tmp/ffstream` with access to MediaCodec via NDK.
 * Uses application WingOut that runs as a normal Android application, but it communicates with `ffstream` via gRPC.
 
 ## 3. Special paths
@@ -28,13 +27,13 @@ A phone:
 - Do not edit or read `**/imports/**`, `**/import/**` -- these directories are not the source of truth for the source code.
 - Android SDK is in `ffstream/.Android`.
 - `ffmpeg/myscripts` you may find how to update ffstream on a real phone.
-- The base `Dockerfile` is available at `streamctl/docker/termux/Dockerfile`.
+- FFmpeg is built directly with NDK via `build/build-ffmpeg-android.sh`.
 
 ## 4. Test environment
 
 - The ADB server with the real test phones is available at `172.17.0.1` (see `adb -L tcp:172.17.0.1:5037 devices`). The IP address of the phone itself is `192.168.0.159`. There is direct access from dev environment to the phone, but not the other way.
 - Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone. Do not do manual port forwarding, forwarding is handled by nftables on the host system (you don't have access to).
-- When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
+- `ffstream` runs as a standalone binary at `/data/local/tmp/ffstream`.
 - To connect to the phone via ffstreamctl use `ffstreamctl --remote-addr tcp+ssl:192.168.0.159:3593 pipelines get`, but `ffstream` on the phone should also have `-listen_control 0.0.0.0:3593`.
 - Use `DEBUG` logging in `ffstream`. Enable `TRACE` only when needed, as it can severely degrade performance and disrupt packet/frame processing.
 
@@ -49,7 +48,7 @@ adb -L tcp:172.17.0.1:5037 shell settings put global stay_on_while_plugged_in 7
 - There is a gRPC interface supported by `ffstream` (`172.29.170.2:3593`). If you need some specific debugging information that is not provided by the interface then add the required debugging capabilities into the gRPC interface (so that the next time a similar bug happens, it is easier to diagnose). One of the useful features that already exists is: `ffstreamctl --remote-addr tcp+ssl:172.29.170.2:3593 pipelines get` (to get the current avpipeline).
 - Destination `192.168.0.131:9713` (from the phone) is forwarded to Agent's environment/container. Use this port to listen (with `avd`) for RTMP streams from `ffstream` running on the phone. Do not do manual port forwarding, forwarding is handled by nftables on the host system (you don't have access to).
 - You may also get the logs in `/tmp/mediamtx.log` (via SSH to `root@172.29.170.2`). If some logs are missing, add more logging to `ffstream` so that next time it will be easier to diagnose. If you need to access normal Android file tree, it is in `/android/`.
-- When running `ffstream` on the phone, don't forget `LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib`.
+- `ffstream` runs as a standalone binary at `/data/local/tmp/ffstream`.
 - Do not change anything on the production phone, do not restart anything. You may "only look, not touch".
 
 There are two ways how `ffstream` is launched:
@@ -60,7 +59,7 @@ If you see evidences of `ffstream` running via `/tmp/mediamtx.log` (on the phone
 
 ## 6. Rules
 
-- Do not edit/add/delete/rename/any-way-modify any files on a real phone, except files inside the termux home and files inside `ubuntu/tmp`
+- Do not edit/add/delete/rename/any-way-modify any files on a real phone, except files inside `/data/local/tmp` and `ubuntu/tmp`
 - Every time you finish a change, make a git commit with proper description. All commits should be in a separate branch `drafts`. If you made a change in avpipeline then push the change to the public repository (as `drafts`) and pull the commit in `ffstream`.
 - a SEGFAULT is never fault of libav, it is always fault of our code and YOU MUST FIX IT.
 - No log should happen for each frame, unless it has logging level TRACE.

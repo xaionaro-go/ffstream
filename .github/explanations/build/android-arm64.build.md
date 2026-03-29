@@ -1,4 +1,4 @@
-# Building ffstream for Android ARM64 (Termux Environment)
+# Building ffstream for Android ARM64
 
 ## Overview
 
@@ -61,7 +61,7 @@ nm -D binary | grep getauxval
 CGO_LDFLAGS='-Wl,-Bdynamic -llog -landroid -lmediandk -lcamera2ndk -ldl -lc \
     -L$(NDK)/sysroot/usr/lib/aarch64-linux-android/35/ \
     -L$(NDK)/sysroot/usr/lib/ \
-    -L$(TERMUX_LIBS)'
+    -L$(PWD)/3rdparty/arm64/sysroot/lib'
 
 go build -ldflags='-linkmode=external' ...
 ```
@@ -71,11 +71,11 @@ go build -ldflags='-linkmode=external' ...
 The order of `-L` paths matters:
 1. **First**: NDK sysroot for API level (e.g., `/aarch64-linux-android/35/`) - contains `libc.so`
 2. **Second**: NDK sysroot base - contains `libc++_shared.so`
-3. **Third**: Termux libraries - contains ffmpeg and other dependencies
+3. **Third**: FFmpeg sysroot - contains ffmpeg and other dependencies
 
 ## Required Dynamic Libraries
 
-A working ffstream binary for Android/Termux needs these NEEDED libraries:
+A working ffstream binary for Android needs these NEEDED libraries:
 
 | Library | Source | Purpose |
 |---------|--------|---------|
@@ -86,13 +86,13 @@ A working ffstream binary for Android/Termux needs these NEEDED libraries:
 | `libmediandk.so` | NDK sysroot | Media codec APIs |
 | `libcamera2ndk.so` | NDK sysroot | Camera APIs |
 
-Optional (for full Termux compatibility):
+Optional (dynamically linked):
 | Library | Source | Purpose |
 |---------|--------|---------|
-| `libc++_shared.so` | NDK/Termux | C++ standard library |
-| `libandroid-glob.so` | Termux | glob() implementation |
-| `libandroid-posix-semaphore.so` | Termux | POSIX semaphores |
-| `libpulse.so` | Termux | PulseAudio support |
+| `libc++_shared.so` | NDK | C++ standard library |
+| `libandroid-glob.so` | NDK | glob() implementation |
+| `libandroid-posix-semaphore.so` | NDK | POSIX semaphores |
+| `libpulse.so` | System | PulseAudio support |
 
 ## NDK Structure
 
@@ -112,7 +112,7 @@ android-ndk-r28/toolchains/llvm/prebuilt/linux-x86_64/
 
 ## Testing the Binary
 
-### Quick test (outside Termux):
+### Quick test:
 ```bash
 adb push binary /data/local/tmp/ffstream
 adb shell "/data/local/tmp/ffstream --version"
@@ -120,28 +120,17 @@ adb shell "/data/local/tmp/ffstream --version"
 
 If it runs without segfault, the linking is correct.
 
-### Full test (in Termux environment):
+### Full test:
 ```bash
-adb shell "run-as com.termux sh -c 'LD_LIBRARY_PATH=/data/data/com.termux/files/home/lib /path/to/ffstream --version'"
+adb push bin/ffstream-android-arm64 /data/local/tmp/ffstream
+adb shell "chmod +x /data/local/tmp/ffstream && /data/local/tmp/ffstream --version"
 ```
-
-Note: May see `Xzs_Construct` errors if libc++_shared.so versions mismatch between NDK and Termux.
-
-## Comparison: Docker Build vs Local Build
-
-| Aspect | Docker (termux-packages) | Local (NDK) |
-|--------|-------------------------|-------------|
-| Toolchain | Termux's patched clang | Stock NDK clang |
-| Libraries | Full Termux ecosystem | NDK sysroot only |
-| Compatibility | Best | Good for simple cases |
-| Build time | Longer (docker overhead) | Faster |
-| Setup | Requires Docker | Just NDK download |
 
 ## Troubleshooting
 
 ### "cannot locate symbol Xzs_Construct"
 - Cause: libc++_shared.so version mismatch
-- Solution: Ensure LD_LIBRARY_PATH points to Termux's libs first
+- Solution: Ensure the correct libc++_shared.so is available on the device
 
 ### Segfault in getauxval
 - Cause: Static libc linking
@@ -154,5 +143,5 @@ Note: May see `Xzs_Construct` errors if libc++_shared.so versions mismatch betwe
 ## References
 
 - NDK r28 download: https://dl.google.com/android/repository/android-ndk-r28-beta2-linux.zip
-- Termux packages: https://github.com/termux/termux-packages
+- FFmpeg build script: `build/build-ffmpeg-android.sh`
 - Go CGO documentation: https://pkg.go.dev/cmd/cgo

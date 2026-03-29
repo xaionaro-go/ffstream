@@ -17,9 +17,13 @@ import (
 )
 
 const (
-	adbServerSocket = "tcp:172.17.0.1:5037"
-	testTimeout     = 60 * time.Second
+	defaultADBServerSocket = "tcp:172.17.0.1:5037"
+	testTimeout            = 60 * time.Second
 )
+
+func getADBServerSocket() string {
+	return os.Getenv("ADB_SERVER_SOCKET")
+}
 
 // DeviceInfo holds information about an Android device.
 type DeviceInfo struct {
@@ -34,7 +38,9 @@ type DeviceInfo struct {
 // adbCmd runs an adb command and returns stdout, stderr, and error.
 func adbCmd(ctx context.Context, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, "adb", args...)
-	cmd.Env = append(os.Environ(), "ADB_SERVER_SOCKET="+adbServerSocket)
+	if socket := getADBServerSocket(); socket != "" {
+		cmd.Env = append(os.Environ(), "ADB_SERVER_SOCKET="+socket)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

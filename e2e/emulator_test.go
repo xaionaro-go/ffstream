@@ -37,7 +37,7 @@ func startEmulator(ctx context.Context) (*EmulatorManager, error) {
 	)
 	cmd.Env = append(os.Environ(),
 		"ANDROID_SDK_ROOT="+androidSDKRoot,
-		"ADB_SERVER_SOCKET="+adbServerSocket,
+		"ADB_SERVER_SOCKET="+getADBServerSocket(),
 	)
 
 	if err := cmd.Start(); err != nil {

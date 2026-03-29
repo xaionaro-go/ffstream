@@ -9,7 +9,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FFSTREAM_DIR="$(dirname "$SCRIPT_DIR")"
-FFMPEG_LIBS_DIR="$FFSTREAM_DIR/3rdparty/arm64/termux/data/data/com.termux/files/usr/lib"
+FFMPEG_LIBS_DIR="$FFSTREAM_DIR/3rdparty/arm64/sysroot/lib"
 
 # Parse arguments
 REBUILD_FFMPEG=false
@@ -39,12 +39,12 @@ echo "=== Building ffstream for Android arm64 ==="
 echo ""
 echo "=== Step 1: Check ffmpeg libraries ==="
 if [ ! -f "$FFMPEG_LIBS_DIR/libavcodec.a" ] || [ "$REBUILD_FFMPEG" = true ]; then
-    echo "Building ffmpeg libraries..."
-    FFMPEG_ARGS=""
+    echo "Building ffmpeg and dependencies via Docker..."
+    BUILD_ARGS="--arch=arm64"
     if [ "$CLEAN" = true ]; then
-        FFMPEG_ARGS="--clean"
+        BUILD_ARGS="$BUILD_ARGS --clean"
     fi
-    "$SCRIPT_DIR/build-ffmpeg-for-android.sh" $FFMPEG_ARGS
+    "$SCRIPT_DIR/docker-build.sh" $BUILD_ARGS
 else
     echo "ffmpeg libraries already exist at $FFMPEG_LIBS_DIR"
     ls -lh "$FFMPEG_LIBS_DIR/libav"*.a | head -3
@@ -104,5 +104,5 @@ echo "=== Build Complete ==="
 echo "Binary: $FFSTREAM_DIR/bin/ffstream-android-arm64"
 echo ""
 echo "To deploy to device:"
-echo "  adb push bin/ffstream-android-arm64 /data/data/com.termux/files/usr/bin/ffstream"
+echo "  adb push bin/ffstream-android-arm64 /data/local/tmp/ffstream"
 echo ""

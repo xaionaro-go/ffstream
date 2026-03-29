@@ -11,7 +11,6 @@ End-to-end tests for ffstream on Android devices using ADB.
 
 2. **Real Device**: Connect an Android device with:
    - USB debugging enabled
-   - Termux installed
    - Device authorized for ADB
 
 3. **Emulator** (optional): For emulator tests, you need:
@@ -45,7 +44,7 @@ go test -v ./e2e/... -run "Emulator"
 
 ### FFstream Tests (`ffstream_test.go`)
 
-- `TestFFstreamDeployment` - Deploys ffstream deb to device and installs via termux
+- `TestFFstreamDeployment` - Deploys ffstream binary to device via adb push
 - `TestFFstreamBasicRun` - Tests `ffstream -version`
 - `TestFFstreamEncodersList` - Lists available video encoders
 - `TestFFstreamInputDevices` - Lists available input formats/devices
@@ -66,17 +65,7 @@ If tests skip with "missing dependencies" error like:
 CANNOT LINK EXECUTABLE "ffstream": library "libandroid-posix-semaphore.so" not found
 ```
 
-Install the missing library in Termux and ensure `LD_LIBRARY_PATH` points to `~/lib`:
-```bash
-# In Termux:
-pkg install libandroid-posix-semaphore pulseaudio
-
-# Create ~/lib with symlinks (the test does this automatically)
-mkdir -p ~/lib
-ln -sf /data/data/com.termux/files/usr/lib/*.so* ~/lib/
-```
-
-**Important**: `LD_LIBRARY_PATH` must be set to ONLY `~/lib`, not `~/lib:/usr/lib`. Adding `/usr/lib` causes linking conflicts.
+Ensure the required shared libraries are available on the device. The standalone binary links statically against FFmpeg but dynamically against Android system libraries.
 
 ### No KVM
 
@@ -96,5 +85,5 @@ If tests fail with "no device found":
 
 The tests use a helper structure:
 - `deviceTestHelper` - Wraps ADB commands for a specific device
-- `termuxCmd()` - Executes commands in termux environment with proper PATH and LD_LIBRARY_PATH
-- `copyDebToTermux()` - Transfers files to termux home using pipe trick (since run-as can't access sdcard directly)
+- `runCmd()` - Executes commands on the device via adb shell
+- Binary is deployed to `/data/local/tmp/ffstream` via `adb push`
