@@ -359,13 +359,14 @@ func (s *FFStream) InjectSubtitles(
 	copy(pkt.Data(), data)
 
 	// Use the last seen audio DTS as the base for PTS/DTS
-	dts := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
-	if dts == 0 {
-		dts = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
+	dtsNanos := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
+	if dtsNanos == 0 {
+		dtsNanos = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
 	}
+	dtsMs := int64(dtsNanos) / int64(time.Millisecond)
 
-	pkt.SetPts(int64(dts))
-	pkt.SetDts(int64(dts))
+	pkt.SetPts(dtsMs)
+	pkt.SetDts(dtsMs)
 	pkt.SetDuration(int64(duration / time.Millisecond))
 
 	source := any(s.StreamMux.InputAll.Node.Processor).(processor.GetPacketSourcer).GetPacketSource()
@@ -410,13 +411,14 @@ func (s *FFStream) InjectData(
 	copy(pkt.Data(), data)
 
 	// Use the last seen audio DTS as the base for PTS/DTS
-	dts := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
-	if dts == 0 {
-		dts = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
+	dtsNanos := s.StreamMux.Measurements[astiav.MediaTypeAudio].InputDTS.Load()
+	if dtsNanos == 0 {
+		dtsNanos = s.StreamMux.Measurements[astiav.MediaTypeVideo].InputDTS.Load()
 	}
+	dtsMs := int64(dtsNanos) / int64(time.Millisecond)
 
-	pkt.SetPts(int64(dts))
-	pkt.SetDts(int64(dts))
+	pkt.SetPts(dtsMs)
+	pkt.SetDts(dtsMs)
 	pkt.SetDuration(int64(duration / time.Millisecond))
 
 	source := any(s.StreamMux.InputAll.Node.Processor).(processor.GetPacketSourcer).GetPacketSource()
