@@ -130,13 +130,14 @@ func TestE2E_GRPCMutations(t *testing.T) {
 	defer cancel()
 
 	t.Run("SetFPSFraction", func(t *testing.T) {
-		err := h.Client.SetFPSFraction(ctx, 30, 1)
+		// Use 1/2 (half rate) — reduceframerate filter requires Den >= Num.
+		err := h.Client.SetFPSFraction(ctx, 1, 2)
 		require.NoError(t, err)
 
 		num, den, err := h.Client.GetFPSFraction(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, uint32(30), num)
-		assert.Equal(t, uint32(1), den)
+		assert.Equal(t, uint32(1), num)
+		assert.Equal(t, uint32(2), den)
 		t.Logf("FPS fraction set to %d/%d", num, den)
 	})
 
@@ -229,15 +230,15 @@ func TestE2E_FPSFractionValidation(t *testing.T) {
 		t.Logf("expected error: %v", err)
 	})
 
-	t.Run("NonIntegerFraction", func(t *testing.T) {
+	t.Run("FractionGreaterThanOne", func(t *testing.T) {
 		err := h.Client.SetFPSFraction(ctx, 30, 7)
-		require.Error(t, err, "30/7 (non-integer) should be rejected")
+		require.Error(t, err, "30/7 (> 1.0) should be rejected")
 		t.Logf("expected error: %v", err)
 	})
 
 	t.Run("ValidFraction", func(t *testing.T) {
-		err := h.Client.SetFPSFraction(ctx, 30, 1)
-		require.NoError(t, err, "30/1 should be accepted")
+		err := h.Client.SetFPSFraction(ctx, 1, 2)
+		require.NoError(t, err, "1/2 should be accepted")
 	})
 }
 
@@ -607,12 +608,12 @@ func TestE2E_ErrorRecovery(t *testing.T) {
 		require.NoError(t, err, "pipeline should be healthy after invalid suppression")
 	})
 
-	t.Run("InvalidFPSNonInteger", func(t *testing.T) {
+	t.Run("InvalidFPSFractionGreaterThanOne", func(t *testing.T) {
 		err := h.Client.SetFPSFraction(ctx, 30, 7)
-		require.Error(t, err, "30/7 non-integer FPS should be rejected")
+		require.Error(t, err, "30/7 FPS (> 1.0) should be rejected")
 
 		_, err = h.Client.GetStats(ctx)
-		require.NoError(t, err, "pipeline should be healthy after non-integer FPS")
+		require.NoError(t, err, "pipeline should be healthy after invalid FPS")
 	})
 
 	// Issue a valid operation (den >= num required by reduce framerate filter)

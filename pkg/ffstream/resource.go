@@ -38,6 +38,22 @@ func (r Resource) GetFallbackPriority(
 
 type Resources []Resource
 
+// Clone returns a deep copy of the Resources slice. Each Resource's
+// CustomOptions slice is cloned so that callers can safely read the returned
+// value without synchronising with concurrent mutations of the live
+// InputsInfo slice (AddInput / SetSuppressed / SetInputCustomOption).
+func (s Resources) Clone() Resources {
+	if s == nil {
+		return nil
+	}
+	out := make(Resources, len(s))
+	for i, r := range s {
+		out[i] = r
+		out[i].CustomOptions = slices.Clone(r.CustomOptions)
+	}
+	return out
+}
+
 func (s Resources) ByFallbackPriority(
 	ctx context.Context,
 ) []Resources {

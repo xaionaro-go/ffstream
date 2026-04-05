@@ -38,6 +38,23 @@ func (f *DecoderFactory) String() string {
 	return f.NaiveDecoderFactory.String()
 }
 
+// lookupResource returns a copy of the Resource at (f.FallbackPriority, idx)
+// while holding FFStream.locker, or reports ok=false if the indices are out
+// of range. The copy isolates the caller from concurrent mutations of the
+// slice after the lock is released.
+func (f *DecoderFactory) lookupResource(idx ResourceIndex) (Resource, bool) {
+	f.FFStream.locker.Lock()
+	defer f.FFStream.locker.Unlock()
+	if int(f.FallbackPriority) >= len(f.FFStream.InputsInfo) {
+		return Resource{}, false
+	}
+	resources := f.FFStream.InputsInfo[f.FallbackPriority]
+	if int(idx) < 0 || int(idx) >= len(resources) {
+		return Resource{}, false
+	}
+	return resources[idx], true
+}
+
 func (f *DecoderFactory) NewDecoder(
 	ctx context.Context,
 	source packet.Source,
@@ -51,10 +68,16 @@ func (f *DecoderFactory) NewDecoder(
 	}()
 	resourceIndex, ok := avptypes.PipelineSideDataLatest[ResourceIndex](pipelineSideData)
 	if ok {
-		r := f.FFStream.InputsInfo[f.FallbackPriority][int(resourceIndex)]
-		opts = append(opts, codectypes.OptionOverrideCustomOptions(r.CustomOptions))
-		if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
-			opts = append(opts, codectypes.OptionOverrideHardwareDeviceType(r.CodecHWAccel))
+		// Read the Resource under FFStream.locker, because InputsInfo is mutated
+		// by AddInput/SetSuppressed/SetInputCustomOption from other goroutines.
+		r, ok := f.lookupResource(resourceIndex)
+		if ok {
+			opts = append(opts, codectypes.OptionOverrideCustomOptions(r.CustomOptions))
+			if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
+				opts = append(opts, codectypes.OptionOverrideHardwareDeviceType(r.CodecHWAccel))
+			}
+		} else {
+			logger.Errorf(ctx, "stream_index:%d: resource (priority=%d, idx=%d) is out of range", stream.Index(), f.FallbackPriority, resourceIndex)
 		}
 	} else {
 		logger.Errorf(ctx, "stream_index:%d: no ResourceIndex in PipelineSideData", stream.Index())

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/facebookincubator/go-belt/tool/logger"
@@ -11,6 +12,7 @@ import (
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	globaltypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffmonitor"
+	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/secret"
 )
 
@@ -65,9 +67,9 @@ func run(cmd *cobra.Command, args []string) {
 		logger.Fatalf(ctx, "failed to create monitor: %v", err)
 	}
 
-	go func() {
+	observability.Go(ctx, func(ctx context.Context) {
 		n.Serve(ctx, node.ServeConfig{}, nil)
-	}()
+	})
 
 	err = ffmonitor.PrintMonitorEvents(ctx, m.Events, monitor.PrintOptions{
 		Format:                 mcfg.Format,

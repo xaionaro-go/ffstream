@@ -1,0 +1,53 @@
+# Dockerfile for cross-compiling FFmpeg and dependencies for Android
+# This image provides the build environment only — no libraries are built during docker build.
+#
+# Usage:
+#   docker build -f scripts/Dockerfile.android-builder -t ffstream-android-builder .
+#   docker run --rm -v $(pwd)/3rdparty/arm64/sysroot:/output ffstream-android-builder --arch=arm64
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    make \
+    cmake \
+    autoconf \
+    automake \
+    libtool \
+    pkg-config \
+    wget \
+    patch \
+    git \
+    nasm \
+    ninja-build \
+    python3 \
+    python3-pip \
+    meson \
+    unzip \
+    ca-certificates \
+    xz-utils \
+    file \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Android NDK r28-beta2
+# This is ~1.5GB so it gets its own layer for caching
+RUN wget -q -O /tmp/android-ndk.zip \
+        https://dl.google.com/android/repository/android-ndk-r28-beta2-linux.zip \
+    && unzip -q /tmp/android-ndk.zip -d /opt \
+    && mv /opt/android-ndk-r28-beta2 /opt/android-ndk \
+    && rm /tmp/android-ndk.zip
+
+ENV ANDROID_NDK_ROOT=/opt/android-ndk
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+
+# Copy build script and patches
+COPY scripts/build-all-android.sh /build/build-all-android.sh
+COPY scripts/patches/ /build/patches/
+
+RUN chmod +x /build/build-all-android.sh
+
+ENTRYPOINT ["/build/build-all-android.sh"]

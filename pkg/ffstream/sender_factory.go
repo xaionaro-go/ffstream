@@ -92,7 +92,7 @@ func (s *senderFactory) NewSender(
 					}
 					resCfg = autoBitrateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Best()
 				}
-				sendBufSize = uint(resCfg.BitrateHigh.ToBps() * 1000 / 1000) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
+				sendBufSize = uint(resCfg.BitrateHigh.ToBps()) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
 				sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
 			}
 		}

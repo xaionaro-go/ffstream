@@ -119,11 +119,26 @@ func (s *FFStream) AddInput(
 
 	// If the requested priority level doesn't exist yet, create new input factories
 	// for all missing priority levels up to the requested one.
-	startLen := len(s.InputsInfo)
-	for p := len(s.Inputs.InputChains); p <= int(priority); p++ {
+	//
+	// s.InputsInfo must be grown before AddFactory because newInputChain
+	// invokes InputFactory.NewDecoderFactory, which calls GetResources and
+	// reads InputsInfo[priority]. On failure, we do not roll back to
+	// startLen because AddFactory may have partially succeeded (appending
+	// an InputChain via inputwithfallback.addFactory before its own error
+	// path) or succeeded on prior loop iterations; rolling back to
+	// startLen would break the len(InputsInfo) == len(InputChains)
+	// invariant and leave the downstream in an inconsistent state.
+	// Instead, align InputsInfo to the current len(InputChains).
+	for p := s.Inputs.GetInputChainsCount(ctx); p <= int(priority); p++ {
 		s.InputsInfo = append(s.InputsInfo, nil)
 		if err := s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p))); err != nil {
-			s.InputsInfo = s.InputsInfo[:startLen]
+			newCount := s.Inputs.GetInputChainsCount(ctx)
+			if len(s.InputsInfo) > newCount {
+				s.InputsInfo = s.InputsInfo[:newCount]
+			}
+			for len(s.InputsInfo) < newCount {
+				s.InputsInfo = append(s.InputsInfo, nil)
+			}
 			return fmt.Errorf("failed to add input factory: %w", err)
 		}
 	}
@@ -583,8 +598,12 @@ func (s *FFStream) SetFPSFraction(
 	if den == 0 {
 		return fmt.Errorf("den must be non-zero")
 	}
-	if num%den != 0 {
-		return fmt.Errorf("divider must be an integer fraction (num divisible by den), got %d/%d", num, den)
+	// The downstream reduceframerate filter asserts Den >= Num (fraction <= 1.0):
+	// see avpipeline/packetorframe/filter/reduceframerate/reduce_framerate_fraction.go.
+	// Reject fractions greater than 1.0 here to surface a clean error instead of
+	// tripping the filter's assertion at runtime.
+	if num > den {
+		return fmt.Errorf("fraction must be <= 1.0 (num <= den), got %d/%d", num, den)
 	}
 	s.StreamMux.SetFPSFraction(ctx, avptypes.Rational{
 		Num: int(num),
@@ -611,6 +630,57 @@ func (s *FFStream) SetSuppressed(
 
 	s.InputsInfo[priority][num].Suppressed = suppressed
 	return nil
+}
+
+// SetInputCustomOption updates a CustomOptions entry on the resource at
+// (priority, num). The mutation is performed under FFStream.locker so it
+// does not race with AddInput and other readers that snapshot the slice
+// while holding the same lock.
+func (s *FFStream) SetInputCustomOption(
+	ctx context.Context,
+	priority uint,
+	num ResourceIndex,
+	key string,
+	value string,
+) error {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+
+	if int(priority) >= len(s.InputsInfo) {
+		return fmt.Errorf("input priority %d is out of range", priority)
+	}
+	if int(num) < 0 || int(num) >= len(s.InputsInfo[priority]) {
+		return fmt.Errorf("input num %d is out of range at priority %d", num, priority)
+	}
+
+	s.InputsInfo[priority][num].CustomOptions.SetFirst(avptypes.DictionaryItem{
+		Key:   key,
+		Value: value,
+	})
+	return nil
+}
+
+// SnapshotInputsInfo returns a deep-copy snapshot of InputsInfo taken under
+// FFStream.locker. The returned slice and its nested Resources do not alias
+// the live InputsInfo; concurrent mutation by AddInput / SetSuppressed /
+// SetInputCustomOption after this call does not affect the snapshot.
+//
+// Callers that ALSO need InputChains data must take this snapshot BEFORE
+// acquiring Inputs.InputChainsLocker, because AddInput holds FFStream.locker
+// while calling AddFactory which in turn acquires InputChainsLocker. Taking
+// the locks in the reverse order (InputChainsLocker, then FFStream.locker)
+// would deadlock.
+func (s *FFStream) SnapshotInputsInfo(ctx context.Context) []Resources {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.InputsInfo == nil {
+		return nil
+	}
+	out := make([]Resources, len(s.InputsInfo))
+	for i, rs := range s.InputsInfo {
+		out[i] = rs.Clone()
+	}
+	return out
 }
 
 func (s *FFStream) GetBitRates(
@@ -712,6 +782,9 @@ func (s *FFStream) onStreamMapped(
 	s.audioStreamIndices[key] = globalIdx
 	logger.Infof(ctx, "ffstream: detected audio stream for input (priority=%d, resource=%d) at global index %d", priority, resourceIdx, globalIdx)
 
+	if int(priority) >= len(s.InputsInfo) || int(resourceIdx) >= len(s.InputsInfo[priority]) {
+		return
+	}
 	resource := &s.InputsInfo[priority][resourceIdx]
 
 	// Check if this input is a reference for others

@@ -62,6 +62,12 @@ func (h *deviceTestHelper) runCmd(cmd string) (string, error) {
 	return h.shell("sh", "-c", fmt.Sprintf("cd %s && LD_LIBRARY_PATH=%s %s", androidBinDir, androidBinDir, cmd))
 }
 
+// shQuote wraps s in single quotes for safe embedding in a POSIX shell command string.
+// Any embedded single quotes are escaped via the standard '"'"' sequence.
+func shQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
 func (h *deviceTestHelper) checkFfstreamInstalled() bool {
 	_, err := h.shell("test", "-x", ffstreamDevicePath)
 	return err == nil
@@ -391,7 +397,7 @@ func TestFFstreamRTMPStreaming(t *testing.T) {
 	t.Logf("Testing RTMP streaming to %s", rtmpURL)
 
 	// Stream camera to RTMP for 10 seconds
-	cmd := fmt.Sprintf(`timeout 15 %s -v info -retry_input_timeout_on_failure 1s -retry_output_timeout_on_failure 0 -hwaccel mediacodec -video_size 640x480 -camera_index 1 -framerate 30 -f android_camera -i "" -s 640x480 -c:v h264_mediacodec -ar 48000 -ac 1 -c:a aac -b:v 1M -bufsize 1M -g 30 -r 30 -f flv %s 2>&1 || true`, ffstreamDevicePath, rtmpURL)
+	cmd := fmt.Sprintf(`timeout 15 %s -v info -retry_input_timeout_on_failure 1s -retry_output_timeout_on_failure 0 -hwaccel mediacodec -video_size 640x480 -camera_index 1 -framerate 30 -f android_camera -i "" -s 640x480 -c:v h264_mediacodec -ar 48000 -ac 1 -c:a aac -b:v 1M -bufsize 1M -g 30 -r 30 -f flv %s 2>&1 || true`, ffstreamDevicePath, shQuote(rtmpURL))
 
 	out, err := helper.runCmd(cmd)
 	t.Logf("RTMP streaming output: %s", out)
@@ -479,7 +485,7 @@ func TestFFstreamFullPipeline(t *testing.T) {
 
 	// Output format and URL
 	cmdBuilder.WriteString("-f flv ")
-	cmdBuilder.WriteString(fmt.Sprintf("%s ", rtmpURL))
+	cmdBuilder.WriteString(fmt.Sprintf("%s ", shQuote(rtmpURL)))
 	cmdBuilder.WriteString("2>&1 || true")
 
 	out, err := helper.runCmd(cmdBuilder.String())
