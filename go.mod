@@ -24,7 +24,7 @@ require (
 	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
 	github.com/xaionaro-go/audio v0.0.0-20260202195702-429dcb87c05c
 	github.com/xaionaro-go/avd v0.0.0-20260104210934-af571b0e52da
-	github.com/xaionaro-go/avpipeline v0.0.0-20260314220947-426c7959cbb5
+	github.com/xaionaro-go/avpipeline v0.0.0-20260412130326-509e2500c3d5
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20260309023337-691843bece17
@@ -40,6 +40,7 @@ require (
 )
 
 require (
+	github.com/AndroidGoLab/ndk v0.0.3-0.20260316000240-e7dc81e12371 // indirect
 	github.com/brettbuddin/fourier v0.1.1 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
@@ -48,7 +49,6 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/xaionaro-go/datacounter v1.0.4 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -108,9 +108,9 @@ require (
 	gocv.io/x/gocv v0.41.0 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
-	golang.org/x/image v0.37.0 // indirect
+	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	gonum.org/v1/plot v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260311181403-84a4fc48630c // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
