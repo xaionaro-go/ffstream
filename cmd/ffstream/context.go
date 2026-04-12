@@ -86,7 +86,7 @@ func getContext(
 		logPathUnexpanded := flags.LogFile
 		logPath, err := xpath.Expand(logPathUnexpanded)
 		if err != nil {
-			l.Errorf("unable to expand path '%s': %w", logPath, err)
+			l.Errorf("unable to expand path '%s': %v", logPath, err)
 		} else {
 			var closeFile context.CancelFunc
 			rotateFunc := func() {
@@ -105,9 +105,13 @@ func getContext(
 			rotateFunc()
 			observability.Go(ctx, func(ctx context.Context) {
 				defer func() {
+					if closeFile != nil {
+						closeFile()
+					}
 					logger.Debugf(ctx, "log rotator is closed")
 				}()
 				t := time.NewTicker(12 * time.Hour)
+				defer t.Stop()
 				for {
 					select {
 					case <-ctx.Done():

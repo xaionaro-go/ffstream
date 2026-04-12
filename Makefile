@@ -4,6 +4,29 @@ ENABLE_LIBSRT?=false
 ENABLE_DEBUG_TRACE?=false
 ANDROID_NDK_VERSION?=r28-beta2
 
+# Use ccache for CGO compilations when available
+CCACHE:=$(shell which ccache 2>/dev/null)
+ifneq ($(CCACHE),)
+  CC_PREFIX:=ccache
+endif
+
+# Android NDK paths
+ANDROID_NDK_HOME?=$(CURDIR)/3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION)
+NDK_SYSROOT:=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot
+
+# On ARM64 hosts, use native system clang to avoid x86_64 emulation overhead (~12x faster)
+ifeq ($(shell uname -m),aarch64)
+  ANDROID_ARM64_CC?=/usr/bin/clang --target=aarch64-linux-android35 --sysroot=$(NDK_SYSROOT)
+  ANDROID_ARM64_CXX?=/usr/bin/clang++ --target=aarch64-linux-android35 --sysroot=$(NDK_SYSROOT)
+  ANDROID_X86_64_CC?=/usr/bin/clang --target=x86_64-linux-android35 --sysroot=$(NDK_SYSROOT)
+  ANDROID_X86_64_CXX?=/usr/bin/clang++ --target=x86_64-linux-android35 --sysroot=$(NDK_SYSROOT)
+else
+  ANDROID_ARM64_CC?=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang
+  ANDROID_ARM64_CXX?=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang++
+  ANDROID_X86_64_CC?=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android35-clang
+  ANDROID_X86_64_CXX?=$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android35-clang++
+endif
+
 GOTAGS:=$(GOTAGS),with_libav
 ifeq ($(ENABLE_LIBSRT), true)
 	GOTAGS:=$(GOTAGS),with_libsrt
@@ -56,49 +79,47 @@ $(GOPATH)/bin/pkg-config-wrapper:
 3rdparty/arm64/sysroot:
 	@if [ ! -f 3rdparty/arm64/sysroot/lib/libavcodec.a ]; then \
 		echo "Building ffmpeg and dependencies for arm64 via Docker..."; \
-		./build/docker-build.sh --arch=arm64; \
+		./scripts/docker-build.sh --arch=arm64; \
 	fi
 
 3rdparty/x86_64/sysroot:
 	@if [ ! -f 3rdparty/x86_64/sysroot/lib/libavcodec.a ]; then \
 		echo "Building ffmpeg and dependencies for x86_64 via Docker..."; \
-		./build/docker-build.sh --arch=x86_64; \
+		./scripts/docker-build.sh --arch=x86_64; \
 	fi
 
-# Build ffstream for Android ARM64 without Docker (uses ffmpeg8 libraries built via build/build-ffmpeg-android.sh --arch=arm64)
+# Build ffstream for Android ARM64 without Docker (uses ffmpeg8 libraries built via scripts/build-ffmpeg-android.sh --arch=arm64)
 # Key: Use -linkmode=external and -Wl,-Bdynamic to ensure dynamic linking of libc.so
 # This prevents static linking of bionic's getauxval which crashes on Android
 ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION) 3rdparty/arm64/sysroot
-	$(eval ANDROID_NDK_HOME=$(PWD)/3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION))
 	PKG_CONFIG_WRAPPER_LOG='/tmp/pkg_config_wrapper.log' \
 	PKG_CONFIG_WRAPPER_LOG_LEVEL='trace' \
 	PKG_CONFIG_LIBS_FORCE_STATIC='libav*,libsrt' \
 	PKG_CONFIG_ERASE="-fopenmp=*,-landroid,-lcamera2ndk,-lmediandk,-lpulse,-D_REENTRANT" \
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
-	PKG_CONFIG_PATH='$(PWD)/3rdparty/arm64/sysroot/lib/pkgconfig' \
-	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I$(PWD)/3rdparty/arm64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(PWD)/3rdparty/arm64/sysroot/lib' \
+	PKG_CONFIG_PATH='$(CURDIR)/3rdparty/arm64/sysroot/lib/pkgconfig' \
+	CGO_CFLAGS='-std=gnu99 -I$(NDK_SYSROOT)/usr/include/ -I$(CURDIR)/3rdparty/arm64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/arm64/sysroot/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
-	CC="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang" \
-	CXX="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang++" \
+	CC="$(CC_PREFIX) $(ANDROID_ARM64_CC)" \
+	CXX="$(CC_PREFIX) $(ANDROID_ARM64_CXX)" \
 	CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
 	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags='-linkmode=external' -o bin/ffstream-android-arm64 ./cmd/ffstream
 	ls -ldh bin/ffstream-android-arm64
 
 # Build ffstream for Android x86_64 (for emulator testing)
 ffstream-android-x86_64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION) 3rdparty/x86_64/sysroot
-	$(eval ANDROID_NDK_HOME=$(PWD)/3rdparty/arm64/android-ndk-$(ANDROID_NDK_VERSION))
 	PKG_CONFIG_WRAPPER_LOG='/tmp/pkg_config_wrapper.log' \
 	PKG_CONFIG_WRAPPER_LOG_LEVEL='trace' \
 	PKG_CONFIG_LIBS_FORCE_STATIC='libav*,libsrt' \
 	PKG_CONFIG_ERASE="-fopenmp=*,-landroid,-lcamera2ndk,-lmediandk,-lpulse,-D_REENTRANT" \
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
-	PKG_CONFIG_PATH='$(PWD)/3rdparty/x86_64/sysroot/lib/pkgconfig' \
-	CGO_CFLAGS='-std=gnu99 -I$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ -I$(PWD)/3rdparty/x86_64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/x86_64-linux-android/35/ -L$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/ -L$(PWD)/3rdparty/x86_64/sysroot/lib' \
+	PKG_CONFIG_PATH='$(CURDIR)/3rdparty/x86_64/sysroot/lib/pkgconfig' \
+	CGO_CFLAGS='-std=gnu99 -I$(NDK_SYSROOT)/usr/include/ -I$(CURDIR)/3rdparty/x86_64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(NDK_SYSROOT)/usr/lib/x86_64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/x86_64/sysroot/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
-	CC="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android35-clang" \
-	CXX="$(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android35-clang++" \
+	CC="$(CC_PREFIX) $(ANDROID_X86_64_CC)" \
+	CXX="$(CC_PREFIX) $(ANDROID_X86_64_CXX)" \
 	CGO_ENABLED=1 GOOS=android GOARCH=amd64 \
 	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags='-linkmode=external' -o bin/ffstream-android-x86_64 ./cmd/ffstream
 	ls -ldh bin/ffstream-android-x86_64

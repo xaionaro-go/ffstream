@@ -197,6 +197,8 @@ func (s *FFStream) GetStats(
 	if s == nil {
 		return nil
 	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	r := &ffstream_grpc.GetStatsReply{
 		NodeCounters: &avpipeline_grpc.NodeCounters{
 			Received:  &avpipeline_grpc.NodeCountersSection{},
@@ -229,6 +231,14 @@ func (s *FFStream) GetStats(
 func (s *FFStream) GetAllStats(
 	ctx context.Context,
 ) map[string]avptypes.Statistics {
+	if s == nil {
+		return nil
+	}
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return nil
+	}
 	return s.StreamMux.GetAllStats(ctx)
 }
 

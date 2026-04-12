@@ -181,6 +181,7 @@ func (c *Client) WaitChan(
 
 	waiter, err := client.WaitChan(ctx, &ffstream_grpc.WaitRequest{})
 	if err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("query error: %w", err)
 	}
 
@@ -193,7 +194,7 @@ func (c *Client) WaitChan(
 		}()
 
 		_, err := waiter.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			logger.Debugf(ctx, "the receiver is closed: %v", err)
 			return
 		}

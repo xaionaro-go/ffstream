@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -89,6 +90,7 @@ func main() {
 	}
 
 	var audioSampleRate audio.SampleRate = 48000
+	var audioChannels audio.Channel
 
 	var encoderVideoOptions avptypes.DictionaryItems
 	encoderVideoOptions = append(encoderVideoOptions,
@@ -113,6 +115,13 @@ func main() {
 		}
 	}
 
+	// Strip -s from video custom options: it is carried as the structured
+	// Resolution field and would otherwise be double-applied by the
+	// encoder factory.
+	videoCustomOptions := slices.DeleteFunc(encoderVideoOptions, func(item avptypes.DictionaryItem) bool {
+		return item.Key == "s"
+	})
+
 	var encoderAudioOptions avptypes.DictionaryItems
 	encoderAudioOptions = append(encoderAudioOptions,
 		convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options)...,
@@ -128,8 +137,22 @@ func main() {
 		case "ar":
 			must(fmt.Sscanf(v.Value, "%d", &audioSampleRate))
 			logger.Debugf(ctx, "parsed audio sample rate: %d", audioSampleRate)
+		case "ac":
+			must(fmt.Sscanf(v.Value, "%d", &audioChannels))
+			logger.Debugf(ctx, "parsed audio channels: %d", audioChannels)
 		}
 	}
+
+	// Strip -ar/-ac from audio custom options: they are carried as the
+	// structured SampleRate/Channels fields and would otherwise be
+	// double-applied by the encoder factory.
+	audioCustomOptions := slices.DeleteFunc(encoderAudioOptions, func(item avptypes.DictionaryItem) bool {
+		switch item.Key {
+		case "ar", "ac":
+			return true
+		}
+		return false
+	})
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
@@ -197,7 +220,7 @@ func main() {
 				Filters:            flags.FiltersVideo,
 				CodecName:          codectypes.Name(flags.VideoEncoder.Codec),
 				AverageBitRate:     flags.VideoEncoder.BitRate,
-				CustomOptions:      encoderVideoOptions,
+				CustomOptions:      videoCustomOptions,
 				HardwareDeviceType: flags.HWAccelGlobal,
 				Resolution: codec.Resolution{
 					Width:  resolution.Width,
@@ -210,8 +233,9 @@ func main() {
 				Filters:        flags.FiltersAudio,
 				CodecName:      codectypes.Name(flags.AudioEncoder.Codec),
 				AverageBitRate: flags.AudioEncoder.BitRate,
-				CustomOptions:  convertUnknownOptionsToCustomOptions(flags.AudioEncoder.Options),
+				CustomOptions:  audioCustomOptions,
 				SampleRate:     audioSampleRate,
+				Channels:       audioChannels,
 			}},
 		},
 	}
