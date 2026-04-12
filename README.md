@@ -35,7 +35,7 @@ After that you may use `ffstreamctl` to manage the actively running `ffstream`, 
 
 First build the FFmpeg libraries for your target architecture:
 ```sh
-./build/build-ffmpeg-android.sh --arch=arm64
+./scripts/build-ffmpeg-android.sh --arch=arm64
 ```
 
 Then build the ffstream binary:

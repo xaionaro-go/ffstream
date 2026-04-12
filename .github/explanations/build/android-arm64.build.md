@@ -143,5 +143,5 @@ adb shell "chmod +x /data/local/tmp/ffstream && /data/local/tmp/ffstream --versi
 ## References
 
 - NDK r28 download: https://dl.google.com/android/repository/android-ndk-r28-beta2-linux.zip
-- FFmpeg build script: `build/build-ffmpeg-android.sh`
+- FFmpeg build script: `scripts/build-ffmpeg-android.sh`
 - Go CGO documentation: https://pkg.go.dev/cmd/cgo

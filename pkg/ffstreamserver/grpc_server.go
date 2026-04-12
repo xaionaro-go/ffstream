@@ -5,7 +5,6 @@ package ffstreamserver
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 	"time"
 
@@ -422,13 +421,6 @@ func (srv *GRPCServer) SetStopInput(
 	switch req.GetStop() {
 	case true:
 		if err := srv.FFStream.Inputs.PauseChain(ctx, id); err != nil {
-			// Pausing the sole active chain is a caller error (it
-			// would stop the pipeline entirely). Surface it as
-			// FailedPrecondition so clients can distinguish it
-			// from genuine internal failures.
-			if errors.As(err, &inputwithfallback.ErrCannotPauseSoleActiveChain{}) {
-				return nil, status.Errorf(codes.FailedPrecondition, "unable to stop input at priority %d: %v", req.GetInputPriority(), err)
-			}
 			return nil, status.Errorf(codes.Internal, "unable to stop input at priority %d: %v", req.GetInputPriority(), err)
 		}
 	case false:
