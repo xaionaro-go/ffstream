@@ -243,16 +243,6 @@ func (s *E2ETestSuite) DeployFFstream() error {
 		return fmt.Errorf("failed to push binary: %w", err)
 	}
 
-	// Push libc++_shared.so from NDK (required dynamic library)
-	repoRoot := findRepoRoot(s.t)
-	libcxxGlob, _ := filepath.Glob(filepath.Join(repoRoot, "3rdparty/*/android-ndk-*/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"))
-	if len(libcxxGlob) > 0 {
-		s.t.Log("Pushing libc++_shared.so")
-		if err := s.deviceHelper.push(libcxxGlob[0], androidBinDir+"/libc++_shared.so"); err != nil {
-			s.t.Logf("Warning: failed to push libc++_shared.so: %v", err)
-		}
-	}
-
 	// Make it executable
 	if _, err := s.deviceHelper.shell("chmod", "+x", ffstreamDevicePath); err != nil {
 		return fmt.Errorf("failed to chmod binary: %w", err)

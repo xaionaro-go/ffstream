@@ -99,7 +99,7 @@ ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdpar
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='$(CURDIR)/3rdparty/arm64/sysroot/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(NDK_SYSROOT)/usr/include/ -I$(CURDIR)/3rdparty/arm64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/arm64/sysroot/lib' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -lc++_static -lc++abi -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/arm64/sysroot/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	CC="$(CC_PREFIX) $(ANDROID_ARM64_CC)" \
 	CXX="$(CC_PREFIX) $(ANDROID_ARM64_CXX)" \
@@ -116,7 +116,7 @@ ffstream-android-x86_64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdpa
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='$(CURDIR)/3rdparty/x86_64/sysroot/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(NDK_SYSROOT)/usr/include/ -I$(CURDIR)/3rdparty/x86_64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lc++_shared -L$(NDK_SYSROOT)/usr/lib/x86_64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/x86_64/sysroot/lib' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -lc++_static -lc++abi -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -L$(NDK_SYSROOT)/usr/lib/x86_64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/x86_64-linux-android/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/x86_64/sysroot/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	CC="$(CC_PREFIX) $(ANDROID_X86_64_CC)" \
 	CXX="$(CC_PREFIX) $(ANDROID_X86_64_CXX)" \

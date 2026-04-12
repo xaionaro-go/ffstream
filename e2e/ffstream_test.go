@@ -115,16 +115,6 @@ func TestFFstreamDeployment(t *testing.T) {
 		t.Fatalf("Failed to push binary: %v", err)
 	}
 
-	// Push libc++_shared.so from NDK (required dynamic library)
-	repoRoot := findRepoRoot(t)
-	libcxxGlob, _ := filepath.Glob(filepath.Join(repoRoot, "3rdparty/*/android-ndk-*/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"))
-	if len(libcxxGlob) > 0 {
-		t.Logf("Pushing libc++_shared.so")
-		if err := helper.push(libcxxGlob[0], androidBinDir+"/libc++_shared.so"); err != nil {
-			t.Logf("Warning: failed to push libc++_shared.so: %v", err)
-		}
-	}
-
 	// Make it executable
 	if _, err := helper.shell("chmod", "+x", ffstreamDevicePath); err != nil {
 		t.Fatalf("Failed to chmod binary: %v", err)
