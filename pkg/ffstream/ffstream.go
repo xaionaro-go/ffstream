@@ -287,7 +287,12 @@ func (s *FFStream) Start(
 	syncNode := node.NewFromKernel(ctx, s.audioSync)
 
 	// Observe quality metrics and forward all inputs to AudioSync.
-	s.Inputs.AddPushTo(ctx, syncNode, packetorframefiltercondition.Function(s.onInput))
+	// The s.onInput condition is set on s.Inputs.SetInputFilter so that the
+	// inputwithfallback preset can hook it on each inputChain.Filter (a real
+	// destination receiving pre-decode packets), where GetInputFilter is
+	// consulted per push from inputChain.Input.
+	s.Inputs.SetInputFilter(ctx, packetorframefiltercondition.Function(s.onInput))
+	s.Inputs.AddPushTo(ctx, syncNode)
 
 	if enableGapFiller {
 		gapCfg := kernel.DefaultGapFillerConfig()
@@ -392,10 +397,17 @@ func (s *FFStream) InjectSubtitles(
 	inputPkt.SetStreamIndex(2)
 	inputPkt.Source = source
 
+	dstCounters := s.StreamMux.InputAll.Node.GetCountersPtr()
+	pktSize := uint64(inputPkt.GetSize())
+	pktMediaType := avptypes.MediaType(inputPkt.GetMediaType())
+	dstCounters.Addressed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+
 	select {
 	case <-ctx.Done():
+		dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 		return ctx.Err()
 	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
+		dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 	}
 
 	return nil
@@ -444,10 +456,17 @@ func (s *FFStream) InjectData(
 	inputPkt.SetStreamIndex(3)
 	inputPkt.Source = source
 
+	dstCounters := s.StreamMux.InputAll.Node.GetCountersPtr()
+	pktSize := uint64(inputPkt.GetSize())
+	pktMediaType := avptypes.MediaType(inputPkt.GetMediaType())
+	dstCounters.Addressed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+
 	select {
 	case <-ctx.Done():
+		dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 		return ctx.Err()
 	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
+		dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 	}
 
 	return nil
