@@ -904,8 +904,8 @@ github.com/tidwall/pretty v1.2.1/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhso
 github.com/tidwall/sjson v1.2.5/go.mod h1:Fvgq9kS/6ociJEDnK0Fk1cpYF4FIW6ZF7LAe+6jwd28=
 github.com/xaionaro-go/androidetc v0.0.0-20250824193302-b7ecebb3b825 h1:4f2P9/JASUXx2GWhQ6wyGlwOtr+nIfM6PUq9wTHqHmM=
 github.com/xaionaro-go/androidetc v0.0.0-20250824193302-b7ecebb3b825/go.mod h1:IvRt8Hto32EGtBEf7A94HVxiYEt7hGXLWabjdnUYmAE=
-github.com/xaionaro-go/astiav v0.0.0-20260222232736-ea032799baeb h1:u0G5DDRbO0IOgOaX5bTqKzkVFTmebjkgFFeuyixrMgQ=
-github.com/xaionaro-go/astiav v0.0.0-20260222232736-ea032799baeb/go.mod h1:GI0pHw6K2/pl/o8upCtT49P/q4KCwhv/8nGLlCsZLdA=
+github.com/xaionaro-go/astiav v0.0.0-20260320123320-4206a96c82a9 h1:I9h7tkuA9dyfr8wrKlhWoegMs2sf8hT5MQccwlh9jcc=
+github.com/xaionaro-go/astiav v0.0.0-20260320123320-4206a96c82a9/go.mod h1:rMGLNK3tTdIkyxmRUR+OIQnhqqmrpg0Z+StM5cRAXKA=
 github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9 h1:f953nYixjfXfTrn9Mhiu2FkjyKCO6XZpUrNePlvw28k=
 github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9/go.mod h1:F69CAbtiDu3PxOFnKw/j25MO8b0LBbvc+/BTa3J7TeE=
 github.com/xaionaro-go/audio v0.0.0-20260202195702-429dcb87c05c h1:FwgHDsrvufOkycvjxky29I42PXNbp023MQHt8kzRzJg=

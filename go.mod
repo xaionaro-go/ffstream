@@ -4,7 +4,7 @@ go 1.25.5
 
 replace github.com/rs/zerolog v1.34.0 => github.com/xaionaro-go/zerolog2belt v0.0.0-20241103164018-a3bc1ea487e5
 
-replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20260222232736-ea032799baeb
+replace github.com/asticode/go-astiav v0.36.0 => github.com/xaionaro-go/astiav v0.0.0-20260320123320-4206a96c82a9
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250811230008-5f3141c8851a
 
@@ -46,7 +46,6 @@ require (
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12 // indirect
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/xaionaro-go/datacounter v1.0.4 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
