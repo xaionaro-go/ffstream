@@ -3,7 +3,6 @@
 package ffstream
 
 import (
-	"context"
 	"slices"
 
 	"github.com/xaionaro-go/avpipeline/kernel"
@@ -41,9 +40,7 @@ func (s Resources) Clone() Resources {
 	return out
 }
 
-func (s Resources) ByFallbackPriority(
-	ctx context.Context,
-) []Resources {
+func (s Resources) ByFallbackPriority() []Resources {
 	if len(s) == 0 {
 		return nil
 	}

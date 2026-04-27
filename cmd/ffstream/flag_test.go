@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -10,11 +9,9 @@ import (
 )
 
 func TestResourcesByFallbackPriority(t *testing.T) {
-	ctx := context.Background()
-
 	t.Run("nilOnEmpty", func(t *testing.T) {
 		var s ffstream.Resources
-		if got := s.ByFallbackPriority(ctx); got != nil {
+		if got := s.ByFallbackPriority(); got != nil {
 			t.Fatalf("expected nil, got %#v", got)
 		}
 	})
@@ -28,7 +25,7 @@ func TestResourcesByFallbackPriority(t *testing.T) {
 			{URL: "e", Priority: 2},
 		}
 
-		got := s.ByFallbackPriority(ctx)
+		got := s.ByFallbackPriority()
 		want := []ffstream.Resources{
 			{{URL: "d"}}, // priority 0
 			{

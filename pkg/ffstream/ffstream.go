@@ -148,7 +148,13 @@ func (s *FFStream) AddInput(
 		return ErrInputAlreadyExists
 	}
 	if int(priority) < preExistingLen {
-		if err := s.Inputs.InputChains[priority].Unpause(ctx); err != nil {
+		inputChain, err := xsync.DoR2(ctx, &s.Inputs.InputChainsLocker, func() (*InputChain, error) {
+			return s.Inputs.InputChains[priority], nil
+		})
+		if err != nil {
+			return fmt.Errorf("unable to fetch input chain at priority %d: %w", priority, err)
+		}
+		if err := inputChain.Unpause(ctx); err != nil {
 			return fmt.Errorf("unable to unpause input chain at priority %d: %w", priority, err)
 		}
 	}
