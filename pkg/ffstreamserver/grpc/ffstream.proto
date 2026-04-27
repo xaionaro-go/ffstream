@@ -38,6 +38,8 @@ service FFStream {
   rpc SetInputCustomOption(SetInputCustomOptionRequest) returns (SetInputCustomOptionReply) {}
   rpc SetStopInput(SetStopInputRequest) returns (SetStopInputReply) {}
   rpc SetInputSuppressed(SetInputSuppressedRequest) returns (SetInputSuppressedReply) {}
+  rpc AddInput(AddInputRequest) returns (AddInputReply) {}
+  rpc RemoveInput(RemoveInputRequest) returns (RemoveInputReply) {}
   rpc InjectSubtitles(InjectSubtitlesRequest) returns (InjectSubtitlesReply) {}
   rpc InjectData(InjectDataRequest) returns (InjectDataReply) {}
 }
@@ -367,3 +369,24 @@ message InjectDataRequest {
 }
 
 message InjectDataReply {}
+
+// AddInputRequest registers an input at the given fallback priority.
+// Priority is the unique key for an input slot: at most one input
+// may exist at each priority. AddInput at a priority that already
+// has an input returns ALREADY_EXISTS; caller must RemoveInput first.
+message AddInputRequest {
+  string                 url          = 1;
+  avpipeline.InputConfig input_config = 2;
+  uint64                 priority     = 3;
+}
+
+// AddInputReply is empty: the priority itself is the input handle.
+message AddInputReply {}
+
+// RemoveInputRequest removes the input at the given priority.
+// Returns NOT_FOUND if no input exists at that priority.
+message RemoveInputRequest {
+  uint64 priority = 1;
+}
+
+message RemoveInputReply {}
