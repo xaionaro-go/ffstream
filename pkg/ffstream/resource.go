@@ -5,35 +5,22 @@ package ffstream
 import (
 	"context"
 	"slices"
-	"strconv"
 
-	"github.com/facebookincubator/go-belt/tool/logger"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
 type Resource struct {
 	URL                     string
+	Priority                uint
 	CodecHWAccel            avptypes.HardwareDeviceType
 	SyncUsingReferenceAudio *int
 	Suppressed              bool
 	kernel.InputConfig
 }
 
-func (r Resource) GetFallbackPriority(
-	ctx context.Context,
-) uint {
-	for _, item := range r.CustomOptions {
-		if item.Key == "fallback_priority" {
-			i, err := strconv.ParseUint(item.Value, 10, 0)
-			if err != nil {
-				logger.Errorf(ctx, "unable to parse fallback priority %q: %v", item.Value, err)
-				continue
-			}
-			return uint(i)
-		}
-	}
-	return 0
+func (r Resource) GetFallbackPriority() uint {
+	return r.Priority
 }
 
 type Resources []Resource
@@ -66,7 +53,7 @@ func (s Resources) ByFallbackPriority(
 	seen := map[uint]struct{}{}
 
 	for _, r := range s {
-		p := r.GetFallbackPriority(ctx)
+		p := r.GetFallbackPriority()
 		groupsByPriority[p] = append(groupsByPriority[p], r)
 		if _, ok := seen[p]; !ok {
 			seen[p] = struct{}{}

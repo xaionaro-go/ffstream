@@ -159,9 +159,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 	var inputs ffstream.Resources
 	for idx, input := range inputsFlag.Value() {
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
+		opts := convertUnknownOptionsToAVPCustomOptions(collectedOptions)
+		priority, opts := extractAndStripPriority(ctx, opts)
 		inputConfig := kernel.InputConfig{
 			ForceRealTime: ptr(reFlag.Value()),
-			CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
+			CustomOptions: opts,
 		}
 		var syncUsingReferenceAudio *int
 		var suppressed bool
@@ -183,6 +185,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		}
 		inputs = append(inputs, ffstream.Resource{
 			URL:                     input,
+			Priority:                priority,
 			CodecHWAccel:            hardwareDeviceType,
 			SyncUsingReferenceAudio: syncUsingReferenceAudio,
 			Suppressed:              suppressed,
@@ -278,4 +281,28 @@ func parseFlags(args []string) (context.Context, Flags) {
 	}
 
 	return ctx, flags
+}
+
+func extractAndStripPriority(
+	ctx context.Context,
+	opts avptypes.DictionaryItems,
+) (uint, avptypes.DictionaryItems) {
+	var priority uint
+	result := make(avptypes.DictionaryItems, 0, len(opts))
+	for _, item := range opts {
+		if item.Key != "fallback_priority" {
+			result = append(result, item)
+			continue
+		}
+		v, err := strconv.ParseUint(item.Value, 10, 0)
+		if err != nil {
+			logger.Errorf(ctx, "unable to parse fallback priority %q: %v", item.Value, err)
+			continue
+		}
+		priority = uint(v)
+	}
+	if len(result) == 0 {
+		return priority, nil
+	}
+	return priority, result
 }

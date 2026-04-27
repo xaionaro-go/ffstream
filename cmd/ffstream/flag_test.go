@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/xaionaro-go/avpipeline/kernel"
-	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 )
 
@@ -23,79 +21,23 @@ func TestResourcesByFallbackPriority(t *testing.T) {
 
 	t.Run("groupsAndSorts", func(t *testing.T) {
 		s := ffstream.Resources{
-			{
-				URL: "a",
-				InputConfig: kernel.InputConfig{
-					CustomOptions: avptypes.DictionaryItems{
-						{Key: "fallback_priority", Value: "2"},
-					},
-				},
-			},
-			{
-				URL: "b",
-				InputConfig: kernel.InputConfig{
-					CustomOptions: avptypes.DictionaryItems{
-						{Key: "fallback_priority", Value: "1"},
-					},
-				},
-			},
-			{
-				URL: "c",
-				InputConfig: kernel.InputConfig{
-					CustomOptions: avptypes.DictionaryItems{
-						{Key: "fallback_priority", Value: "1"},
-					},
-				},
-			},
+			{URL: "a", Priority: 2},
+			{URL: "b", Priority: 1},
+			{URL: "c", Priority: 1},
 			{URL: "d"}, // priority 0 (default)
-			{
-				URL: "e",
-				InputConfig: kernel.InputConfig{
-					CustomOptions: avptypes.DictionaryItems{
-						{Key: "fallback_priority", Value: "2"},
-					},
-				},
-			},
+			{URL: "e", Priority: 2},
 		}
 
 		got := s.ByFallbackPriority(ctx)
 		want := []ffstream.Resources{
 			{{URL: "d"}}, // priority 0
 			{
-				{
-					URL: "b",
-					InputConfig: kernel.InputConfig{
-						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: "1"},
-						},
-					},
-				},
-				{
-					URL: "c",
-					InputConfig: kernel.InputConfig{
-						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: "1"},
-						},
-					},
-				},
+				{URL: "b", Priority: 1},
+				{URL: "c", Priority: 1},
 			},
 			{
-				{
-					URL: "a",
-					InputConfig: kernel.InputConfig{
-						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: "2"},
-						},
-					},
-				},
-				{
-					URL: "e",
-					InputConfig: kernel.InputConfig{
-						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: "2"},
-						},
-					},
-				},
+				{URL: "a", Priority: 2},
+				{URL: "e", Priority: 2},
 			},
 		}
 

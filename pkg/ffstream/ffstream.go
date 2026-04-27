@@ -36,6 +36,7 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xsync"
 )
 
 const (
@@ -115,7 +116,8 @@ func (s *FFStream) AddInput(
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
-	priority := resource.GetFallbackPriority(ctx)
+	priority := resource.GetFallbackPriority()
+	preExistingLen := s.Inputs.GetInputChainsCount(ctx)
 
 	// If the requested priority level doesn't exist yet, create new input factories
 	// for all missing priority levels up to the requested one.
@@ -129,7 +131,7 @@ func (s *FFStream) AddInput(
 	// startLen would break the len(InputsInfo) == len(InputChains)
 	// invariant and leave the downstream in an inconsistent state.
 	// Instead, align InputsInfo to the current len(InputChains).
-	for p := s.Inputs.GetInputChainsCount(ctx); p <= int(priority); p++ {
+	for p := preExistingLen; p <= int(priority); p++ {
 		s.InputsInfo = append(s.InputsInfo, nil)
 		if err := s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p))); err != nil {
 			newCount := s.Inputs.GetInputChainsCount(ctx)
@@ -142,8 +144,45 @@ func (s *FFStream) AddInput(
 			return fmt.Errorf("failed to add input factory: %w", err)
 		}
 	}
-
+	if len(s.InputsInfo[priority]) > 0 {
+		return ErrInputAlreadyExists
+	}
+	if int(priority) < preExistingLen {
+		if err := s.Inputs.InputChains[priority].Unpause(ctx); err != nil {
+			return fmt.Errorf("unable to unpause input chain at priority %d: %w", priority, err)
+		}
+	}
 	s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
+	return nil
+}
+
+func (s *FFStream) RemoveInput(
+	ctx context.Context,
+	priority uint,
+) (_err error) {
+	logger.Debugf(ctx, "RemoveInput(ctx, %d)", priority)
+	defer func() { logger.Debugf(ctx, "/RemoveInput(ctx, %d): %v", priority, _err) }()
+	s.locker.Lock()
+	defer s.locker.Unlock()
+
+	if int(priority) >= len(s.InputsInfo) || len(s.InputsInfo[priority]) == 0 {
+		return ErrInputNotFound
+	}
+
+	inputChain, err := xsync.DoR2(ctx, &s.Inputs.InputChainsLocker, func() (*InputChain, error) {
+		if int(priority) >= len(s.Inputs.InputChains) {
+			return nil, fmt.Errorf("internal error: priority %d out of range (input chains=%d)", priority, len(s.Inputs.InputChains))
+		}
+		return s.Inputs.InputChains[priority], nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := inputChain.Pause(ctx); err != nil {
+		return fmt.Errorf("unable to pause input chain at priority %d: %w", priority, err)
+	}
+	s.InputsInfo[priority] = nil
 	return nil
 }
 

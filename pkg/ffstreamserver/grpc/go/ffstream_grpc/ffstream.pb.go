@@ -3164,6 +3164,7 @@ type InputInfo struct {
 	Url           string                  `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
 	InputConfig   *avpipeline.InputConfig `protobuf:"bytes,5,opt,name=input_config,json=inputConfig,proto3" json:"input_config,omitempty"`
 	IsActive      bool                    `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	Suppressed    bool                    `protobuf:"varint,7,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3236,6 +3237,13 @@ func (x *InputInfo) GetInputConfig() *avpipeline.InputConfig {
 func (x *InputInfo) GetIsActive() bool {
 	if x != nil {
 		return x.IsActive
+	}
+	return false
+}
+
+func (x *InputInfo) GetSuppressed() bool {
+	if x != nil {
+		return x.Suppressed
 	}
 	return false
 }
@@ -3432,9 +3440,105 @@ func (*SetStopInputReply) Descriptor() ([]byte, []int) {
 	return file_ffstream_proto_rawDescGZIP(), []int{56}
 }
 
+type SetInputSuppressedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InputPriority uint64                 `protobuf:"varint,1,opt,name=input_priority,json=inputPriority,proto3" json:"input_priority,omitempty"`
+	InputNum      uint64                 `protobuf:"varint,2,opt,name=input_num,json=inputNum,proto3" json:"input_num,omitempty"`
+	Suppressed    bool                   `protobuf:"varint,3,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetInputSuppressedRequest) Reset() {
+	*x = SetInputSuppressedRequest{}
+	mi := &file_ffstream_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetInputSuppressedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetInputSuppressedRequest) ProtoMessage() {}
+
+func (x *SetInputSuppressedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetInputSuppressedRequest.ProtoReflect.Descriptor instead.
+func (*SetInputSuppressedRequest) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *SetInputSuppressedRequest) GetInputPriority() uint64 {
+	if x != nil {
+		return x.InputPriority
+	}
+	return 0
+}
+
+func (x *SetInputSuppressedRequest) GetInputNum() uint64 {
+	if x != nil {
+		return x.InputNum
+	}
+	return 0
+}
+
+func (x *SetInputSuppressedRequest) GetSuppressed() bool {
+	if x != nil {
+		return x.Suppressed
+	}
+	return false
+}
+
+type SetInputSuppressedReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetInputSuppressedReply) Reset() {
+	*x = SetInputSuppressedReply{}
+	mi := &file_ffstream_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetInputSuppressedReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetInputSuppressedReply) ProtoMessage() {}
+
+func (x *SetInputSuppressedReply) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetInputSuppressedReply.ProtoReflect.Descriptor instead.
+func (*SetInputSuppressedReply) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{58}
+}
+
 type InjectSubtitlesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	DurationNs    uint64                 `protobuf:"varint,2,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3442,7 +3546,7 @@ type InjectSubtitlesRequest struct {
 
 func (x *InjectSubtitlesRequest) Reset() {
 	*x = InjectSubtitlesRequest{}
-	mi := &file_ffstream_proto_msgTypes[57]
+	mi := &file_ffstream_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3454,7 +3558,7 @@ func (x *InjectSubtitlesRequest) String() string {
 func (*InjectSubtitlesRequest) ProtoMessage() {}
 
 func (x *InjectSubtitlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[57]
+	mi := &file_ffstream_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3467,14 +3571,14 @@ func (x *InjectSubtitlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InjectSubtitlesRequest.ProtoReflect.Descriptor instead.
 func (*InjectSubtitlesRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{57}
+	return file_ffstream_proto_rawDescGZIP(), []int{59}
 }
 
-func (x *InjectSubtitlesRequest) GetText() string {
+func (x *InjectSubtitlesRequest) GetData() []byte {
 	if x != nil {
-		return x.Text
+		return x.Data
 	}
-	return ""
+	return nil
 }
 
 func (x *InjectSubtitlesRequest) GetDurationNs() uint64 {
@@ -3492,7 +3596,7 @@ type InjectSubtitlesReply struct {
 
 func (x *InjectSubtitlesReply) Reset() {
 	*x = InjectSubtitlesReply{}
-	mi := &file_ffstream_proto_msgTypes[58]
+	mi := &file_ffstream_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3504,7 +3608,7 @@ func (x *InjectSubtitlesReply) String() string {
 func (*InjectSubtitlesReply) ProtoMessage() {}
 
 func (x *InjectSubtitlesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[58]
+	mi := &file_ffstream_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3517,7 +3621,95 @@ func (x *InjectSubtitlesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InjectSubtitlesReply.ProtoReflect.Descriptor instead.
 func (*InjectSubtitlesReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{58}
+	return file_ffstream_proto_rawDescGZIP(), []int{60}
+}
+
+type InjectDataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	DurationNs    uint64                 `protobuf:"varint,2,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InjectDataRequest) Reset() {
+	*x = InjectDataRequest{}
+	mi := &file_ffstream_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InjectDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InjectDataRequest) ProtoMessage() {}
+
+func (x *InjectDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InjectDataRequest.ProtoReflect.Descriptor instead.
+func (*InjectDataRequest) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *InjectDataRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *InjectDataRequest) GetDurationNs() uint64 {
+	if x != nil {
+		return x.DurationNs
+	}
+	return 0
+}
+
+type InjectDataReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InjectDataReply) Reset() {
+	*x = InjectDataReply{}
+	mi := &file_ffstream_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InjectDataReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InjectDataReply) ProtoMessage() {}
+
+func (x *InjectDataReply) ProtoReflect() protoreflect.Message {
+	mi := &file_ffstream_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InjectDataReply.ProtoReflect.Descriptor instead.
+func (*InjectDataReply) Descriptor() ([]byte, []int) {
+	return file_ffstream_proto_rawDescGZIP(), []int{62}
 }
 
 // AddInputRequest registers an input at the given fallback priority.
@@ -3535,7 +3727,7 @@ type AddInputRequest struct {
 
 func (x *AddInputRequest) Reset() {
 	*x = AddInputRequest{}
-	mi := &file_ffstream_proto_msgTypes[59]
+	mi := &file_ffstream_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3547,7 +3739,7 @@ func (x *AddInputRequest) String() string {
 func (*AddInputRequest) ProtoMessage() {}
 
 func (x *AddInputRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[59]
+	mi := &file_ffstream_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3560,7 +3752,7 @@ func (x *AddInputRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddInputRequest.ProtoReflect.Descriptor instead.
 func (*AddInputRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{59}
+	return file_ffstream_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *AddInputRequest) GetUrl() string {
@@ -3593,7 +3785,7 @@ type AddInputReply struct {
 
 func (x *AddInputReply) Reset() {
 	*x = AddInputReply{}
-	mi := &file_ffstream_proto_msgTypes[60]
+	mi := &file_ffstream_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3605,7 +3797,7 @@ func (x *AddInputReply) String() string {
 func (*AddInputReply) ProtoMessage() {}
 
 func (x *AddInputReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[60]
+	mi := &file_ffstream_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3618,7 +3810,7 @@ func (x *AddInputReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddInputReply.ProtoReflect.Descriptor instead.
 func (*AddInputReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{60}
+	return file_ffstream_proto_rawDescGZIP(), []int{64}
 }
 
 // RemoveInputRequest removes the input at the given priority.
@@ -3632,7 +3824,7 @@ type RemoveInputRequest struct {
 
 func (x *RemoveInputRequest) Reset() {
 	*x = RemoveInputRequest{}
-	mi := &file_ffstream_proto_msgTypes[61]
+	mi := &file_ffstream_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3644,7 +3836,7 @@ func (x *RemoveInputRequest) String() string {
 func (*RemoveInputRequest) ProtoMessage() {}
 
 func (x *RemoveInputRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[61]
+	mi := &file_ffstream_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3657,7 +3849,7 @@ func (x *RemoveInputRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveInputRequest.ProtoReflect.Descriptor instead.
 func (*RemoveInputRequest) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{61}
+	return file_ffstream_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *RemoveInputRequest) GetPriority() uint64 {
@@ -3675,7 +3867,7 @@ type RemoveInputReply struct {
 
 func (x *RemoveInputReply) Reset() {
 	*x = RemoveInputReply{}
-	mi := &file_ffstream_proto_msgTypes[62]
+	mi := &file_ffstream_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3687,7 +3879,7 @@ func (x *RemoveInputReply) String() string {
 func (*RemoveInputReply) ProtoMessage() {}
 
 func (x *RemoveInputReply) ProtoReflect() protoreflect.Message {
-	mi := &file_ffstream_proto_msgTypes[62]
+	mi := &file_ffstream_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3700,7 +3892,7 @@ func (x *RemoveInputReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveInputReply.ProtoReflect.Descriptor instead.
 func (*RemoveInputReply) Descriptor() ([]byte, []int) {
-	return file_ffstream_proto_rawDescGZIP(), []int{62}
+	return file_ffstream_proto_rawDescGZIP(), []int{66}
 }
 
 var File_ffstream_proto protoreflect.FileDescriptor
@@ -3932,14 +4124,17 @@ const file_ffstream_proto_rawDesc = "" +
 	"\x05video\x18\x02 \x01(\v2\x1c.ffstream_grpc.StreamQualityR\x05video\"\x16\n" +
 	"\x14GetInputsInfoRequest\"F\n" +
 	"\x12GetInputsInfoReply\x120\n" +
-	"\x06inputs\x18\x01 \x03(\v2\x18.ffstream_grpc.InputInfoR\x06inputs\"\xb4\x01\n" +
+	"\x06inputs\x18\x01 \x03(\v2\x18.ffstream_grpc.InputInfoR\x06inputs\"\xd4\x01\n" +
 	"\tInputInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1a\n" +
 	"\bpriority\x18\x02 \x01(\x04R\bpriority\x12\x10\n" +
 	"\x03num\x18\x03 \x01(\x04R\x03num\x12\x10\n" +
 	"\x03url\x18\x04 \x01(\tR\x03url\x12:\n" +
 	"\finput_config\x18\x05 \x01(\v2\x17.avpipeline.InputConfigR\vinputConfig\x12\x1b\n" +
-	"\tis_active\x18\x06 \x01(\bR\bisActive\"\x89\x01\n" +
+	"\tis_active\x18\x06 \x01(\bR\bisActive\x12\x1e\n" +
+	"\n" +
+	"suppressed\x18\a \x01(\bR\n" +
+	"suppressed\"\x89\x01\n" +
 	"\x1bSetInputCustomOptionRequest\x12%\n" +
 	"\x0einput_priority\x18\x01 \x01(\x04R\rinputPriority\x12\x1b\n" +
 	"\tinput_num\x18\x02 \x01(\x04R\binputNum\x12\x10\n" +
@@ -3949,12 +4144,24 @@ const file_ffstream_proto_rawDesc = "" +
 	"\x13SetStopInputRequest\x12%\n" +
 	"\x0einput_priority\x18\x01 \x01(\x04R\rinputPriority\x12\x12\n" +
 	"\x04stop\x18\x03 \x01(\bR\x04stop\"\x13\n" +
-	"\x11SetStopInputReply\"M\n" +
+	"\x11SetStopInputReply\"\x7f\n" +
+	"\x19SetInputSuppressedRequest\x12%\n" +
+	"\x0einput_priority\x18\x01 \x01(\x04R\rinputPriority\x12\x1b\n" +
+	"\tinput_num\x18\x02 \x01(\x04R\binputNum\x12\x1e\n" +
+	"\n" +
+	"suppressed\x18\x03 \x01(\bR\n" +
+	"suppressed\"\x19\n" +
+	"\x17SetInputSuppressedReply\"M\n" +
 	"\x16InjectSubtitlesRequest\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\x12\x1f\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1f\n" +
 	"\vduration_ns\x18\x02 \x01(\x04R\n" +
 	"durationNs\"\x16\n" +
-	"\x14InjectSubtitlesReply\"{\n" +
+	"\x14InjectSubtitlesReply\"H\n" +
+	"\x11InjectDataRequest\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1f\n" +
+	"\vduration_ns\x18\x02 \x01(\x04R\n" +
+	"durationNs\"\x11\n" +
+	"\x0fInjectDataReply\"{\n" +
 	"\x0fAddInputRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12:\n" +
 	"\finput_config\x18\x02 \x01(\v2\x17.avpipeline.InputConfigR\vinputConfig\x12\x1a\n" +
@@ -3975,7 +4182,7 @@ const file_ffstream_proto_rawDesc = "" +
 	"\n" +
 	"SRTFlagInt\x12\x1a\n" +
 	"\x16SRT_FLAG_INT_UNDEFINED\x10\x00\x12\x18\n" +
-	"\x14SRT_FLAG_INT_LATENCY\x10\x012\x87\x15\n" +
+	"\x14SRT_FLAG_INT_LATENCY\x10\x012\xc3\x16\n" +
 	"\bFFStream\x12_\n" +
 	"\x0fSetLoggingLevel\x12%.ffstream_grpc.SetLoggingLevelRequest\x1a#.ffstream_grpc.SetLoggingLevelReply\"\x00\x12V\n" +
 	"\fRemoveOutput\x12\".ffstream_grpc.RemoveOutputRequest\x1a .ffstream_grpc.RemoveOutputReply\"\x00\x12b\n" +
@@ -4001,10 +4208,13 @@ const file_ffstream_proto_rawDesc = "" +
 	"\aMonitor\x12\x1a.avpipeline.MonitorRequest\x1a\x18.avpipeline.MonitorEvent\"\x000\x01\x12Y\n" +
 	"\rGetInputsInfo\x12#.ffstream_grpc.GetInputsInfoRequest\x1a!.ffstream_grpc.GetInputsInfoReply\"\x00\x12n\n" +
 	"\x14SetInputCustomOption\x12*.ffstream_grpc.SetInputCustomOptionRequest\x1a(.ffstream_grpc.SetInputCustomOptionReply\"\x00\x12V\n" +
-	"\fSetStopInput\x12\".ffstream_grpc.SetStopInputRequest\x1a .ffstream_grpc.SetStopInputReply\"\x00\x12J\n" +
+	"\fSetStopInput\x12\".ffstream_grpc.SetStopInputRequest\x1a .ffstream_grpc.SetStopInputReply\"\x00\x12h\n" +
+	"\x12SetInputSuppressed\x12(.ffstream_grpc.SetInputSuppressedRequest\x1a&.ffstream_grpc.SetInputSuppressedReply\"\x00\x12J\n" +
 	"\bAddInput\x12\x1e.ffstream_grpc.AddInputRequest\x1a\x1c.ffstream_grpc.AddInputReply\"\x00\x12S\n" +
 	"\vRemoveInput\x12!.ffstream_grpc.RemoveInputRequest\x1a\x1f.ffstream_grpc.RemoveInputReply\"\x00\x12_\n" +
-	"\x0fInjectSubtitles\x12%.ffstream_grpc.InjectSubtitlesRequest\x1a#.ffstream_grpc.InjectSubtitlesReply\"\x00B\x12Z\x10go/ffstream_grpcb\x06proto3"
+	"\x0fInjectSubtitles\x12%.ffstream_grpc.InjectSubtitlesRequest\x1a#.ffstream_grpc.InjectSubtitlesReply\"\x00\x12P\n" +
+	"\n" +
+	"InjectData\x12 .ffstream_grpc.InjectDataRequest\x1a\x1e.ffstream_grpc.InjectDataReply\"\x00B\x12Z\x10go/ffstream_grpcb\x06proto3"
 
 var (
 	file_ffstream_proto_rawDescOnce sync.Once
@@ -4019,7 +4229,7 @@ func file_ffstream_proto_rawDescGZIP() []byte {
 }
 
 var file_ffstream_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
+var file_ffstream_proto_msgTypes = make([]protoimpl.MessageInfo, 67)
 var file_ffstream_proto_goTypes = []any{
 	(LoggingLevel)(0),                            // 0: ffstream_grpc.LoggingLevel
 	(SRTFlagInt)(0),                              // 1: ffstream_grpc.SRTFlagInt
@@ -4080,37 +4290,41 @@ var file_ffstream_proto_goTypes = []any{
 	(*SetInputCustomOptionReply)(nil),            // 56: ffstream_grpc.SetInputCustomOptionReply
 	(*SetStopInputRequest)(nil),                  // 57: ffstream_grpc.SetStopInputRequest
 	(*SetStopInputReply)(nil),                    // 58: ffstream_grpc.SetStopInputReply
-	(*InjectSubtitlesRequest)(nil),               // 59: ffstream_grpc.InjectSubtitlesRequest
-	(*InjectSubtitlesReply)(nil),                 // 60: ffstream_grpc.InjectSubtitlesReply
-	(*AddInputRequest)(nil),                      // 61: ffstream_grpc.AddInputRequest
-	(*AddInputReply)(nil),                        // 62: ffstream_grpc.AddInputReply
-	(*RemoveInputRequest)(nil),                   // 63: ffstream_grpc.RemoveInputRequest
-	(*RemoveInputReply)(nil),                     // 64: ffstream_grpc.RemoveInputReply
-	(*avpipeline.CustomOption)(nil),              // 65: avpipeline.CustomOption
-	(*avpipeline.NodeCounters)(nil),              // 66: avpipeline.NodeCounters
-	(*avpipeline.Node)(nil),                      // 67: avpipeline.Node
-	(*avpipeline.AutoBitRateVideoConfig)(nil),    // 68: avpipeline.AutoBitRateVideoConfig
-	(*avpipeline.AutoBitrateCalculator)(nil),     // 69: avpipeline.AutoBitrateCalculator
-	(*avpipeline.InputConfig)(nil),               // 70: avpipeline.InputConfig
-	(*avpipeline.MonitorRequest)(nil),            // 71: avpipeline.MonitorRequest
-	(*avpipeline.MonitorEvent)(nil),              // 72: avpipeline.MonitorEvent
+	(*SetInputSuppressedRequest)(nil),            // 59: ffstream_grpc.SetInputSuppressedRequest
+	(*SetInputSuppressedReply)(nil),              // 60: ffstream_grpc.SetInputSuppressedReply
+	(*InjectSubtitlesRequest)(nil),               // 61: ffstream_grpc.InjectSubtitlesRequest
+	(*InjectSubtitlesReply)(nil),                 // 62: ffstream_grpc.InjectSubtitlesReply
+	(*InjectDataRequest)(nil),                    // 63: ffstream_grpc.InjectDataRequest
+	(*InjectDataReply)(nil),                      // 64: ffstream_grpc.InjectDataReply
+	(*AddInputRequest)(nil),                      // 65: ffstream_grpc.AddInputRequest
+	(*AddInputReply)(nil),                        // 66: ffstream_grpc.AddInputReply
+	(*RemoveInputRequest)(nil),                   // 67: ffstream_grpc.RemoveInputRequest
+	(*RemoveInputReply)(nil),                     // 68: ffstream_grpc.RemoveInputReply
+	(*avpipeline.CustomOption)(nil),              // 69: avpipeline.CustomOption
+	(*avpipeline.NodeCounters)(nil),              // 70: avpipeline.NodeCounters
+	(*avpipeline.Node)(nil),                      // 71: avpipeline.Node
+	(*avpipeline.AutoBitRateVideoConfig)(nil),    // 72: avpipeline.AutoBitRateVideoConfig
+	(*avpipeline.AutoBitrateCalculator)(nil),     // 73: avpipeline.AutoBitrateCalculator
+	(*avpipeline.InputConfig)(nil),               // 74: avpipeline.InputConfig
+	(*avpipeline.MonitorRequest)(nil),            // 75: avpipeline.MonitorRequest
+	(*avpipeline.MonitorEvent)(nil),              // 76: avpipeline.MonitorEvent
 }
 var file_ffstream_proto_depIdxs = []int32{
 	0,  // 0: ffstream_grpc.SetLoggingLevelRequest.level:type_name -> ffstream_grpc.LoggingLevel
-	65, // 1: ffstream_grpc.AudioCodecConfig.custom_options:type_name -> avpipeline.CustomOption
-	65, // 2: ffstream_grpc.VideoCodecConfig.custom_options:type_name -> avpipeline.CustomOption
+	69, // 1: ffstream_grpc.AudioCodecConfig.custom_options:type_name -> avpipeline.CustomOption
+	69, // 2: ffstream_grpc.VideoCodecConfig.custom_options:type_name -> avpipeline.CustomOption
 	6,  // 3: ffstream_grpc.TranscoderConfig.audio:type_name -> ffstream_grpc.AudioCodecConfig
 	7,  // 4: ffstream_grpc.TranscoderConfig.video:type_name -> ffstream_grpc.VideoCodecConfig
 	8,  // 5: ffstream_grpc.GetCurrentOutputReply.config:type_name -> ffstream_grpc.TranscoderConfig
 	8,  // 6: ffstream_grpc.SwitchOutputByPropsRequest.config:type_name -> ffstream_grpc.TranscoderConfig
-	66, // 7: ffstream_grpc.GetStatsReply.node_counters:type_name -> avpipeline.NodeCounters
+	70, // 7: ffstream_grpc.GetStatsReply.node_counters:type_name -> avpipeline.NodeCounters
 	1,  // 8: ffstream_grpc.GetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
 	1,  // 9: ffstream_grpc.SetSRTFlagIntRequest.flag:type_name -> ffstream_grpc.SRTFlagInt
-	67, // 10: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
-	68, // 11: ffstream_grpc.GetVideoAutoBitRateConfigReply.config:type_name -> avpipeline.AutoBitRateVideoConfig
-	68, // 12: ffstream_grpc.SetVideoAutoBitRateConfigRequest.config:type_name -> avpipeline.AutoBitRateVideoConfig
-	69, // 13: ffstream_grpc.GetVideoAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
-	69, // 14: ffstream_grpc.SetVideoAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	71, // 10: ffstream_grpc.GetPipelinesResponse.nodes:type_name -> avpipeline.Node
+	72, // 11: ffstream_grpc.GetVideoAutoBitRateConfigReply.config:type_name -> avpipeline.AutoBitRateVideoConfig
+	72, // 12: ffstream_grpc.SetVideoAutoBitRateConfigRequest.config:type_name -> avpipeline.AutoBitRateVideoConfig
+	73, // 13: ffstream_grpc.GetVideoAutoBitRateCalculatorReply.calculator:type_name -> avpipeline.AutoBitrateCalculator
+	73, // 14: ffstream_grpc.SetVideoAutoBitRateCalculatorRequest.calculator:type_name -> avpipeline.AutoBitrateCalculator
 	39, // 15: ffstream_grpc.BitRates.input_bit_rate:type_name -> ffstream_grpc.BitRateInfo
 	39, // 16: ffstream_grpc.BitRates.encoded_bit_rate:type_name -> ffstream_grpc.BitRateInfo
 	39, // 17: ffstream_grpc.BitRates.output_bit_rate:type_name -> ffstream_grpc.BitRateInfo
@@ -4123,8 +4337,8 @@ var file_ffstream_proto_depIdxs = []int32{
 	49, // 24: ffstream_grpc.GetOutputQualityReply.audio:type_name -> ffstream_grpc.StreamQuality
 	49, // 25: ffstream_grpc.GetOutputQualityReply.video:type_name -> ffstream_grpc.StreamQuality
 	54, // 26: ffstream_grpc.GetInputsInfoReply.inputs:type_name -> ffstream_grpc.InputInfo
-	70, // 27: ffstream_grpc.InputInfo.input_config:type_name -> avpipeline.InputConfig
-	70, // 28: ffstream_grpc.AddInputRequest.input_config:type_name -> avpipeline.InputConfig
+	74, // 27: ffstream_grpc.InputInfo.input_config:type_name -> avpipeline.InputConfig
+	74, // 28: ffstream_grpc.AddInputRequest.input_config:type_name -> avpipeline.InputConfig
 	2,  // 29: ffstream_grpc.FFStream.SetLoggingLevel:input_type -> ffstream_grpc.SetLoggingLevelRequest
 	4,  // 30: ffstream_grpc.FFStream.RemoveOutput:input_type -> ffstream_grpc.RemoveOutputRequest
 	9,  // 31: ffstream_grpc.FFStream.GetCurrentOutput:input_type -> ffstream_grpc.GetCurrentOutputRequest
@@ -4146,43 +4360,47 @@ var file_ffstream_proto_depIdxs = []int32{
 	43, // 47: ffstream_grpc.FFStream.GetLatencies:input_type -> ffstream_grpc.GetLatenciesRequest
 	47, // 48: ffstream_grpc.FFStream.GetInputQuality:input_type -> ffstream_grpc.GetInputQualityRequest
 	50, // 49: ffstream_grpc.FFStream.GetOutputQuality:input_type -> ffstream_grpc.GetOutputQualityRequest
-	71, // 50: ffstream_grpc.FFStream.Monitor:input_type -> avpipeline.MonitorRequest
+	75, // 50: ffstream_grpc.FFStream.Monitor:input_type -> avpipeline.MonitorRequest
 	52, // 51: ffstream_grpc.FFStream.GetInputsInfo:input_type -> ffstream_grpc.GetInputsInfoRequest
 	55, // 52: ffstream_grpc.FFStream.SetInputCustomOption:input_type -> ffstream_grpc.SetInputCustomOptionRequest
 	57, // 53: ffstream_grpc.FFStream.SetStopInput:input_type -> ffstream_grpc.SetStopInputRequest
-	61, // 54: ffstream_grpc.FFStream.AddInput:input_type -> ffstream_grpc.AddInputRequest
-	63, // 55: ffstream_grpc.FFStream.RemoveInput:input_type -> ffstream_grpc.RemoveInputRequest
-	59, // 56: ffstream_grpc.FFStream.InjectSubtitles:input_type -> ffstream_grpc.InjectSubtitlesRequest
-	3,  // 57: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
-	5,  // 58: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
-	10, // 59: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
-	12, // 60: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
-	14, // 61: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
-	16, // 62: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
-	18, // 63: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
-	20, // 64: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
-	22, // 65: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
-	24, // 66: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
-	26, // 67: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
-	28, // 68: ffstream_grpc.FFStream.GetVideoAutoBitRateConfig:output_type -> ffstream_grpc.GetVideoAutoBitRateConfigReply
-	30, // 69: ffstream_grpc.FFStream.SetVideoAutoBitRateConfig:output_type -> ffstream_grpc.SetVideoAutoBitRateConfigReply
-	32, // 70: ffstream_grpc.FFStream.GetVideoAutoBitRateCalculator:output_type -> ffstream_grpc.GetVideoAutoBitRateCalculatorReply
-	34, // 71: ffstream_grpc.FFStream.SetVideoAutoBitRateCalculator:output_type -> ffstream_grpc.SetVideoAutoBitRateCalculatorReply
-	36, // 72: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
-	38, // 73: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
-	42, // 74: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
-	44, // 75: ffstream_grpc.FFStream.GetLatencies:output_type -> ffstream_grpc.GetLatenciesReply
-	48, // 76: ffstream_grpc.FFStream.GetInputQuality:output_type -> ffstream_grpc.GetInputQualityReply
-	51, // 77: ffstream_grpc.FFStream.GetOutputQuality:output_type -> ffstream_grpc.GetOutputQualityReply
-	72, // 78: ffstream_grpc.FFStream.Monitor:output_type -> avpipeline.MonitorEvent
-	53, // 79: ffstream_grpc.FFStream.GetInputsInfo:output_type -> ffstream_grpc.GetInputsInfoReply
-	56, // 80: ffstream_grpc.FFStream.SetInputCustomOption:output_type -> ffstream_grpc.SetInputCustomOptionReply
-	58, // 81: ffstream_grpc.FFStream.SetStopInput:output_type -> ffstream_grpc.SetStopInputReply
-	62, // 82: ffstream_grpc.FFStream.AddInput:output_type -> ffstream_grpc.AddInputReply
-	64, // 83: ffstream_grpc.FFStream.RemoveInput:output_type -> ffstream_grpc.RemoveInputReply
-	60, // 84: ffstream_grpc.FFStream.InjectSubtitles:output_type -> ffstream_grpc.InjectSubtitlesReply
-	57, // [57:85] is the sub-list for method output_type
-	29, // [29:57] is the sub-list for method input_type
+	59, // 54: ffstream_grpc.FFStream.SetInputSuppressed:input_type -> ffstream_grpc.SetInputSuppressedRequest
+	65, // 55: ffstream_grpc.FFStream.AddInput:input_type -> ffstream_grpc.AddInputRequest
+	67, // 56: ffstream_grpc.FFStream.RemoveInput:input_type -> ffstream_grpc.RemoveInputRequest
+	61, // 57: ffstream_grpc.FFStream.InjectSubtitles:input_type -> ffstream_grpc.InjectSubtitlesRequest
+	63, // 58: ffstream_grpc.FFStream.InjectData:input_type -> ffstream_grpc.InjectDataRequest
+	3,  // 59: ffstream_grpc.FFStream.SetLoggingLevel:output_type -> ffstream_grpc.SetLoggingLevelReply
+	5,  // 60: ffstream_grpc.FFStream.RemoveOutput:output_type -> ffstream_grpc.RemoveOutputReply
+	10, // 61: ffstream_grpc.FFStream.GetCurrentOutput:output_type -> ffstream_grpc.GetCurrentOutputReply
+	12, // 62: ffstream_grpc.FFStream.SwitchOutputByProps:output_type -> ffstream_grpc.SwitchOutputByPropsReply
+	14, // 63: ffstream_grpc.FFStream.GetStats:output_type -> ffstream_grpc.GetStatsReply
+	16, // 64: ffstream_grpc.FFStream.GetOutputSRTStats:output_type -> ffstream_grpc.GetOutputSRTStatsReply
+	18, // 65: ffstream_grpc.FFStream.GetSRTFlagInt:output_type -> ffstream_grpc.GetSRTFlagIntReply
+	20, // 66: ffstream_grpc.FFStream.SetSRTFlagInt:output_type -> ffstream_grpc.SetSRTFlagIntReply
+	22, // 67: ffstream_grpc.FFStream.WaitChan:output_type -> ffstream_grpc.WaitReply
+	24, // 68: ffstream_grpc.FFStream.End:output_type -> ffstream_grpc.EndReply
+	26, // 69: ffstream_grpc.FFStream.GetPipelines:output_type -> ffstream_grpc.GetPipelinesResponse
+	28, // 70: ffstream_grpc.FFStream.GetVideoAutoBitRateConfig:output_type -> ffstream_grpc.GetVideoAutoBitRateConfigReply
+	30, // 71: ffstream_grpc.FFStream.SetVideoAutoBitRateConfig:output_type -> ffstream_grpc.SetVideoAutoBitRateConfigReply
+	32, // 72: ffstream_grpc.FFStream.GetVideoAutoBitRateCalculator:output_type -> ffstream_grpc.GetVideoAutoBitRateCalculatorReply
+	34, // 73: ffstream_grpc.FFStream.SetVideoAutoBitRateCalculator:output_type -> ffstream_grpc.SetVideoAutoBitRateCalculatorReply
+	36, // 74: ffstream_grpc.FFStream.GetFPSFraction:output_type -> ffstream_grpc.GetFPSFractionReply
+	38, // 75: ffstream_grpc.FFStream.SetFPSFraction:output_type -> ffstream_grpc.SetFPSFractionReply
+	42, // 76: ffstream_grpc.FFStream.GetBitRates:output_type -> ffstream_grpc.GetBitRatesReply
+	44, // 77: ffstream_grpc.FFStream.GetLatencies:output_type -> ffstream_grpc.GetLatenciesReply
+	48, // 78: ffstream_grpc.FFStream.GetInputQuality:output_type -> ffstream_grpc.GetInputQualityReply
+	51, // 79: ffstream_grpc.FFStream.GetOutputQuality:output_type -> ffstream_grpc.GetOutputQualityReply
+	76, // 80: ffstream_grpc.FFStream.Monitor:output_type -> avpipeline.MonitorEvent
+	53, // 81: ffstream_grpc.FFStream.GetInputsInfo:output_type -> ffstream_grpc.GetInputsInfoReply
+	56, // 82: ffstream_grpc.FFStream.SetInputCustomOption:output_type -> ffstream_grpc.SetInputCustomOptionReply
+	58, // 83: ffstream_grpc.FFStream.SetStopInput:output_type -> ffstream_grpc.SetStopInputReply
+	60, // 84: ffstream_grpc.FFStream.SetInputSuppressed:output_type -> ffstream_grpc.SetInputSuppressedReply
+	66, // 85: ffstream_grpc.FFStream.AddInput:output_type -> ffstream_grpc.AddInputReply
+	68, // 86: ffstream_grpc.FFStream.RemoveInput:output_type -> ffstream_grpc.RemoveInputReply
+	62, // 87: ffstream_grpc.FFStream.InjectSubtitles:output_type -> ffstream_grpc.InjectSubtitlesReply
+	64, // 88: ffstream_grpc.FFStream.InjectData:output_type -> ffstream_grpc.InjectDataReply
+	59, // [59:89] is the sub-list for method output_type
+	29, // [29:59] is the sub-list for method input_type
 	29, // [29:29] is the sub-list for extension type_name
 	29, // [29:29] is the sub-list for extension extendee
 	0,  // [0:29] is the sub-list for field type_name
@@ -4199,7 +4417,7 @@ func file_ffstream_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ffstream_proto_rawDesc), len(file_ffstream_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   63,
+			NumMessages:   67,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

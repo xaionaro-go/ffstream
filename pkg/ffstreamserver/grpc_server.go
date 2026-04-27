@@ -5,6 +5,7 @@ package ffstreamserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -489,4 +490,41 @@ func (srv *GRPCServer) InjectData(
 		return nil, status.Errorf(codes.Unknown, "unable to inject data: %v", err)
 	}
 	return &ffstream_grpc.InjectDataReply{}, nil
+}
+
+func (srv *GRPCServer) AddInput(
+	ctx context.Context,
+	req *ffstream_grpc.AddInputRequest,
+) (_ret *ffstream_grpc.AddInputReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "AddInput: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/AddInput: %s: %v %v", spew.Sdump(req), _ret, _err) }()
+	resource := ffstream.Resource{
+		URL:         req.GetUrl(),
+		Priority:    uint(req.GetPriority()),
+		InputConfig: goconvavp.InputConfigFromProto(req.GetInputConfig()),
+	}
+	if err := srv.FFStream.AddInput(ctx, resource); err != nil {
+		if errors.Is(err, ffstream.ErrInputAlreadyExists) {
+			return nil, status.Errorf(codes.AlreadyExists, "input already exists at priority %d: %v", req.GetPriority(), err)
+		}
+		return nil, status.Errorf(codes.Unknown, "unable to add input at priority %d: %v", req.GetPriority(), err)
+	}
+	return &ffstream_grpc.AddInputReply{}, nil
+}
+
+func (srv *GRPCServer) RemoveInput(
+	ctx context.Context,
+	req *ffstream_grpc.RemoveInputRequest,
+) (_ret *ffstream_grpc.RemoveInputReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "RemoveInput: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/RemoveInput: %s: %v %v", spew.Sdump(req), _ret, _err) }()
+	if err := srv.FFStream.RemoveInput(ctx, uint(req.GetPriority())); err != nil {
+		if errors.Is(err, ffstream.ErrInputNotFound) {
+			return nil, status.Errorf(codes.NotFound, "no input at priority %d: %v", req.GetPriority(), err)
+		}
+		return nil, status.Errorf(codes.Unknown, "unable to remove input at priority %d: %v", req.GetPriority(), err)
+	}
+	return &ffstream_grpc.RemoveInputReply{}, nil
 }
