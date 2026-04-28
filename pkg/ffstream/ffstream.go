@@ -193,6 +193,15 @@ func (s *FFStream) GetTranscoderConfig(
 // updated URL is read by the next senderFactory.NewSender call, which
 // is triggered by SwitchOutputByProps. Callers wanting an immediate
 // effect should call SwitchOutputByProps right after.
+//
+// Any sticky `-f`/`-format` muxer override left in the template's
+// Options is stripped: when callers switch the URL at runtime, the
+// new URL's scheme determines the muxer (rtmp/srt/udp/...), and a
+// boot-time `-f null` override (used by the launcher when the daemon
+// boots without an external sink) would otherwise shadow it and the
+// muxer would stay `null`. There is no runtime API to add CustomOptions
+// today, so any `-f`/`-format` present here came from boot-time CLI
+// args and is by definition stale once the URL changes.
 func (s *FFStream) SetOutputURL(
 	ctx context.Context,
 	url string,
@@ -205,6 +214,15 @@ func (s *FFStream) SetOutputURL(
 		return fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
 	}
 	s.OutputTemplates[0].URLTemplate = url
+	s.OutputTemplates[0].Options = slices.DeleteFunc(
+		s.OutputTemplates[0].Options,
+		func(item avptypes.DictionaryItem) bool {
+			// The CLI parser strips the leading `-` (see
+			// convertUnknownOptionsToAVPCustomOptions in cmd/ffstream),
+			// so `-f` lands as Key=="f" and `-format` as Key=="format".
+			return item.Key == "f" || item.Key == "format"
+		},
+	)
 	return nil
 }
 
