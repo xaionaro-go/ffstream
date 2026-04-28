@@ -713,3 +713,17 @@ func (c *Client) SwitchOutputByProps(
 
 	return nil
 }
+
+func (c *Client) SetOutputURL(ctx context.Context, url string) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetOutputURL(ctx, &ffstream_grpc.SetOutputURLRequest{Url: url})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+	return nil
+}

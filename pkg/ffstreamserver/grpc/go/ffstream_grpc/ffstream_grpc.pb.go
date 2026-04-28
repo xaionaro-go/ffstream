@@ -24,6 +24,7 @@ const (
 	FFStream_RemoveOutput_FullMethodName                  = "/ffstream_grpc.FFStream/RemoveOutput"
 	FFStream_GetCurrentOutput_FullMethodName              = "/ffstream_grpc.FFStream/GetCurrentOutput"
 	FFStream_SwitchOutputByProps_FullMethodName           = "/ffstream_grpc.FFStream/SwitchOutputByProps"
+	FFStream_SetOutputURL_FullMethodName                  = "/ffstream_grpc.FFStream/SetOutputURL"
 	FFStream_GetStats_FullMethodName                      = "/ffstream_grpc.FFStream/GetStats"
 	FFStream_GetOutputSRTStats_FullMethodName             = "/ffstream_grpc.FFStream/GetOutputSRTStats"
 	FFStream_GetSRTFlagInt_FullMethodName                 = "/ffstream_grpc.FFStream/GetSRTFlagInt"
@@ -60,6 +61,7 @@ type FFStreamClient interface {
 	RemoveOutput(ctx context.Context, in *RemoveOutputRequest, opts ...grpc.CallOption) (*RemoveOutputReply, error)
 	GetCurrentOutput(ctx context.Context, in *GetCurrentOutputRequest, opts ...grpc.CallOption) (*GetCurrentOutputReply, error)
 	SwitchOutputByProps(ctx context.Context, in *SwitchOutputByPropsRequest, opts ...grpc.CallOption) (*SwitchOutputByPropsReply, error)
+	SetOutputURL(ctx context.Context, in *SetOutputURLRequest, opts ...grpc.CallOption) (*SetOutputURLReply, error)
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsReply, error)
 	GetOutputSRTStats(ctx context.Context, in *GetOutputSRTStatsRequest, opts ...grpc.CallOption) (*GetOutputSRTStatsReply, error)
 	GetSRTFlagInt(ctx context.Context, in *GetSRTFlagIntRequest, opts ...grpc.CallOption) (*GetSRTFlagIntReply, error)
@@ -130,6 +132,16 @@ func (c *fFStreamClient) SwitchOutputByProps(ctx context.Context, in *SwitchOutp
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SwitchOutputByPropsReply)
 	err := c.cc.Invoke(ctx, FFStream_SwitchOutputByProps_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fFStreamClient) SetOutputURL(ctx context.Context, in *SetOutputURLRequest, opts ...grpc.CallOption) (*SetOutputURLReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetOutputURLReply)
+	err := c.cc.Invoke(ctx, FFStream_SetOutputURL_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -422,6 +434,7 @@ type FFStreamServer interface {
 	RemoveOutput(context.Context, *RemoveOutputRequest) (*RemoveOutputReply, error)
 	GetCurrentOutput(context.Context, *GetCurrentOutputRequest) (*GetCurrentOutputReply, error)
 	SwitchOutputByProps(context.Context, *SwitchOutputByPropsRequest) (*SwitchOutputByPropsReply, error)
+	SetOutputURL(context.Context, *SetOutputURLRequest) (*SetOutputURLReply, error)
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error)
 	GetOutputSRTStats(context.Context, *GetOutputSRTStatsRequest) (*GetOutputSRTStatsReply, error)
 	GetSRTFlagInt(context.Context, *GetSRTFlagIntRequest) (*GetSRTFlagIntReply, error)
@@ -469,6 +482,9 @@ func (UnimplementedFFStreamServer) GetCurrentOutput(context.Context, *GetCurrent
 }
 func (UnimplementedFFStreamServer) SwitchOutputByProps(context.Context, *SwitchOutputByPropsRequest) (*SwitchOutputByPropsReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SwitchOutputByProps not implemented")
+}
+func (UnimplementedFFStreamServer) SetOutputURL(context.Context, *SetOutputURLRequest) (*SetOutputURLReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetOutputURL not implemented")
 }
 func (UnimplementedFFStreamServer) GetStats(context.Context, *GetStatsRequest) (*GetStatsReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetStats not implemented")
@@ -637,6 +653,24 @@ func _FFStream_SwitchOutputByProps_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FFStreamServer).SwitchOutputByProps(ctx, req.(*SwitchOutputByPropsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FFStream_SetOutputURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetOutputURLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).SetOutputURL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_SetOutputURL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).SetOutputURL(ctx, req.(*SetOutputURLRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1117,6 +1151,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SwitchOutputByProps",
 			Handler:    _FFStream_SwitchOutputByProps_Handler,
+		},
+		{
+			MethodName: "SetOutputURL",
+			Handler:    _FFStream_SetOutputURL_Handler,
 		},
 		{
 			MethodName: "GetStats",

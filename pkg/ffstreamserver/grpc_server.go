@@ -468,6 +468,18 @@ func (srv *GRPCServer) SwitchOutputByProps(
 	return &ffstream_grpc.SwitchOutputByPropsReply{}, nil
 }
 
+func (srv *GRPCServer) SetOutputURL(
+	ctx context.Context,
+	req *ffstream_grpc.SetOutputURLRequest,
+) (*ffstream_grpc.SetOutputURLReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "SetOutputURL: %q", req.GetUrl())
+	if err := srv.FFStream.SetOutputURL(ctx, req.GetUrl()); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "unable to set output URL: %v", err)
+	}
+	return &ffstream_grpc.SetOutputURLReply{}, nil
+}
+
 func (srv *GRPCServer) InjectSubtitles(
 	ctx context.Context,
 	req *ffstream_grpc.InjectSubtitlesRequest,

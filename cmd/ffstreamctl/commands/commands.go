@@ -242,6 +242,12 @@ var (
 		Run:  outputSwitch,
 	}
 
+	OutputSetURL = &cobra.Command{
+		Use:  "set-url <url>",
+		Args: cobra.ExactArgs(1),
+		Run:  outputSetURL,
+	}
+
 	InjectSubtitles = &cobra.Command{
 		Use:  "inject_subtitles <text>",
 		Args: cobra.ExactArgs(1),
@@ -306,6 +312,7 @@ func init() {
 
 	Root.AddCommand(Output)
 	Output.AddCommand(OutputSwitch)
+	Output.AddCommand(OutputSetURL)
 
 	Root.AddCommand(InjectSubtitles)
 	InjectSubtitles.Flags().Duration("duration", time.Second, "the duration of the subtitle")
@@ -718,6 +725,22 @@ func outputSwitch(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	logger.Infof(ctx, "output switch completed successfully")
+}
+
+func outputSetURL(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	url := args[0]
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	logger.Infof(ctx, "setting output URL: %q", url)
+	err = c.SetOutputURL(ctx, url)
+	assertNoError(ctx, err)
+	logger.Infof(ctx, "output URL set successfully")
 }
 
 func injectSubtitles(cmd *cobra.Command, args []string) {

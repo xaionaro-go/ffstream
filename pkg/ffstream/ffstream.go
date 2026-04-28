@@ -189,6 +189,25 @@ func (s *FFStream) GetTranscoderConfig(
 	return s.StreamMux.GetTranscoderConfig(ctx)
 }
 
+// SetOutputURL replaces the URL of the single output template. The
+// updated URL is read by the next senderFactory.NewSender call, which
+// is triggered by SwitchOutputByProps. Callers wanting an immediate
+// effect should call SwitchOutputByProps right after.
+func (s *FFStream) SetOutputURL(
+	ctx context.Context,
+	url string,
+) (_err error) {
+	logger.Debugf(ctx, "SetOutputURL(ctx, %q)", url)
+	defer func() { logger.Debugf(ctx, "/SetOutputURL(ctx, %q): %v", url, _err) }()
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if len(s.OutputTemplates) != 1 {
+		return fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
+	}
+	s.OutputTemplates[0].URLTemplate = url
+	return nil
+}
+
 func (s *FFStream) SwitchOutputByProps(
 	ctx context.Context,
 	props streammuxtypes.SenderProps,

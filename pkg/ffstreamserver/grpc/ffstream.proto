@@ -11,6 +11,7 @@ service FFStream {
   returns (GetCurrentOutputReply) {}
   rpc SwitchOutputByProps(SwitchOutputByPropsRequest)
   returns (SwitchOutputByPropsReply) {}
+  rpc SetOutputURL(SetOutputURLRequest) returns (SetOutputURLReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest)
   returns (GetOutputSRTStatsReply) {}
@@ -395,3 +396,13 @@ message RemoveInputRequest {
 }
 
 message RemoveInputReply {}
+
+// SetOutputURLRequest replaces the URL of the single output template.
+// The new URL takes effect on the next NewSender invocation, which is
+// triggered by the next SwitchOutputByProps call. Callers should
+// invoke SetOutputURL immediately followed by SwitchOutputByProps.
+message SetOutputURLRequest {
+  string url = 1;
+}
+
+message SetOutputURLReply {}
