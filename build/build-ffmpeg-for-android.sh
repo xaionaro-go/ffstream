@@ -105,6 +105,14 @@ fi
 # These can be re-enabled if you build those dependencies first
 # NOTE: libopus is intentionally kept enabled (preparation for Oboe-based
 # Android microphone capture, where opus is the typical low-latency codec).
+#
+# NOTE: Oboe is NOT an FFmpeg upstream feature; there is no
+# --enable-oboe or --enable-indev=oboe configure flag in any FFmpeg
+# version we support. Android microphone capture in this stack uses
+# the AAudio NDK directly via avpipeline/kernel/extra/android. The
+# commit subject "enable Oboe + libopus" was aspirational; only
+# libopus is functionally enabled here. Track Oboe NDK integration in
+# avpipeline if/when that path is needed.
 sed -i 's/--enable-libsrt/--disable-libsrt/g' build.sh
 sed -i 's/--enable-libv4l2/--disable-libv4l2/g' build.sh
 sed -i 's/--enable-libx264/--disable-libx264/g' build.sh
