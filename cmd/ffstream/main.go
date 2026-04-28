@@ -156,12 +156,10 @@ func main() {
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
-		// adding options required for fragmentation (that is a streaming-specific issue)
-		outputOptions := injectMpegtsMovflags(outputParams.CustomOptions)
 
 		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
 			URLTemplate:                 outputParams.URL,
-			Options:                     outputOptions,
+			Options:                     outputParams.CustomOptions,
 			RetryOutputTimeoutOnFailure: flags.RetryOutputTimeoutOnFailure,
 		})
 		assertNoError(ctx, err)
