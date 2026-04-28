@@ -650,7 +650,7 @@ func inputsAdd(cmd *cobra.Command, args []string) {
 
 	priority, err := strconv.ParseUint(args[0], 10, 64)
 	assertNoError(ctx, err)
-	url := args[1]
+	inputURL := args[1]
 
 	rawOpts, err := cmd.Flags().GetStringSlice("custom-option")
 	assertNoError(ctx, err)
@@ -658,7 +658,7 @@ func inputsAdd(cmd *cobra.Command, args []string) {
 	var customOpts []*avpipeline_proto.CustomOption
 	for _, kv := range rawOpts {
 		k, v, ok := strings.Cut(kv, "=")
-		if !ok {
+		if !ok || k == "" {
 			logger.Panicf(ctx, "invalid custom option %q (expected key=value)", kv)
 		}
 		customOpts = append(customOpts, &avpipeline_proto.CustomOption{Key: k, Value: v})
@@ -669,7 +669,7 @@ func inputsAdd(cmd *cobra.Command, args []string) {
 
 	c := client.New(remoteAddr)
 
-	num, err := c.AddInput(ctx, priority, url, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
+	num, err := c.AddInput(ctx, priority, inputURL, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
 	assertNoError(ctx, err)
 
 	logger.Infof(ctx, "added input at (priority=%d, num=%d)", priority, num)
