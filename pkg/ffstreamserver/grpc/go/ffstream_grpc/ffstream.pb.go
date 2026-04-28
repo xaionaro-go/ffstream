@@ -741,10 +741,17 @@ func (*GetStatsRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetStatsReply struct {
-	state         protoimpl.MessageState   `protogen:"open.v1"`
-	NodeCounters  *avpipeline.NodeCounters `protobuf:"bytes,1,opt,name=node_counters,json=nodeCounters,proto3" json:"node_counters,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState   `protogen:"open.v1"`
+	NodeCounters *avpipeline.NodeCounters `protobuf:"bytes,1,opt,name=node_counters,json=nodeCounters,proto3" json:"node_counters,omitempty"`
+	// pipeline_error_count counts non-EOF, non-Canceled errors
+	// observed by drainPipelineErrors since the daemon started.
+	// Useful as a coarse health signal: any sustained increase
+	// means the pipeline is logging recoverable errors that the
+	// operator may want to investigate. Each counter tick maps to
+	// one Warn line in the daemon log.
+	PipelineErrorCount uint64 `protobuf:"varint,2,opt,name=pipeline_error_count,json=pipelineErrorCount,proto3" json:"pipeline_error_count,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetStatsReply) Reset() {
@@ -782,6 +789,13 @@ func (x *GetStatsReply) GetNodeCounters() *avpipeline.NodeCounters {
 		return x.NodeCounters
 	}
 	return nil
+}
+
+func (x *GetStatsReply) GetPipelineErrorCount() uint64 {
+	if x != nil {
+		return x.PipelineErrorCount
+	}
+	return 0
 }
 
 type GetOutputSRTStatsRequest struct {
@@ -4040,9 +4054,10 @@ const file_ffstream_proto_rawDesc = "" +
 	"\fmax_bit_rate\x18\x02 \x01(\x04R\n" +
 	"maxBitRate\"\x1a\n" +
 	"\x18SwitchOutputByPropsReply\"\x11\n" +
-	"\x0fGetStatsRequest\"N\n" +
+	"\x0fGetStatsRequest\"\x80\x01\n" +
 	"\rGetStatsReply\x12=\n" +
-	"\rnode_counters\x18\x01 \x01(\v2\x18.avpipeline.NodeCountersR\fnodeCounters\"7\n" +
+	"\rnode_counters\x18\x01 \x01(\v2\x18.avpipeline.NodeCountersR\fnodeCounters\x120\n" +
+	"\x14pipeline_error_count\x18\x02 \x01(\x04R\x12pipelineErrorCount\"7\n" +
 	"\x18GetOutputSRTStatsRequest\x12\x1b\n" +
 	"\toutput_id\x18\x01 \x01(\x05R\boutputId\"\xfc\x1a\n" +
 	"\x16GetOutputSRTStatsReply\x12\"\n" +

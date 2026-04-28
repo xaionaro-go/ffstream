@@ -12,6 +12,7 @@ import (
 	"io"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asticode/go-astiav"
@@ -60,6 +61,14 @@ type FFStream struct {
 	OutputQualityMeasurer *extra.QualityT
 
 	audioSync *kernel.AudioSync
+
+	// pipelineErrorCount tracks non-EOF / non-Canceled errors that
+	// drainPipelineErrors observes since process start. Exported via
+	// GetStats so the operator can monitor pipeline health without
+	// having to scrape logs. Atomic so the always-on error-handler
+	// goroutine can increment it without contending the daemon
+	// locker.
+	pipelineErrorCount atomic.Uint64
 
 	cancelFunc context.CancelFunc
 	locker     sync.Mutex
@@ -134,10 +143,19 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 // cancelFunc is invoked exactly once on return so the daemon ctx is
 // torn down deterministically when the loop exits. Callers MUST hold
 // the daemon-ctx cancel as the sole authoritative shutdown lever.
+//
+// errorCount, if non-nil, is incremented for every observed error
+// that falls into the default ("non-EOF, non-Canceled") bucket. This
+// is the operator-visible health counter exposed via GetStats.
+// Counted under "things the operator may want to investigate" —
+// errors we deliberately swallowed in service of the always-on
+// contract. Trace-level cancellations and EOFs (handled by retry/
+// fallback) are NOT counted: they are normal lifecycle events.
 func drainPipelineErrors(
 	ctx context.Context,
 	errCh <-chan node.Error,
 	cancelFunc context.CancelFunc,
+	errorCount *atomic.Uint64,
 ) {
 	defer cancelFunc()
 	for {
@@ -166,6 +184,9 @@ func drainPipelineErrors(
 				// always-on contract holds (e.g. RemoveInput on the
 				// last active input no longer races a non-EOF read
 				// error into a daemon teardown).
+				if errorCount != nil {
+					errorCount.Add(1)
+				}
 				logger.Warnf(ctx, "pipeline error (continuing — daemon is always-on): %v", err.Err)
 			}
 		}
@@ -181,36 +202,55 @@ func (s *FFStream) AddInput(
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
+	// InputsInfo and InputChains MUST grow as a single observation to
+	// concurrent GetInputsInfo readers (which iterate InputChains and
+	// then dereference InputsInfo[priority] via InputFactory.GetResources).
+	// Both reader and writer participate in InputChainsLocker — but
+	// AddFactory below acquires that same non-reentrant lock internally,
+	// so we cannot just hold it across the whole region. We therefore
+	// extend InputsInfo BEFORE growing InputChains: a transient state
+	// where InputsInfo has more entries than InputChains is harmless
+	// (GetInputsInfo iterates InputChains and never indexes past it),
+	// while the reverse skew (chain visible, InputsInfo[priority] OOB)
+	// would crash GetResources. The final per-priority append happens
+	// under InputChainsLocker so a chain-visible read sees the new
+	// resource as soon as the chain is.
 	priority := resource.GetFallbackPriority()
-	preExistingLen := s.Inputs.GetInputChainsCount(ctx)
-
-	// If the requested priority level doesn't exist yet, create new input factories
-	// for all missing priority levels up to the requested one.
-	//
-	// s.InputsInfo must be grown before AddFactory because newInputChain
-	// invokes InputFactory.NewDecoderFactory, which calls GetResources and
-	// reads InputsInfo[priority]. On failure, we do not roll back to
-	// startLen because AddFactory may have partially succeeded (appending
-	// an InputChain via inputwithfallback.addFactory before its own error
-	// path) or succeeded on prior loop iterations; rolling back to
-	// startLen would break the len(InputsInfo) == len(InputChains)
-	// invariant and leave the downstream in an inconsistent state.
-	// Instead, align InputsInfo to the current len(InputChains).
-	for p := preExistingLen; p <= int(priority); p++ {
-		s.InputsInfo = append(s.InputsInfo, nil)
+	var num uint
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		if len(s.Inputs.InputChains) != len(s.InputsInfo) {
+			_err = fmt.Errorf("internal error: len(s.Inputs.InputChains) != len(s.InputsInfo): %d != %d", len(s.Inputs.InputChains), len(s.InputsInfo))
+			return
+		}
+		for p := len(s.Inputs.InputChains); p <= int(priority); p++ {
+			s.InputsInfo = append(s.InputsInfo, nil)
+		}
+	})
+	if _err != nil {
+		return 0, _err
+	}
+	for p := s.Inputs.GetInputChainsCount(ctx); p <= int(priority); p++ {
+		// AddFactory takes InputChainsLocker itself; called outside
+		// our Do() to avoid deadlock on the non-reentrant mutex.
+		// On failure, align InputsInfo back to InputChains so the
+		// invariant len(InputsInfo) == len(InputChains) holds.
 		if err := s.Inputs.AddFactory(ctx, newInputFactory(s, uint(p))); err != nil {
-			newCount := s.Inputs.GetInputChainsCount(ctx)
-			if len(s.InputsInfo) > newCount {
-				s.InputsInfo = s.InputsInfo[:newCount]
-			}
-			for len(s.InputsInfo) < newCount {
-				s.InputsInfo = append(s.InputsInfo, nil)
-			}
-			return 0, fmt.Errorf("failed to add input factory: %w", err)
+			s.Inputs.InputChainsLocker.Do(ctx, func() {
+				newCount := len(s.Inputs.InputChains)
+				if len(s.InputsInfo) > newCount {
+					s.InputsInfo = s.InputsInfo[:newCount]
+				}
+				for len(s.InputsInfo) < newCount {
+					s.InputsInfo = append(s.InputsInfo, nil)
+				}
+			})
+			return 0, fmt.Errorf("unable to add input factory at priority %d: %w", p, err)
 		}
 	}
-	s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
-	num := uint(len(s.InputsInfo[priority]) - 1)
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
+		num = uint(len(s.InputsInfo[priority]) - 1)
+	})
 	return num, nil
 }
 
@@ -333,6 +373,7 @@ func (s *FFStream) GetStats(
 			Generated: &avpipeline_grpc.NodeCountersSection{},
 			Sent:      &avpipeline_grpc.NodeCountersSection{},
 		},
+		PipelineErrorCount: s.pipelineErrorCount.Load(),
 	}
 	if s.Inputs != nil {
 		inputCounters := goconvavp.NodeCountersToGRPC(s.Inputs.GetCountersPtr(), s.Inputs.GetProcessor().CountersPtr())
@@ -450,7 +491,7 @@ func (s *FFStream) Start(
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
-		drainPipelineErrors(ctx, errCh, s.cancelFunc)
+		drainPipelineErrors(ctx, errCh, s.cancelFunc, &s.pipelineErrorCount)
 	})
 
 	err = s.StreamMux.WaitForStart(ctx)

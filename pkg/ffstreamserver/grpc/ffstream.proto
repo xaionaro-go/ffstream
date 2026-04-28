@@ -105,7 +105,16 @@ message SwitchOutputByPropsReply {}
 
 message GetStatsRequest {}
 
-message GetStatsReply { avpipeline.NodeCounters node_counters = 1; }
+message GetStatsReply {
+  avpipeline.NodeCounters node_counters = 1;
+  // pipeline_error_count counts non-EOF, non-Canceled errors
+  // observed by drainPipelineErrors since the daemon started.
+  // Useful as a coarse health signal: any sustained increase
+  // means the pipeline is logging recoverable errors that the
+  // operator may want to investigate. Each counter tick maps to
+  // one Warn line in the daemon log.
+  uint64 pipeline_error_count = 2;
+}
 
 message GetOutputSRTStatsRequest { int32 output_id = 1; }
 

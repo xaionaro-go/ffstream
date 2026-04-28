@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -152,7 +153,7 @@ func TestDaemonSurvivesInputEOF(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel, nil)
 	}()
 
 	// Simulate an input EOF — the priority-10 RTMP source EOFs
@@ -214,7 +215,7 @@ func TestDaemonSurvivesNonEOFPipelineError(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel, nil)
 	}()
 
 	errCh <- node.Error{Err: errors.New("synthetic non-EOF read error")}
@@ -272,7 +273,7 @@ func TestDaemonSurvivesAllInputsRemoved(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel, nil)
 	}()
 
 	errCh <- node.Error{Err: io.EOF}
@@ -290,6 +291,47 @@ func TestDaemonSurvivesAllInputsRemoved(t *testing.T) {
 
 	daemonCancel()
 	<-done
+}
+
+// TestDrainPipelineErrors_CountsNonEOFOnly pins the contract for the
+// pipeline error counter exposed via GetStats: only the default
+// branch (non-EOF, non-Canceled) increments it. EOF and Canceled
+// errors are normal lifecycle events handled by retry/fallback and
+// must not show up as health-counter events. Pre-counter, the
+// default branch silently swallowed errors with no operator-visible
+// signal — this test guards against regressing back to that.
+func TestDrainPipelineErrors_CountsNonEOFOnly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	daemonCtx, daemonCancel := context.WithCancel(ctx)
+	defer daemonCancel()
+
+	var counter atomic.Uint64
+	errCh := make(chan node.Error, 8)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel, &counter)
+	}()
+
+	// EOF and Canceled must NOT increment.
+	errCh <- node.Error{Err: io.EOF}
+	errCh <- node.Error{Err: context.Canceled}
+
+	// Two arbitrary non-EOF errors must increment.
+	errCh <- node.Error{Err: errors.New("synthetic read error")}
+	errCh <- node.Error{Err: errors.New("another synthetic")}
+
+	// Drain by closing the channel; the loop exits, cancelFunc
+	// fires, daemonCtx becomes Done — at which point all four
+	// sends have been processed.
+	close(errCh)
+	<-done
+
+	require.Equal(t, uint64(2), counter.Load(),
+		"counter must reflect exactly the non-EOF, non-Canceled "+
+			"errors observed by the default branch (got %d)", counter.Load())
 }
 
 func TestRemoveInput_NumOutOfRange_ReturnsErrInputNotFound(t *testing.T) {
