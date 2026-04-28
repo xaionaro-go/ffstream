@@ -220,6 +220,18 @@ var (
 		Run:  inputsSetStop,
 	}
 
+	InputsAdd = &cobra.Command{
+		Use:  "add <priority> <url>",
+		Args: cobra.ExactArgs(2),
+		Run:  inputsAdd,
+	}
+
+	InputsRemove = &cobra.Command{
+		Use:  "remove <priority>",
+		Args: cobra.ExactArgs(1),
+		Run:  inputsRemove,
+	}
+
 	Output = &cobra.Command{
 		Use: "output",
 	}
@@ -288,6 +300,9 @@ func init() {
 	Inputs.AddCommand(InputsInfo)
 	Inputs.AddCommand(InputsSetCustomOption)
 	Inputs.AddCommand(InputsSetStop)
+	InputsAdd.Flags().StringSlice("custom-option", nil, "custom input option (key=value); may be repeated")
+	Inputs.AddCommand(InputsAdd)
+	Inputs.AddCommand(InputsRemove)
 
 	Root.AddCommand(Output)
 	Output.AddCommand(OutputSwitch)
@@ -620,6 +635,49 @@ func inputsSetStop(cmd *cobra.Command, args []string) {
 	client := client.New(remoteAddr)
 
 	err = client.SetStopInput(ctx, inputPriority, stop)
+	assertNoError(ctx, err)
+}
+
+func inputsAdd(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	priority, err := strconv.ParseUint(args[0], 10, 64)
+	assertNoError(ctx, err)
+	url := args[1]
+
+	rawOpts, err := cmd.Flags().GetStringSlice("custom-option")
+	assertNoError(ctx, err)
+
+	var customOpts []*avpipeline_proto.CustomOption
+	for _, kv := range rawOpts {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok {
+			logger.Panicf(ctx, "invalid custom option %q (expected key=value)", kv)
+		}
+		customOpts = append(customOpts, &avpipeline_proto.CustomOption{Key: k, Value: v})
+	}
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	err = c.AddInput(ctx, priority, url, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
+	assertNoError(ctx, err)
+}
+
+func inputsRemove(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	priority, err := strconv.ParseUint(args[0], 10, 64)
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	err = c.RemoveInput(ctx, priority)
 	assertNoError(ctx, err)
 }
 

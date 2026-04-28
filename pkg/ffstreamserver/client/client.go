@@ -510,6 +510,53 @@ func (c *Client) GetInputsInfo(
 	return resp, nil
 }
 
+func (c *Client) AddInput(
+	ctx context.Context,
+	priority uint64,
+	url string,
+	inputConfig *avpipeline_proto.InputConfig,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if inputConfig == nil {
+		inputConfig = &avpipeline_proto.InputConfig{}
+	}
+	_, err = client.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:         url,
+		Priority:    priority,
+		InputConfig: inputConfig,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) RemoveInput(
+	ctx context.Context,
+	priority uint64,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.RemoveInput(ctx, &ffstream_grpc.RemoveInputRequest{
+		Priority: priority,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) SetInputCustomOption(
 	ctx context.Context,
 	inputPriority uint64,
