@@ -473,7 +473,7 @@ func (srv *GRPCServer) SetOutputURL(
 	req *ffstream_grpc.SetOutputURLRequest,
 ) (*ffstream_grpc.SetOutputURLReply, error) {
 	ctx = srv.ctx(ctx)
-	logger.Debugf(ctx, "SetOutputURL: %q", req.GetUrl())
+	logger.Infof(ctx, "SetOutputURL: %q", req.GetUrl())
 	if err := srv.FFStream.SetOutputURL(ctx, req.GetUrl()); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "unable to set output URL: %v", err)
 	}
