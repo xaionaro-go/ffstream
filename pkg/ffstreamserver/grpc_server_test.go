@@ -395,17 +395,3 @@ func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
 	require.Equal(t, codes.NotFound, status.Code(err),
 		"RemoveInput on out-of-range priority must map to codes.NotFound, got %v: %v", status.Code(err), err)
 }
-
-// TestGRPCServer_AddInput_UnknownErrorMapsToUnknown is currently a TODO:
-// FFStream.AddInput's only non-sentinel error path is the internal-state
-// invariant "len(InputChains) != len(InputsInfo)", which is unreachable
-// from a fresh FFStream constructed via ffstream.New. Inducing that
-// failure would require either (a) reaching into unexported state or
-// (b) mocking *ffstream.FFStream behind an interface — out of scope
-// for this iteration's tests-only ECI step. The default switch arm in
-// grpc_server.go is straight-line code (status.Errorf with codes.Unknown
-// for any non-sentinel error from AddInput) and is covered by visual
-// inspection.
-func TestGRPCServer_AddInput_UnknownErrorMapsToUnknown(t *testing.T) {
-	t.Skip("TODO: requires injectable FFStream interface to surface a non-sentinel error; default arm is trivial straight-line code")
-}

@@ -21,6 +21,11 @@ import (
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
+// Tests in this file create real *FFStream instances. Goroutines
+// spawned by the underlying input pipeline outlive the test cancel
+// until the 10s timeout fires. We accept this for the small test
+// count; revisit with goleak if the suite grows or starts flaking.
+
 // newTestFFStream constructs an FFStream the same way TestInjectSubtitles
 // does; AddInput / RemoveInput only need a valid Inputs handler.
 func newTestFFStream(t *testing.T, ctx context.Context) *FFStream {
