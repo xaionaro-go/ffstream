@@ -559,6 +559,51 @@ func (s *FFStream) Start(
 	return nil
 }
 
+// injectSubtitlesSendTimeout bounds the wait for the streammux input
+// channel to accept the subtitle packet. Sized to absorb very brief
+// scheduling hiccups without permitting goroutine pile-up on a
+// genuinely starved chain (silent source → downstream blocked →
+// InputCh full). See InjectSubtitles for the saturation path this
+// guards against.
+const injectSubtitlesSendTimeout = 100 * time.Millisecond
+
+// boundedSendInputUnion forwards item to ch with a hard upper bound
+// on how long it will wait for the channel to accept. Returns:
+//   - nil on success;
+//   - ctx.Err() if ctx is canceled before send completes;
+//   - ErrPipelineBusy if timeout elapses before send completes.
+//
+// On every non-success exit, abortCleanup is invoked exactly once so
+// the caller can release C-owned resources (packet pool entry, codec
+// parameters, etc.) that would otherwise have transferred ownership
+// to the consumer with the InputUnion.
+//
+// This helper is split from InjectSubtitles so the bounded-send
+// behaviour is unit-testable in isolation: tests pass a private
+// reader-less channel and observe the timeout deterministically,
+// without touching streammux internals (which would race with the
+// FromKernel reader goroutine).
+func boundedSendInputUnion(
+	ctx context.Context,
+	ch chan<- packetorframe.InputUnion,
+	item packetorframe.InputUnion,
+	timeout time.Duration,
+	abortCleanup func(),
+) error {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		abortCleanup()
+		return ctx.Err()
+	case ch <- item:
+		return nil
+	case <-timer.C:
+		abortCleanup()
+		return ErrPipelineBusy
+	}
+}
+
 func (s *FFStream) InjectSubtitles(
 	ctx context.Context,
 	data []byte,
@@ -570,7 +615,7 @@ func (s *FFStream) InjectSubtitles(
 	}
 
 	pkt := packet.Pool.Get()
-	// Do not free pkt here, it will be freed by the pipeline
+	// Do not free pkt here, it will be freed by the pipeline.
 
 	if err := pkt.AllocPayload(len(data)); err != nil {
 		packet.Pool.Put(pkt)
@@ -607,14 +652,41 @@ func (s *FFStream) InjectSubtitles(
 	pktMediaType := avptypes.MediaType(inputPkt.GetMediaType())
 	dstCounters.Addressed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 
-	select {
-	case <-ctx.Done():
-		dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
-		return ctx.Err()
-	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
-		dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+	// Bounded send: if the streammux InputChan cannot accept the
+	// packet within injectSubtitlesSendTimeout, treat the pipeline
+	// as busy and surface ErrPipelineBusy to the caller.
+	//
+	// Why this matters: a chronically silent / disconnected source
+	// causes the InputAll reader to back-pressure on its downstream
+	// (the chain is starved waiting for upstream packets). The
+	// cap-1 InputChan saturates almost immediately. A 1 Hz QML
+	// poller (injectDiagnostics in Dashboard.qml) would then stack
+	// blocked goroutines on the gRPC server, one per RPC handler,
+	// until HTTP/2's per-connection concurrent-stream limit was hit
+	// and new RPCs returned "EOF preface" / "Deadline exceeded" —
+	// even though the daemon is otherwise healthy. Failing the
+	// individual call lets the caller back off gracefully and keeps
+	// the gRPC connection's stream slots free.
+	//
+	// On the abort path the consumer never sees the InputUnion, so
+	// we own the packet (return to the pool) and the codec
+	// parameters (Free the C-allocated struct) and account it as
+	// Missed for the operator-visible counter.
+	err := boundedSendInputUnion(
+		ctx,
+		s.StreamMux.InputChan(),
+		packetorframe.InputUnion{Packet: &inputPkt},
+		injectSubtitlesSendTimeout,
+		func() {
+			dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+			packet.Pool.Put(pkt)
+			streamInfo.CodecParameters.Free()
+		},
+	)
+	if err != nil {
+		return err
 	}
-
+	dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 	return nil
 }
 
@@ -666,14 +738,24 @@ func (s *FFStream) InjectData(
 	pktMediaType := avptypes.MediaType(inputPkt.GetMediaType())
 	dstCounters.Addressed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 
-	select {
-	case <-ctx.Done():
-		dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
-		return ctx.Err()
-	case s.StreamMux.InputChan() <- packetorframe.InputUnion{Packet: &inputPkt}:
-		dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+	// Bounded send: same back-pressure rationale as InjectSubtitles
+	// (see comments there). Surface ErrPipelineBusy on chan-saturated
+	// stalls so the caller fails fast instead of stacking goroutines.
+	err := boundedSendInputUnion(
+		ctx,
+		s.StreamMux.InputChan(),
+		packetorframe.InputUnion{Packet: &inputPkt},
+		injectSubtitlesSendTimeout,
+		func() {
+			dstCounters.Missed.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
+			packet.Pool.Put(pkt)
+			streamInfo.CodecParameters.Free()
+		},
+	)
+	if err != nil {
+		return err
 	}
-
+	dstCounters.Received.Increment(avptypes.CountersSubSectionIDPackets, pktMediaType, pktSize)
 	return nil
 }
 
