@@ -1,3 +1,6 @@
+// resource_test.go covers Resource.GetFallbackPriority and
+// Resources.ByFallbackPriority grouping/sorting logic.
+
 package ffstream
 
 import (
@@ -6,6 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestResource_GetFallbackPriority(t *testing.T) {
+	cases := []struct {
+		name string
+		in   Resource
+		want uint
+	}{
+		{"zeroValue", Resource{}, 0},
+		{"explicitZero", Resource{URL: "x", Priority: 0}, 0},
+		{"one", Resource{URL: "x", Priority: 1}, 1},
+		{"large", Resource{URL: "x", Priority: 12345}, 12345},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.in.GetFallbackPriority())
+		})
+	}
+}
 
 func TestResources_ByFallbackPriority(t *testing.T) {
 	makeRes := func(priority uint) Resource {
