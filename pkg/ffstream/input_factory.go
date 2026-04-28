@@ -21,6 +21,13 @@ import (
 	"github.com/xaionaro-go/xsync"
 )
 
+// Input is the per-priority input chain. Inner Tee uses kernel.Abstract
+// so the slice can hold both `*kernel.Input` (libav-backed URL inputs)
+// and special-cased non-libav kernels — currently
+// avpipeline/kernel/extra/android.Microphone — alongside one another.
+// This widening is the prerequisite for inputFormatFromResource()-driven
+// dispatch in newInputKernel, which routes `f=android_microphone` to
+// android.NewMicrophone instead of (libav-only) kernel.NewInputFromURL.
 type Input = kernel.ChainOfTwo[
 	kernel.Tee[kernel.Abstract],
 	*kernel.MapStreamIndices,

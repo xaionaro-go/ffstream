@@ -326,7 +326,17 @@ func (srv *GRPCServer) GetInputsInfo(
 				// KernelIsSet while holding KernelLocker, so reading it
 				// here under the same lock is the only safe path.
 				var kernelIsSet bool
-				inputKernel := func() *kernel.Input {
+				// Inner Tee was widened from `*kernel.Input` to
+				// `kernel.Abstract` so non-libav kernels (e.g.
+				// android.Microphone) can sit alongside libav-backed
+				// inputs at the same priority. We only need
+				// GetObjectID here, which is part of `kernel.Abstract`.
+				// Return the underlying kernel.Abstract directly (no
+				// type-assertion to `*kernel.Input`) so non-libav
+				// kernels still surface their ObjectID; nil still means
+				// "kernel slot is empty / not yet opened" and the
+				// resource is skipped.
+				inputKernel := func() kernel.Abstract {
 					if !k.KernelLocker.ManualTryLock(ctx) {
 						return nil
 					}
@@ -338,15 +348,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					if len(k.Kernel.Kernel0) <= idx {
 						return nil
 					}
-					kernelItem := k.Kernel.Kernel0[idx]
-					if kernelItem == nil {
-						return nil
-					}
-					input, ok := kernelItem.(*kernel.Input)
-					if !ok {
-						return nil
-					}
-					return input
+					return k.Kernel.Kernel0[idx]
 				}()
 				if inputKernel == nil {
 					continue
