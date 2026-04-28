@@ -211,15 +211,24 @@ func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T)
 	// Reach into the retryable kernel and simulate an opened kernel whose
 	// Tee (Kernel0) has LEN < number of resources. At idx==len(Kernel0) the
 	// boundary check must short-circuit.
+	//
+	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
+	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
+	// reads KernelIsSet under KernelLocker (race fix), so the test must
+	// write under the same lock; quiesceRetryable terminates the pipeline
+	// init goroutine that would otherwise hold the lock indefinitely.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	// An empty Tee: len(Kernel0) == 0, so idx==0 and idx==1 both hit the
-	// boundary.
-	retryable.Kernel = &ffstream.Input{
-		Kernel0: kernel.Tee[kernel.Abstract]{},
-		Kernel1: nil,
-	}
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		// An empty Tee: len(Kernel0) == 0, so idx==0 and idx==1 both hit
+		// the boundary.
+		retryable.Kernel = &ffstream.Input{
+			Kernel0: kernel.Tee[kernel.Abstract]{},
+			Kernel1: nil,
+		}
+		retryable.KernelIsSet = true
+	})
 
 	var resp *ffstream_grpc.GetInputsInfoReply
 	var callErr error
@@ -248,15 +257,23 @@ func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains))
 
+	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
+	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
+	// reads KernelIsSet under KernelLocker (race fix), so the test must
+	// write under the same lock; quiesceRetryable terminates the pipeline
+	// init goroutine that would otherwise hold the lock indefinitely.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	// Populate Kernel0 with a single *kernel.Input so idx==0 resolves to it.
-	realInput := &kernel.Input{}
-	retryable.Kernel = &ffstream.Input{
-		Kernel0: kernel.Tee[kernel.Abstract]{realInput},
-		Kernel1: nil,
-	}
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		// Populate Kernel0 with a single *kernel.Input so idx==0 resolves
+		// to it.
+		retryable.Kernel = &ffstream.Input{
+			Kernel0: kernel.Tee[kernel.Abstract]{&kernel.Input{}},
+			Kernel1: nil,
+		}
+		retryable.KernelIsSet = true
+	})
 
 	resp, callErr := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
 	require.NoError(t, callErr)

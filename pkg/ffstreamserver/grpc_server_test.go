@@ -149,6 +149,23 @@ func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
 		retryable.KernelIsSet = true
 	})
+	// Reset KernelIsSet=false (and clear Kernel) BEFORE the deferred
+	// cancel cancels ctx. finalize -> Retryable.Close spawns a Pause
+	// goroutine that may win the lock acquisition race against
+	// ctx.Done (CtxLocker.ManualLock uses Go select, which picks
+	// non-deterministically when both cases are ready). If Pause wins
+	// while KernelIsSet is true, pauseLocked calls r.Kernel.Close on
+	// the injected ChainOfTwo whose Kernel0 has nil entries and
+	// Kernel1 is a nil *MapStreamIndices — both panic on Close.
+	// Resetting here means pauseLocked takes the early !KernelIsSet
+	// branch and never touches r.Kernel. defers run LIFO so this
+	// fires before the `defer cancel()`.
+	defer func() {
+		retryable.KernelLocker.Do(ctx, func() {
+			retryable.KernelIsSet = false
+			retryable.Kernel = nil
+		})
+	}()
 
 	// Now AddInput a second resource — InputsInfo[0] has 2 entries,
 	// Kernel0 still has 1. idx=1 hits the boundary.
@@ -203,27 +220,42 @@ func TestGetInputsInfo_IsActiveReflectsServingChain(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Simulate "this chain's kernel is open" without doing real I/O. We
-	// only need KernelIsSet=true: GetInputsInfo's IsActive computation
-	// is `kernelIsSet && isCurrent` and reads kernelIsSet under
-	// KernelLocker. Leaving Kernel as zero is intentional — it keeps
-	// the inputKernel closure on its early-return path and avoids
-	// triggering Generate on a fake kernel after the test exits.
+	// Simulate "this chain's kernel is open" without doing real I/O.
+	// Standalone's GetInputsInfo skips entries whose Kernel0 slot is
+	// nil (or whose closure returns nil), so to make the reply contain
+	// 2 entries we must inject a ChainOfTwo whose Kernel0 (a Tee) holds
+	// 2 non-nil *kernel.Input items. Empty &kernel.Input{} values are
+	// enough — the handler only calls GetObjectID, which returns the
+	// pointer-as-ID without dereferencing fields.
 	//
 	// quiesceRetryable terminates the pipeline init goroutine that
 	// holds KernelLocker while blocked on KernelOpenBarrier — without
 	// quiescing, KernelLocker.Do below would deadlock until ctx times
-	// out. Then we write KernelIsSet under KernelLocker so the race
-	// detector accepts the write (the same field is read under that
-	// lock by GetInputsInfo). t.Cleanup restores KernelIsSet=false so
-	// finalize's Retryable.Pause does not try to Close a nil
-	// r.Kernel.
+	// out. Then we write KernelIsSet/Kernel under KernelLocker so the
+	// race detector accepts the writes (the same fields are read under
+	// that lock by GetInputsInfo).
+	//
+	// The deferred reset runs BEFORE `defer cancel()` (LIFO) and clears
+	// KernelIsSet+Kernel under the lock. Without it, finalize ->
+	// Retryable.Close spawns a Pause goroutine that may win the lock
+	// race against ctx.Done; if Pause wins while KernelIsSet=true,
+	// pauseLocked calls r.Kernel.Close on the injected ChainOfTwo
+	// whose Kernel0 has bare *kernel.Input entries (no AVFormatCtx)
+	// and Kernel1 is a nil *MapStreamIndices — both panic on Close.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
 	quiesceRetryable(ctx, t, retryable)
 	retryable.KernelLocker.Do(ctx, func() {
+		tee := kernel.Tee[kernel.Abstract]{&kernel.Input{}, &kernel.Input{}}
+		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
 		retryable.KernelIsSet = true
 	})
+	defer func() {
+		retryable.KernelLocker.Do(ctx, func() {
+			retryable.KernelIsSet = false
+			retryable.Kernel = nil
+		})
+	}()
 
 	// initSwitches stores 0 into InputSwitch.CurrentValue; chain 0 is
 	// the live one. Be explicit anyway — the test must not depend on
@@ -269,8 +301,6 @@ func TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere(t *testing.T) {
 	retryable := chain.Input.Processor.Kernel
 	quiesceRetryable(ctx, t, retryable)
 	retryable.KernelLocker.Do(ctx, func() {
-		tee := kernel.Tee[kernel.Abstract]{nil}
-		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
 		retryable.KernelIsSet = true
 	})
 
