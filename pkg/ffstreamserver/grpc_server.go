@@ -319,11 +319,19 @@ func (srv *GRPCServer) GetInputsInfo(
 			}
 			isCurrent := int32(inputChain.ID) == currentChainID
 			for idx, res := range resources {
+				// kernelIsSet is read INSIDE the same locked region that
+				// resolves Kernel0[idx] so the pipeline goroutine can't
+				// race-mutate the flag between the resolve and the
+				// IsActive computation. The pipeline only writes
+				// KernelIsSet while holding KernelLocker, so reading it
+				// here under the same lock is the only safe path.
+				var kernelIsSet bool
 				inputKernel := func() *kernel.Input {
 					if !k.KernelLocker.ManualTryLock(ctx) {
 						return nil
 					}
 					defer k.KernelLocker.ManualUnlock(ctx)
+					kernelIsSet = k.KernelIsSet
 					if k.Kernel == nil {
 						return nil
 					}
@@ -349,7 +357,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					Num:         uint64(idx),
 					Url:         res.URL,
 					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
-					IsActive:    k.KernelIsSet && isCurrent,
+					IsActive:    kernelIsSet && isCurrent,
 					Suppressed:  res.Suppressed,
 				})
 			}

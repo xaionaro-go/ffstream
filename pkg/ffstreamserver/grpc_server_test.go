@@ -9,6 +9,7 @@ package ffstreamserver
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -25,6 +26,55 @@ func newTestServer(t *testing.T, ctx context.Context) *GRPCServer {
 	s, err := ffstream.New(ctx)
 	require.NoError(t, err)
 	return NewGRPCServer(ctx, s)
+}
+
+// quiesceRetryable terminates the pipeline init goroutine spawned by
+// processor.FromKernel.startProcessing for an input Retryable. That
+// goroutine takes KernelLocker (in retry/getKernel/openKernelIfNeeded)
+// and blocks on KernelOpenBarrier until something signals it. Tests
+// that need to inject Kernel/KernelIsSet under KernelLocker would
+// otherwise deadlock waiting for the lock until the test ctx times
+// out.
+//
+// Two-step protocol:
+//
+//  1. Close ClosureSignaler. openKernelIfNeeded's select fires the
+//     close case, sets KernelError = io.EOF, returns. retry's outer
+//     DoR1 returns through getKernel's KernelError check. Lock
+//     released.
+//  2. Poll-acquire the lock. Once acquired, ALSO set
+//     KernelError = io.EOF *under the lock* — this is an explicit
+//     guard against any subsequent retry.* invocation finding
+//     KernelIsSet=true after the test injects a fake Kernel and then
+//     dispatching the fake Kernel through Generate. The
+//     close-vs-factory race in step 1 is not sufficient on its own:
+//     when openKernelIfNeeded is in the factory call (not the
+//     barrier select) at the moment of close, ClosureSignaler is
+//     ignored, the factory returns, the loop iterates, and at the
+//     top of openKernelIfNeeded the `if r.KernelIsSet || r.KernelError`
+//     short-circuit fires only if a writer (us) already set one of
+//     them. Setting KernelError here closes that hole.
+func quiesceRetryable(
+	ctx context.Context,
+	t *testing.T,
+	r *kernel.Retryable[*ffstream.Input],
+) {
+	t.Helper()
+	r.ClosureSignaler.Close(ctx)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if r.KernelLocker.ManualTryLock(ctx) {
+			if r.KernelError == nil {
+				r.KernelError = io.EOF
+			}
+			r.KernelLocker.ManualUnlock(ctx)
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("quiesceRetryable: KernelLocker still held after 5s; init goroutine did not exit on ClosureSignaler")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {
@@ -82,11 +132,23 @@ func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 	// nil *kernel.Input). This simulates the live state where the
 	// Retryable kernel was opened against the older InputsInfo before a
 	// second resource was added.
+	//
+	// quiesceRetryable terminates the pipeline init goroutine
+	// (FromKernel.startProcessing -> Retryable.Generate -> retry ->
+	// getKernel -> openKernelIfNeeded) which otherwise holds
+	// KernelLocker indefinitely while blocked on KernelOpenBarrier.
+	// Without quiescing, KernelLocker.Do below would deadlock until ctx
+	// times out. After quiesce the lock is free; we then mutate under
+	// KernelLocker so the race detector accepts the writes (the same
+	// fields are read under that lock by GetInputsInfo).
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	tee := kernel.Tee[kernel.Abstract]{nil}
-	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		tee := kernel.Tee[kernel.Abstract]{nil}
+		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
+		retryable.KernelIsSet = true
+	})
 
 	// Now AddInput a second resource — InputsInfo[0] has 2 entries,
 	// Kernel0 still has 1. idx=1 hits the boundary.
@@ -141,12 +203,27 @@ func TestGetInputsInfo_IsActiveReflectsServingChain(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Simulate "this chain's kernel is open" without doing real I/O.
+	// Simulate "this chain's kernel is open" without doing real I/O. We
+	// only need KernelIsSet=true: GetInputsInfo's IsActive computation
+	// is `kernelIsSet && isCurrent` and reads kernelIsSet under
+	// KernelLocker. Leaving Kernel as zero is intentional — it keeps
+	// the inputKernel closure on its early-return path and avoids
+	// triggering Generate on a fake kernel after the test exits.
+	//
+	// quiesceRetryable terminates the pipeline init goroutine that
+	// holds KernelLocker while blocked on KernelOpenBarrier — without
+	// quiescing, KernelLocker.Do below would deadlock until ctx times
+	// out. Then we write KernelIsSet under KernelLocker so the race
+	// detector accepts the write (the same field is read under that
+	// lock by GetInputsInfo). t.Cleanup restores KernelIsSet=false so
+	// finalize's Retryable.Pause does not try to Close a nil
+	// r.Kernel.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	tee := kernel.Tee[kernel.Abstract]{nil, nil}
-	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		retryable.KernelIsSet = true
+	})
 
 	// initSwitches stores 0 into InputSwitch.CurrentValue; chain 0 is
 	// the live one. Be explicit anyway — the test must not depend on
@@ -190,9 +267,12 @@ func TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere(t *testing.T) {
 
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	tee := kernel.Tee[kernel.Abstract]{nil}
-	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		tee := kernel.Tee[kernel.Abstract]{nil}
+		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
+		retryable.KernelIsSet = true
+	})
 
 	// Point the switch at a non-existent chain.
 	srv.FFStream.Inputs.InputSwitch.CurrentValue.Store(int32(99))
@@ -204,6 +284,71 @@ func TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere(t *testing.T) {
 		require.False(t, in.GetIsActive(),
 			"IsActive must be false when InputSwitch points to a different chain")
 	}
+}
+
+// TestSetStopInput_OutOfRangeReturnsInvalidArgument is the regression
+// test for the off-by-one in SetStopInput's priority bounds check. The
+// pre-fix guard used `priority > len(InputChains)`, which let
+// `priority == len(InputChains)` slip through and panic on
+// InputChains[priority]. The fix is `>=`. We assert that the boundary
+// case (priority equal to len) returns codes.InvalidArgument and does
+// NOT panic.
+func TestSetStopInput_OutOfRangeReturnsInvalidArgument(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	// Add one input so InputChains has length 1; priority=1 is the
+	// boundary case (equal to len).
+	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://a",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	priority := uint64(len(srv.FFStream.Inputs.InputChains))
+	require.NotPanics(t, func() {
+		_, err = srv.SetStopInput(ctx, &ffstream_grpc.SetStopInputRequest{
+			InputPriority: priority,
+			Stop:          true,
+		})
+	}, "SetStopInput at priority==len(InputChains) must not panic")
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err),
+		"SetStopInput at priority==len(InputChains) must map to "+
+			"codes.InvalidArgument, got %v: %v", status.Code(err), err)
+}
+
+// TestSetInputCustomOption_OutOfRangeReturnsInvalidArgument is the
+// regression test for the same off-by-one in SetInputCustomOption.
+// Pre-fix guard `priority > len` let `priority == len` panic on
+// InputChains[priority]. Fixed to `>=`.
+func TestSetInputCustomOption_OutOfRangeReturnsInvalidArgument(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://a",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	priority := uint64(len(srv.FFStream.Inputs.InputChains))
+	require.NotPanics(t, func() {
+		_, err = srv.SetInputCustomOption(ctx, &ffstream_grpc.SetInputCustomOptionRequest{
+			InputPriority: priority,
+			InputNum:      0,
+			Key:           "k",
+			Value:         "v",
+		})
+	}, "SetInputCustomOption at priority==len(InputChains) must not panic")
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err),
+		"SetInputCustomOption at priority==len(InputChains) must map to "+
+			"codes.InvalidArgument, got %v: %v", status.Code(err), err)
 }
 
 func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
