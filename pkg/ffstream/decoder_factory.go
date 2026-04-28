@@ -72,7 +72,25 @@ func (f *DecoderFactory) NewDecoder(
 		// by AddInput/SetSuppressed/SetInputCustomOption from other goroutines.
 		r, ok := f.lookupResource(resourceIndex)
 		if ok {
-			opts = append(opts, codectypes.OptionOverrideCustomOptions(r.CustomOptions))
+			customOptions := r.CustomOptions
+			if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo &&
+				r.CodecHWAccel == avptypes.HardwareDeviceTypeMediaCodec {
+				// Augment the per-Resource customOptions with the MediaCodec
+				// surface-passthrough hints. These flow through codec.go into
+				// av_hwdevice_ctx_create, which honours create_window=1 by
+				// allocating a persistent ANativeWindow on the hwdevice (see
+				// libavutil/hwcontext_mediacodec.c mc_device_init). Without
+				// this, the decoder falls back to buffer-mode output and the
+				// downstream encoder cannot reuse the surface.
+				// Use append-and-deduplicate (last-wins via Deduplicate) so
+				// any caller-supplied keys are preserved over our defaults.
+				augmented := make(avptypes.DictionaryItems, 0, len(customOptions)+2)
+				augmented = append(augmented, avptypes.DictionaryItem{Key: "pixel_format", Value: "mediacodec"})
+				augmented = append(augmented, avptypes.DictionaryItem{Key: "create_window", Value: "1"})
+				augmented = append(augmented, customOptions...)
+				customOptions = augmented.Deduplicate()
+			}
+			opts = append(opts, codectypes.OptionOverrideCustomOptions(customOptions))
 			if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
 				opts = append(opts, codectypes.OptionOverrideHardwareDeviceType(r.CodecHWAccel))
 			}
