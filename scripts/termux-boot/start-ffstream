@@ -1,0 +1,30 @@
+#!/data/data/com.termux/files/usr/bin/sh
+#
+# Termux:Boot trigger for ffstream on the local adb test phone.
+#
+# Thin wrapper. The actual supervised launch logic lives in
+# scripts/loop-run-ffstream.sh (shared with the prod ubuntu-chroot
+# rc.local invocation). Keep both call sites in sync by editing
+# the common script, not this trigger.
+#
+# The common script is pushed to /data/local/tmp/loop-run-ffstream.sh
+# (see scripts/termux-boot/README.md for the deploy commands).
+#
+set -eu
+
+LOOP_RUN_FFSTREAM="${LOOP_RUN_FFSTREAM:-/data/local/tmp/loop-run-ffstream.sh}"
+FFSTREAM_LOG="${FFSTREAM_LOG:-/data/local/tmp/ffstream.log}"
+
+# Wait for the launcher to be deployed (deploy may race with boot).
+i=0
+while [ "$i" -lt 10 ]; do
+    [ -x "$LOOP_RUN_FFSTREAM" ] && break
+    i=$((i + 1))
+    sleep 5
+done
+[ -x "$LOOP_RUN_FFSTREAM" ] || {
+    echo "loop-run-ffstream.sh not found at $LOOP_RUN_FFSTREAM" >&2
+    exit 1
+}
+
+exec "$LOOP_RUN_FFSTREAM" >> "$FFSTREAM_LOG" 2>&1 < /dev/null
