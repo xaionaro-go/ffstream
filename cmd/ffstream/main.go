@@ -93,9 +93,18 @@ func main() {
 	var audioChannels audio.Channel
 
 	var encoderVideoOptions avptypes.DictionaryItems
-	encoderVideoOptions = append(encoderVideoOptions,
-		codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...,
-	)
+	// MediaCodec encoders ship low-latency-friendly defaults from the OS and
+	// reject the SW-encoder tuning keys that LowLatencyOptions injects
+	// (zerolatency, bf, forced-idr, intra-refresh, priority). Combined with
+	// the unconditional AV_CODEC_FLAG_GLOBAL_HEADER set in
+	// avpipeline/codec/codec.go for video encoders, the post-init
+	// dummy-frame extradata generator can fail with AVERROR_INVALIDDATA on
+	// av1_mediacodec. Skip the SW-tuned tweaks for *_mediacodec encoders.
+	if !strings.HasSuffix(string(flags.VideoEncoder.Codec), "_mediacodec") {
+		encoderVideoOptions = append(encoderVideoOptions,
+			codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...,
+		)
+	}
 	encoderVideoOptions = append(encoderVideoOptions,
 		convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)...,
 	)
