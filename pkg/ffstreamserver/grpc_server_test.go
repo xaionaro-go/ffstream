@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"google.golang.org/grpc/codes"
@@ -47,6 +48,63 @@ func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), reply1.GetNum(),
 		"second AddInput at the same priority must reply Num=1")
+}
+
+// TestGRPCServer_GetInputsInfo_BoundaryNum is a regression test for the
+// off-by-one bounds check in GetInputsInfo: the `len(Kernel0) < idx`
+// comparison let `idx == len(Kernel0)` slip through, causing an
+// out-of-bounds panic on Kernel0[idx]. The grpc-recovery interceptor
+// converted this to an empty `{}` reply at the network layer, masking
+// the bug and producing the F1 symptom (ffstreamctl inputs info empty
+// after AddInput).
+//
+// Setup: install a ChainOfTwo whose Kernel0 (a Tee) has length 1, then
+// AddInput a second resource at the same priority — InputsInfo grows to
+// 2 while Kernel0 stays at 1, so idx=1 hits the boundary case.
+//
+// Pre-fix: panic on Kernel0[1] (caught by Go's test runtime), or empty
+// reply when run through the gRPC stack.
+// Post-fix: reply contains both entries (idx=0 with the injected nil
+// Input → Id=0, idx=1 skipped → Id=0), no panic.
+func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://a",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	// Inject a ChainOfTwo with Kernel0 of length 1 (Tee containing one
+	// nil *kernel.Input). This simulates the live state where the
+	// Retryable kernel was opened against the older InputsInfo before a
+	// second resource was added.
+	chain := srv.FFStream.Inputs.InputChains[0]
+	retryable := chain.Input.Processor.Kernel
+	tee := kernel.Tee[*kernel.Input]{nil}
+	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
+	retryable.KernelIsSet = true
+
+	// Now AddInput a second resource — InputsInfo[0] has 2 entries,
+	// Kernel0 still has 1. idx=1 hits the boundary.
+	_, err = srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://b",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	reply, err := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, reply)
+	require.Len(t, reply.GetInputs(), 2,
+		"GetInputsInfo must return BOTH entries even when idx == len(Kernel0); "+
+			"got %d (off-by-one bounds check would panic and return empty)",
+		len(reply.GetInputs()))
+	require.Equal(t, "test://a", reply.GetInputs()[0].GetUrl())
+	require.Equal(t, "test://b", reply.GetInputs()[1].GetUrl())
 }
 
 func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
