@@ -14,7 +14,15 @@ import (
 func TestInputFactory_NewInput_MultipleResourcesSamePriority(t *testing.T) {
 	ctx := context.Background()
 
-	s := &FFStream{}
+	// Construct via New so InputFactory.GetResources can take
+	// FFStream.Inputs.InputChainsLocker (paired with the writer side
+	// in AddInput / RemoveInput). A bare &FFStream{} would skip
+	// inputwithfallback construction and crash GetResources on the
+	// nil InputChainsLocker.
+	s, err := New(ctx)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 	s.InputsInfo = []Resources{
 		{
 			{

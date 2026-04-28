@@ -38,6 +38,7 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xsync"
 )
 
 const (
@@ -229,6 +230,18 @@ func (s *FFStream) AddInput(
 	if _err != nil {
 		return 0, _err
 	}
+	// Capture whether the chain at this priority pre-existed before
+	// AddFactory (below). A pre-existing chain holds an open kernel
+	// constructed from the OLD InputsInfo[priority] snapshot — it
+	// will not pick up the new resource we are about to append unless
+	// we trigger Retryable.Pause+Unpause to force a fresh
+	// InputFactory.NewInput on the live InputsInfo. AddFactory may
+	// extend InputChains for higher priorities; those are freshly
+	// created and intentionally paused, so they do not need the
+	// reload kick.
+	chainPreExisted := xsync.DoR1(ctx, &s.Inputs.InputChainsLocker, func() bool {
+		return int(priority) < len(s.Inputs.InputChains)
+	})
 	for p := s.Inputs.GetInputChainsCount(ctx); p <= int(priority); p++ {
 		// AddFactory takes InputChainsLocker itself; called outside
 		// our Do() to avoid deadlock on the non-reentrant mutex.
@@ -251,6 +264,43 @@ func (s *FFStream) AddInput(
 		s.InputsInfo[priority] = append(s.InputsInfo[priority], resource)
 		num = uint(len(s.InputsInfo[priority]) - 1)
 	})
+	// Bug fix (task #90): when AddInput appends to a pre-existing
+	// priority slot, the chain's Retryable kernel is already open
+	// (or in retry) with the OLD InputsInfo snapshot. Retryable
+	// closes-over the resource list at NewInput call time, so a
+	// silent slice append never reaches the live kernel. Pause +
+	// Unpause is the established mechanism (also used by the
+	// fallback-switch and on transient input errors) that closes
+	// the in-flight kernel and triggers a fresh
+	// Retryable.openKernelIfNeeded → InputFactory.NewInput call,
+	// which re-reads InputsInfo[priority] and now opens both the
+	// old and the new resource.
+	//
+	// Guard with !IsPaused so we only reload chains that were
+	// actively running:
+	//   - Brand-new chain (just created above): IsPaused=true,
+	//     skip — its first NewInput will read the up-to-date
+	//     InputsInfo when it is naturally unpaused (priority 0
+	//     auto-unpause in inputwithfallback.Serve, or the
+	//     InputSwitch promoting a fallback).
+	//   - Existing chain at priority>0 that hasn't been promoted
+	//     to active yet: IsPaused=true, skip — same reasoning;
+	//     force-unpausing here would prematurely open a fallback.
+	//   - Existing chain serving traffic (or in the retry loop
+	//     after a transient error): IsPaused=false, reload now.
+	if chainPreExisted {
+		chain := xsync.DoR1(ctx, &s.Inputs.InputChainsLocker, func() *InputChain {
+			return s.Inputs.InputChains[priority]
+		})
+		if !chain.IsPaused(ctx) {
+			if err := chain.Pause(ctx); err != nil {
+				return num, fmt.Errorf("unable to pause input chain at priority %d for hot-reload: %w", priority, err)
+			}
+			if err := chain.Unpause(ctx); err != nil {
+				return num, fmt.Errorf("unable to unpause input chain at priority %d after hot-reload: %w", priority, err)
+			}
+		}
+	}
 	return num, nil
 }
 
@@ -272,7 +322,14 @@ func (s *FFStream) RemoveInput(
 	// The factory's GetResources reads InputsInfo[priority] on each NewInput
 	// reconstruction, so removing the slice entry is sufficient — the
 	// removed Resource will be skipped on the next chain reload.
-	s.InputsInfo[priority] = slices.Delete(s.InputsInfo[priority], int(num), int(num)+1)
+	//
+	// We mutate the slice under InputChainsLocker so that concurrent
+	// NewInput → GetResources reads (driven by the retryable kernel
+	// goroutine) observe a consistent snapshot — pair the writer with
+	// the same lock the reader takes.
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo[priority] = slices.Delete(s.InputsInfo[priority], int(num), int(num)+1)
+	})
 	return nil
 }
 

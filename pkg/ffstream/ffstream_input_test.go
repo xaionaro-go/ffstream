@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
 // newTestFFStream constructs an FFStream the same way TestInjectSubtitles
@@ -346,4 +348,122 @@ func TestRemoveInput_NumOutOfRange_ReturnsErrInputNotFound(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrInputNotFound),
 		"out-of-range num must return ErrInputNotFound, got %v", err)
+}
+
+// TestAddInput_AtExistingPriority_RebuildsChain pins the wingout
+// gRPC-driven hot-add path: when AddInput appends a Resource to a
+// priority that already has an active (unpaused, kernel-open)
+// InputChain, the chain MUST rebuild so InputFactory.NewInput sees the
+// updated InputsInfo and opens the new resource.
+//
+// Pre-fix, AddInput at an existing priority only appended to InputsInfo
+// and never re-triggered NewInput, so wingout's pattern
+// (`-i $FFSTREAM_INPUT_URL`, then addInput(0, "", camCustomOpts), then
+// addInput(0, micUrl, micCustomOpts)) silently no-op'd at runtime: the
+// camera/mic Resources were stored in InputsInfo but never opened. The
+// e2e mic_routing_test header explicitly documents this as a known
+// limitation; this test pins the fix at the unit level.
+//
+// Discrimination strategy
+// =======================
+// We assert a property that is observable iff the fix calls
+// InputChain.Pause+Unpause: pauseLocked invokes Kernel.Close and
+// CAS-replaces the kernel's KernelOpenBarrier with a fresh channel
+// (retryable.go). The pointer before-vs-after AddInput #2 is the
+// witness: pre-fix, the pointer is unchanged; post-fix, a fresh
+// barrier is installed.
+//
+// We use a real (libav lavfi/testsrc) input so the kernel actually
+// opens — the chain reaches the steady-state IsPaused=false +
+// KernelIsSet=true that production hits after Start. This is the
+// only state in which Pause+Unpause runs cleanly: with a stub-fail
+// kernel + RetryInterval>=0 the openKernelIfNeeded loop holds
+// KernelLocker forever, which would deadlock against the fix's
+// Pause; with RetryInterval<0 the chain dead-latches before AddInput
+// #2 (IsPaused=true → fix correctly skips). lavfi is the same demuxer
+// the avpipeline kernel package uses for its input tests.
+func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s, err := New(ctx)
+	require.NoError(t, err)
+
+	res := Resource{
+		URL:      "testsrc=duration=10:rate=25",
+		Priority: 0,
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: "lavfi"},
+			},
+		},
+	}
+	_, err = s.AddInput(ctx, res)
+	require.NoError(t, err)
+	require.Len(t, s.Inputs.InputChains, 1)
+
+	chain := s.Inputs.InputChains[0]
+
+	// Simulate post-Start: the daemon's inputwithfallback.Serve loop
+	// auto-unpauses the priority-0 chain on first observation. We do
+	// the same thing inline by closing the barrier directly — that
+	// triggers the Generate-driven goroutine spawned by NewFromKernel
+	// to open the kernel.
+	close(*chain.Input.Processor.Kernel.KernelOpenBarrier.Load())
+
+	// Wait until the kernel is fully open. We probe via
+	// OriginalPacketSource which takes KernelLocker internally and
+	// returns non-nil iff KernelIsSet=true — race-safe against the
+	// retry loop's writes (a direct KernelIsSet read would race the
+	// openKernelIfNeeded write).
+	//
+	// At this point IsPaused=false and the retry loop is parked
+	// inside its callback (kernel.Generate) — KernelLocker is
+	// briefly free between callback iterations, which is the same
+	// window the daemon's runtime AddInput hits.
+	require.Eventually(t, func() bool {
+		return chain.Input.Processor.Kernel.OriginalPacketSource() != nil
+	}, 5*time.Second, 10*time.Millisecond,
+		"chain's kernel must open before AddInput #2 (so we are "+
+			"testing the active-chain reload path that wingout hits)")
+
+	// Capture the barrier pointer before AddInput #2. Pre-fix, this
+	// pointer is unchanged by AddInput at an existing priority.
+	// Post-fix, Pause+Unpause CAS-replaces it on the inner pauseLocked
+	// path (retryable.go pauseLocked → pauseKernelOpening), since
+	// Pause was called with KernelIsSet=true → Kernel.Close →
+	// pauseKernelOpening flips the barrier to a fresh open channel.
+	barrierBefore := chain.Input.Processor.Kernel.KernelOpenBarrier.Load()
+	require.NotNil(t, barrierBefore, "barrier must be initialised")
+
+	res2 := Resource{
+		URL:      "testsrc=duration=10:rate=25",
+		Priority: 0,
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: "lavfi"},
+			},
+		},
+	}
+	_, err = s.AddInput(ctx, res2)
+	require.NoError(t, err)
+
+	// Both Resources must coexist in InputsInfo (slice bookkeeping).
+	require.Len(t, s.InputsInfo[0], 2,
+		"both Resources must coexist at priority 0")
+
+	// The fix-vs-bug witness: AddInput at an existing active priority
+	// must reload the chain, which CAS-replaces the barrier pointer.
+	// Eventually polls because the post-Pause Unpause spawns an
+	// openKernelIfNeeded goroutine that may race the read here; the
+	// pointer flip itself happens synchronously inside AddInput
+	// (Pause runs to completion under s.locker).
+	require.Eventually(t, func() bool {
+		barrierAfter := chain.Input.Processor.Kernel.KernelOpenBarrier.Load()
+		return barrierAfter != barrierBefore
+	}, 5*time.Second, 10*time.Millisecond,
+		"AddInput at existing priority must reload the chain "+
+			"(KernelOpenBarrier pointer must change); "+
+			"this fails pre-fix because AddInput only appends to "+
+			"InputsInfo and never triggers Pause+Unpause")
 }

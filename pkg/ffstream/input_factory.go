@@ -113,14 +113,16 @@ func (f *InputFactory) streamIndexAssignLocked(
 }
 
 // GetResources returns a deep-copy snapshot of the Resources configured for
-// this InputFactory's FallbackPriority. It acquires FFStream.locker
-// internally so the snapshot does not race with AddInput, SetSuppressed, or
-// SetInputCustomOption, which all mutate FFStream.InputsInfo under the same
-// lock. The returned Resources are safe to read without further locking;
-// they do not alias the live slice.
+// this InputFactory's FallbackPriority, taking
+// FFStream.Inputs.InputChainsLocker so that concurrent AddInput /
+// RemoveInput writers (which mutate InputsInfo under the same lock) do
+// not race the slice header against this read. The returned Resources
+// are safe to read without further locking; they do not alias the live
+// slice.
 //
-// MUST NOT be called by goroutines that already hold FFStream.locker — use
-// getResourcesLocked in that case.
+// Callers that already hold InputChainsLocker MUST call
+// GetResourcesLocked instead — the lock is non-reentrant and a nested
+// acquire deadlocks.
 func (f *InputFactory) GetResources(
 	ctx context.Context,
 ) (_ret Resources, _err error) {
@@ -132,29 +134,29 @@ func (f *InputFactory) GetResources(
 	if f.FFStream == nil {
 		return nil, fmt.Errorf("FFStream is nil")
 	}
-	f.FFStream.locker.Lock()
-	defer f.FFStream.locker.Unlock()
-	resources, err := f.getResourcesLocked(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return resources.Clone(), nil
+	return xsync.DoR2(ctx, &f.FFStream.Inputs.InputChainsLocker, func() (Resources, error) {
+		return f.getResourcesLocked()
+	})
 }
 
-// getResourcesLocked returns the live Resources slice for this InputFactory's
-// FallbackPriority. Callers MUST hold FFStream.locker. The returned slice
-// aliases FFStream.InputsInfo[priority] and is only valid while the lock is
-// held.
-func (f *InputFactory) getResourcesLocked(
-	_ context.Context,
-) (Resources, error) {
+// GetResourcesLocked is the in-lock variant of GetResources. The caller
+// MUST hold FFStream.Inputs.InputChainsLocker. Returns a defensive
+// copy so the caller can release the lock before iterating.
+func (f *InputFactory) GetResourcesLocked() (Resources, error) {
 	if f.FFStream == nil {
 		return nil, fmt.Errorf("FFStream is nil")
 	}
+	return f.getResourcesLocked()
+}
+
+func (f *InputFactory) getResourcesLocked() (Resources, error) {
 	if int(f.FallbackPriority) >= len(f.FFStream.InputsInfo) {
 		return nil, fmt.Errorf("priority %d is out of range (inputs=%d)", f.FallbackPriority, len(f.FFStream.InputsInfo))
 	}
-	return f.FFStream.InputsInfo[f.FallbackPriority], nil
+	src := f.FFStream.InputsInfo[f.FallbackPriority]
+	out := make(Resources, len(src))
+	copy(out, src)
+	return out, nil
 }
 
 // ResourceIndex is used as side data key to indicate which resource index
@@ -425,11 +427,11 @@ func (f *InputFactory) NewDecoderFactory(
 	}()
 
 	// NewDecoderFactory is invoked from FFStream.AddInput via
-	// inputwithfallback.addFactory while FFStream.locker is already held by
-	// this goroutine; re-acquiring it would deadlock. We only read the
-	// resources to decide whether to build a DecoderFactory, so the live
-	// slice is safe to access under the inherited lock.
-	resources, err := f.getResourcesLocked(ctx)
+	// inputwithfallback.addFactory while InputChainsLocker is already
+	// held by this goroutine; re-acquiring it would deadlock the
+	// non-reentrant lock. Use GetResourcesLocked to read the resources
+	// under the inherited lock.
+	resources, err := f.GetResourcesLocked()
 	if err != nil {
 		return nil, err
 	}

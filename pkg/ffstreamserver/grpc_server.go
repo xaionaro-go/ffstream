@@ -297,27 +297,20 @@ func (srv *GRPCServer) GetInputsInfo(
 ) (*ffstream_grpc.GetInputsInfoReply, error) {
 	ctx = srv.ctx(ctx)
 
-	// Snapshot InputsInfo under FFStream.locker BEFORE acquiring
-	// InputChainsLocker. AddInput holds FFStream.locker while calling
-	// AddFactory which acquires InputChainsLocker; taking the locks in the
-	// reverse order would deadlock. The snapshot returns deep copies of
-	// every Resource, so the subsequent reads of res.URL, res.Suppressed,
-	// and res.CustomOptions do not race with AddInput / SetSuppressed /
-	// SetInputCustomOption.
-	inputsInfo := srv.FFStream.SnapshotInputsInfo(ctx)
-
 	var result []*ffstream_grpc.InputInfo
 	srv.FFStream.Inputs.InputChainsLocker.Do(ctx, func() {
 		for _, inputChain := range srv.FFStream.Inputs.InputChains {
 			k := inputChain.Input.Processor.Kernel
 			inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
 			priority := inputFactory.FallbackPriority
-			if int(priority) >= len(inputsInfo) {
-				// Snapshot was taken before this InputChain existed; skip
-				// it — the next GetInputsInfo call will observe it.
+			// We are inside InputChainsLocker.Do already — must use
+			// the in-lock variant; GetResources(ctx) would re-acquire
+			// the non-reentrant lock and deadlock.
+			resources, err := inputFactory.GetResourcesLocked()
+			if err != nil {
+				logger.Errorf(ctx, "unable to get resources for input factory: %v", err)
 				continue
 			}
-			resources := inputsInfo[priority]
 			for idx, res := range resources {
 				inputKernel := func() *kernel.Input {
 					if !k.KernelLocker.ManualTryLock(ctx) {

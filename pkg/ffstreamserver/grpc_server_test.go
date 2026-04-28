@@ -84,7 +84,7 @@ func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 	// second resource was added.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	tee := kernel.Tee[*kernel.Input]{nil}
+	tee := kernel.Tee[kernel.Abstract]{nil}
 	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
 	retryable.KernelIsSet = true
 
