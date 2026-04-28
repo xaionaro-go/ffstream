@@ -10,16 +10,21 @@
 # exec this script. Keep this script POSIX sh.
 #
 # Inputs (env, with defaults below):
-#   FFSTREAM_BIN      path to the ffstream binary
-#   FFMPEG_LIBS       directory holding ffmpeg shared libs
-#   GOMEMLIMIT        Go runtime soft memory limit
-#   LD_LIBRARY_PATH   extra library search path (prepended to FFMPEG_LIBS)
+#   FFSTREAM_BIN        path to the ffstream binary
+#   FFMPEG_LIBS         directory holding ffmpeg shared libs
+#   GOMEMLIMIT          Go runtime soft memory limit
+#   LD_LIBRARY_PATH     extra library search path (prepended to FFMPEG_LIBS)
+#   FFSTREAM_INPUT_URL  primary -i URL (defaults to the on-device DJI proxy
+#                       endpoint historically baked into this script). Set
+#                       this when running on a host that does not expose the
+#                       Termux MediaMTX proxy on 127.0.0.1:1935.
 #
 set -eu
 
 FFSTREAM_BIN="${FFSTREAM_BIN:-/data/local/tmp/ffstream}"
 FFMPEG_LIBS="${FFMPEG_LIBS:-/data/local/tmp/ffmpeg-bin/lib}"
 GOMEMLIMIT="${GOMEMLIMIT:-256MiB}"
+FFSTREAM_INPUT_URL="${FFSTREAM_INPUT_URL:-rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3?fallback_priority=10}"
 
 # Wait for the binary to be present (deploy may race with boot).
 i=0
@@ -56,7 +61,7 @@ while true; do
         -retry_input_timeout_on_failure 1s \
         -mux_mode different_outputs_same_tracks \
         -hwaccel mediacodec ndk_codec=1 \
-        -i 'rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3?fallback_priority=10' \
+        -i "$FFSTREAM_INPUT_URL" \
         -s 1920x1080 \
         -c:v av1_mediacodec -b:v 8000000 \
         -c:a aac -ar 48000 -ac 1 -b:a 128000 \
