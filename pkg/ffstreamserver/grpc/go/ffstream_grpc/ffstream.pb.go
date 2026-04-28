@@ -3713,9 +3713,10 @@ func (*InjectDataReply) Descriptor() ([]byte, []int) {
 }
 
 // AddInputRequest registers an input at the given fallback priority.
-// Priority is the unique key for an input slot: at most one input
-// may exist at each priority. AddInput at a priority that already
-// has an input returns ALREADY_EXISTS; caller must RemoveInput first.
+// Multiple inputs may exist at the same priority, forming a fallback
+// chain (in addition to the priority-based fallback across priorities).
+// The server assigns a slot index (num) within the priority and returns
+// it in AddInputReply.
 type AddInputRequest struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	Url           string                  `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
@@ -3776,9 +3777,11 @@ func (x *AddInputRequest) GetPriority() uint64 {
 	return 0
 }
 
-// AddInputReply is empty: the priority itself is the input handle.
+// AddInputReply carries the server-assigned (priority, num) slot index.
+// Use (priority, num) to identify the input later (e.g. RemoveInput).
 type AddInputReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Num           uint64                 `protobuf:"varint,1,opt,name=num,proto3" json:"num,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3813,11 +3816,19 @@ func (*AddInputReply) Descriptor() ([]byte, []int) {
 	return file_ffstream_proto_rawDescGZIP(), []int{64}
 }
 
-// RemoveInputRequest removes the input at the given priority.
-// Returns NOT_FOUND if no input exists at that priority.
+func (x *AddInputReply) GetNum() uint64 {
+	if x != nil {
+		return x.Num
+	}
+	return 0
+}
+
+// RemoveInputRequest removes one input identified by (priority, num).
+// Returns NOT_FOUND if no input exists at that (priority, num).
 type RemoveInputRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Priority      uint64                 `protobuf:"varint,1,opt,name=priority,proto3" json:"priority,omitempty"`
+	Num           uint64                 `protobuf:"varint,2,opt,name=num,proto3" json:"num,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3855,6 +3866,13 @@ func (*RemoveInputRequest) Descriptor() ([]byte, []int) {
 func (x *RemoveInputRequest) GetPriority() uint64 {
 	if x != nil {
 		return x.Priority
+	}
+	return 0
+}
+
+func (x *RemoveInputRequest) GetNum() uint64 {
+	if x != nil {
+		return x.Num
 	}
 	return 0
 }
@@ -4165,10 +4183,12 @@ const file_ffstream_proto_rawDesc = "" +
 	"\x0fAddInputRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12:\n" +
 	"\finput_config\x18\x02 \x01(\v2\x17.avpipeline.InputConfigR\vinputConfig\x12\x1a\n" +
-	"\bpriority\x18\x03 \x01(\x04R\bpriority\"\x0f\n" +
-	"\rAddInputReply\"0\n" +
+	"\bpriority\x18\x03 \x01(\x04R\bpriority\"!\n" +
+	"\rAddInputReply\x12\x10\n" +
+	"\x03num\x18\x01 \x01(\x04R\x03num\"B\n" +
 	"\x12RemoveInputRequest\x12\x1a\n" +
-	"\bpriority\x18\x01 \x01(\x04R\bpriority\"\x12\n" +
+	"\bpriority\x18\x01 \x01(\x04R\bpriority\x12\x10\n" +
+	"\x03num\x18\x02 \x01(\x04R\x03num\"\x12\n" +
 	"\x10RemoveInputReply*\xd3\x01\n" +
 	"\fLoggingLevel\x12\x16\n" +
 	"\x12LOGGING_LEVEL_NONE\x10\x00\x12\x17\n" +

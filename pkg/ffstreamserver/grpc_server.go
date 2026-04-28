@@ -504,13 +504,11 @@ func (srv *GRPCServer) AddInput(
 		Priority:    uint(req.GetPriority()),
 		InputConfig: goconvavp.InputConfigFromProto(req.GetInputConfig()),
 	}
-	if err := srv.FFStream.AddInput(ctx, resource); err != nil {
-		if errors.Is(err, ffstream.ErrInputAlreadyExists) {
-			return nil, status.Errorf(codes.AlreadyExists, "input already exists at priority %d: %v", req.GetPriority(), err)
-		}
+	num, err := srv.FFStream.AddInput(ctx, resource)
+	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to add input at priority %d: %v", req.GetPriority(), err)
 	}
-	return &ffstream_grpc.AddInputReply{}, nil
+	return &ffstream_grpc.AddInputReply{Num: uint64(num)}, nil
 }
 
 func (srv *GRPCServer) RemoveInput(
@@ -520,11 +518,11 @@ func (srv *GRPCServer) RemoveInput(
 	ctx = srv.ctx(ctx)
 	logger.Debugf(ctx, "RemoveInput: %s", spew.Sdump(req))
 	defer func() { logger.Debugf(ctx, "/RemoveInput: %s: %v %v", spew.Sdump(req), _ret, _err) }()
-	if err := srv.FFStream.RemoveInput(ctx, uint(req.GetPriority())); err != nil {
+	if err := srv.FFStream.RemoveInput(ctx, uint(req.GetPriority()), uint(req.GetNum())); err != nil {
 		if errors.Is(err, ffstream.ErrInputNotFound) {
-			return nil, status.Errorf(codes.NotFound, "no input at priority %d: %v", req.GetPriority(), err)
+			return nil, status.Errorf(codes.NotFound, "no input at (priority=%d, num=%d): %v", req.GetPriority(), req.GetNum(), err)
 		}
-		return nil, status.Errorf(codes.Unknown, "unable to remove input at priority %d: %v", req.GetPriority(), err)
+		return nil, status.Errorf(codes.Unknown, "unable to remove input at (priority=%d, num=%d): %v", req.GetPriority(), req.GetNum(), err)
 	}
 	return &ffstream_grpc.RemoveInputReply{}, nil
 }

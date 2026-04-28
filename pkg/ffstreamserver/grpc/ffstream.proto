@@ -371,22 +371,27 @@ message InjectDataRequest {
 message InjectDataReply {}
 
 // AddInputRequest registers an input at the given fallback priority.
-// Priority is the unique key for an input slot: at most one input
-// may exist at each priority. AddInput at a priority that already
-// has an input returns ALREADY_EXISTS; caller must RemoveInput first.
+// Multiple inputs may exist at the same priority, forming a fallback
+// chain (in addition to the priority-based fallback across priorities).
+// The server assigns a slot index (num) within the priority and returns
+// it in AddInputReply.
 message AddInputRequest {
   string                 url          = 1;
   avpipeline.InputConfig input_config = 2;
   uint64                 priority     = 3;
 }
 
-// AddInputReply is empty: the priority itself is the input handle.
-message AddInputReply {}
+// AddInputReply carries the server-assigned (priority, num) slot index.
+// Use (priority, num) to identify the input later (e.g. RemoveInput).
+message AddInputReply {
+  uint64 num = 1;
+}
 
-// RemoveInputRequest removes the input at the given priority.
-// Returns NOT_FOUND if no input exists at that priority.
+// RemoveInputRequest removes one input identified by (priority, num).
+// Returns NOT_FOUND if no input exists at that (priority, num).
 message RemoveInputRequest {
   uint64 priority = 1;
+  uint64 num      = 2;
 }
 
 message RemoveInputReply {}

@@ -1,8 +1,9 @@
-// ffstream_input_test.go covers the Iter 2 input bookkeeping in
-// FFStream.AddInput / FFStream.RemoveInput: priority allocation, sentinel
-// errors, and the unpause-after-remove cycle. These tests do not exercise
-// real I/O — kernel.NewInput is invoked lazily by the input chain when it
-// is actually served, which never happens here.
+// ffstream_input_test.go covers the input bookkeeping in
+// FFStream.AddInput / FFStream.RemoveInput: priority allocation,
+// (priority, num) addressing, sentinel errors, and N-per-priority
+// fallback chaining. These tests do not exercise real I/O —
+// kernel.NewInput is invoked lazily by the input chain when it is
+// actually served, which never happens here.
 
 package ffstream
 
@@ -30,8 +31,10 @@ func TestAddInput_HappyPath(t *testing.T) {
 
 	s := newTestFFStream(t, ctx)
 
-	err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
+	num, err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
 	require.NoError(t, err)
+	require.Equal(t, uint(0), num,
+		"first AddInput at a priority must return num=0")
 
 	require.Len(t, s.InputsInfo, 1)
 	require.Len(t, s.InputsInfo[0], 1)
@@ -41,21 +44,28 @@ func TestAddInput_HappyPath(t *testing.T) {
 		"AddInput must allocate an InputChain at the requested priority")
 }
 
-func TestAddInput_DuplicatePriorityReturnsErrInputAlreadyExists(t *testing.T) {
+func TestAddInput_MultipleAtSamePriority(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	s := newTestFFStream(t, ctx)
 
-	require.NoError(t, s.AddInput(ctx, Resource{URL: "test://a", Priority: 0}))
+	num0, err := s.AddInput(ctx, Resource{URL: "test://a", Priority: 0})
+	require.NoError(t, err)
+	require.Equal(t, uint(0), num0)
 
-	err := s.AddInput(ctx, Resource{URL: "test://b", Priority: 0})
-	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrInputAlreadyExists),
-		"second AddInput at the same priority must wrap ErrInputAlreadyExists, got %v", err)
+	num1, err := s.AddInput(ctx, Resource{URL: "test://b", Priority: 0})
+	require.NoError(t, err)
+	require.Equal(t, uint(1), num1,
+		"second AddInput at the same priority must get num=1")
 
-	require.Len(t, s.InputsInfo[0], 1, "duplicate must not append to the slot")
+	require.Len(t, s.InputsInfo[0], 2,
+		"both Resources must coexist at priority 0")
 	require.Equal(t, "test://a", s.InputsInfo[0][0].URL)
+	require.Equal(t, "test://b", s.InputsInfo[0][1].URL)
+
+	require.Len(t, s.Inputs.InputChains, 1,
+		"adding a second input at the same priority must NOT allocate a new InputChain")
 }
 
 func TestRemoveInput_HappyPath(t *testing.T) {
@@ -63,11 +73,12 @@ func TestRemoveInput_HappyPath(t *testing.T) {
 	defer cancel()
 
 	s := newTestFFStream(t, ctx)
-	require.NoError(t, s.AddInput(ctx, Resource{URL: "test://", Priority: 0}))
-
-	err := s.RemoveInput(ctx, 0)
+	_, err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
 	require.NoError(t, err)
-	require.Nil(t, s.InputsInfo[0], "InputsInfo slot must be cleared after RemoveInput")
+
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
+	require.Empty(t, s.InputsInfo[0],
+		"InputsInfo slot must be empty after the only entry is removed")
 }
 
 func TestRemoveInput_OutOfRange_ReturnsErrInputNotFound(t *testing.T) {
@@ -76,7 +87,7 @@ func TestRemoveInput_OutOfRange_ReturnsErrInputNotFound(t *testing.T) {
 
 	s := newTestFFStream(t, ctx)
 
-	err := s.RemoveInput(ctx, 99)
+	err := s.RemoveInput(ctx, 99, 0)
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrInputNotFound),
 		"out-of-range priority must return ErrInputNotFound, got %v", err)
@@ -87,31 +98,48 @@ func TestRemoveInput_EmptySlot_ReturnsErrInputNotFound(t *testing.T) {
 	defer cancel()
 
 	s := newTestFFStream(t, ctx)
-	require.NoError(t, s.AddInput(ctx, Resource{URL: "test://", Priority: 0}))
-	require.NoError(t, s.RemoveInput(ctx, 0))
+	_, err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
+	require.NoError(t, err)
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
 
-	err := s.RemoveInput(ctx, 0)
+	err = s.RemoveInput(ctx, 0, 0)
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrInputNotFound),
 		"second RemoveInput on the same slot must return ErrInputNotFound, got %v", err)
 }
 
-func TestAddInput_AfterRemove_UnpausesChain(t *testing.T) {
+func TestRemoveInput_ByPriorityAndNum(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	s := newTestFFStream(t, ctx)
 
-	// 1. Initial AddInput: allocates the InputChain at priority 0.
-	require.NoError(t, s.AddInput(ctx, Resource{URL: "test://1", Priority: 0}))
+	num0, err := s.AddInput(ctx, Resource{URL: "test://a", Priority: 0})
+	require.NoError(t, err)
+	require.Equal(t, uint(0), num0)
 
-	// 2. RemoveInput: clears the slot and pauses the chain.
-	require.NoError(t, s.RemoveInput(ctx, 0))
+	num1, err := s.AddInput(ctx, Resource{URL: "test://b", Priority: 0})
+	require.NoError(t, err)
+	require.Equal(t, uint(1), num1)
 
-	// 3. Re-AddInput at the same priority: hits the int(priority) <
-	// preExistingLen branch in AddInput and exercises the Unpause path.
-	require.NoError(t, s.AddInput(ctx, Resource{URL: "test://2", Priority: 0}))
+	// Remove the first entry. The second one shifts down to index 0.
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
+	require.Len(t, s.InputsInfo[0], 1,
+		"RemoveInput must drop exactly one entry from the priority slot")
+	require.Equal(t, "test://b", s.InputsInfo[0][0].URL,
+		"the surviving entry must be the second one we added")
+}
 
-	require.Len(t, s.InputsInfo[0], 1)
-	require.Equal(t, "test://2", s.InputsInfo[0][0].URL)
+func TestRemoveInput_NumOutOfRange_ReturnsErrInputNotFound(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+	_, err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
+	require.NoError(t, err)
+
+	err = s.RemoveInput(ctx, 0, 5)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrInputNotFound),
+		"out-of-range num must return ErrInputNotFound, got %v", err)
 }

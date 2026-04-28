@@ -5,6 +5,5 @@ package ffstream
 import "errors"
 
 var (
-	ErrInputAlreadyExists = errors.New("input already exists at this priority")
-	ErrInputNotFound      = errors.New("no input at this priority")
+	ErrInputNotFound = errors.New("no input at this (priority, num)")
 )

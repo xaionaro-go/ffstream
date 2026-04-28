@@ -69,7 +69,7 @@ func main() {
 	}
 
 	for _, inputInfo := range flags.Inputs {
-		err = s.AddInput(ctx, inputInfo)
+		_, err = s.AddInput(ctx, inputInfo)
 		assertNoError(ctx, err)
 	}
 

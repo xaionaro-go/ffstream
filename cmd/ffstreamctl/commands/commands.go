@@ -227,8 +227,8 @@ var (
 	}
 
 	InputsRemove = &cobra.Command{
-		Use:  "remove <priority>",
-		Args: cobra.ExactArgs(1),
+		Use:  "remove <priority> <num>",
+		Args: cobra.ExactArgs(2),
 		Run:  inputsRemove,
 	}
 
@@ -662,8 +662,10 @@ func inputsAdd(cmd *cobra.Command, args []string) {
 
 	c := client.New(remoteAddr)
 
-	err = c.AddInput(ctx, priority, url, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
+	num, err := c.AddInput(ctx, priority, url, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
 	assertNoError(ctx, err)
+
+	logger.Infof(ctx, "added input at (priority=%d, num=%d)", priority, num)
 }
 
 func inputsRemove(cmd *cobra.Command, args []string) {
@@ -671,13 +673,15 @@ func inputsRemove(cmd *cobra.Command, args []string) {
 
 	priority, err := strconv.ParseUint(args[0], 10, 64)
 	assertNoError(ctx, err)
+	num, err := strconv.ParseUint(args[1], 10, 64)
+	assertNoError(ctx, err)
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
 	assertNoError(ctx, err)
 
 	c := client.New(remoteAddr)
 
-	err = c.RemoveInput(ctx, priority)
+	err = c.RemoveInput(ctx, priority, num)
 	assertNoError(ctx, err)
 }
 

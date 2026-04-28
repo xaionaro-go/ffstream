@@ -1,8 +1,9 @@
 // grpc_server_test.go covers the gRPC handler error mapping for
-// AddInput / RemoveInput introduced in Iter 2. Strategy B: instantiate
-// the real *ffstream.FFStream via ffstream.New and invoke handlers
-// directly (no real gRPC dial) — there is no socket, no transport,
-// just exercising the error → codes mapping.
+// AddInput / RemoveInput. Strategy B: instantiate the real
+// *ffstream.FFStream via ffstream.New and invoke handlers directly
+// (no real gRPC dial) — there is no socket, no transport, just
+// exercising the error → codes mapping and the (priority, num)
+// reply contract.
 
 package ffstreamserver
 
@@ -25,25 +26,27 @@ func newTestServer(t *testing.T, ctx context.Context) *GRPCServer {
 	return NewGRPCServer(ctx, s)
 }
 
-func TestGRPCServer_AddInput_DuplicatePriorityMapsToAlreadyExists(t *testing.T) {
+func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	srv := newTestServer(t, ctx)
 
-	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+	reply0, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
 		Url:      "test://a",
 		Priority: 0,
 	})
 	require.NoError(t, err)
+	require.Equal(t, uint64(0), reply0.GetNum(),
+		"first AddInput at a priority must reply Num=0")
 
-	_, err = srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+	reply1, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
 		Url:      "test://b",
 		Priority: 0,
 	})
-	require.Error(t, err)
-	require.Equal(t, codes.AlreadyExists, status.Code(err),
-		"duplicate AddInput must map to codes.AlreadyExists, got %v: %v", status.Code(err), err)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), reply1.GetNum(),
+		"second AddInput at the same priority must reply Num=1")
 }
 
 func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
@@ -53,11 +56,12 @@ func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
 	srv := newTestServer(t, ctx)
 
 	_, err := srv.RemoveInput(ctx, &ffstream_grpc.RemoveInputRequest{
-		Priority: 0,
+		Priority: 99,
+		Num:      0,
 	})
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err),
-		"RemoveInput on empty FFStream must map to codes.NotFound, got %v: %v", status.Code(err), err)
+		"RemoveInput on out-of-range priority must map to codes.NotFound, got %v: %v", status.Code(err), err)
 }
 
 // TestGRPCServer_AddInput_UnknownErrorMapsToUnknown is currently a TODO:

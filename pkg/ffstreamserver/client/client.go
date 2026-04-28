@@ -515,31 +515,32 @@ func (c *Client) AddInput(
 	priority uint64,
 	url string,
 	inputConfig *avpipeline_proto.InputConfig,
-) error {
+) (uint64, error) {
 	client, conn, err := c.grpcClient()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer conn.Close()
 
 	if inputConfig == nil {
 		inputConfig = &avpipeline_proto.InputConfig{}
 	}
-	_, err = client.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+	reply, err := client.AddInput(ctx, &ffstream_grpc.AddInputRequest{
 		Url:         url,
 		Priority:    priority,
 		InputConfig: inputConfig,
 	})
 	if err != nil {
-		return fmt.Errorf("query error: %w", err)
+		return 0, fmt.Errorf("query error: %w", err)
 	}
 
-	return nil
+	return reply.GetNum(), nil
 }
 
 func (c *Client) RemoveInput(
 	ctx context.Context,
 	priority uint64,
+	num uint64,
 ) error {
 	client, conn, err := c.grpcClient()
 	if err != nil {
@@ -549,6 +550,7 @@ func (c *Client) RemoveInput(
 
 	_, err = client.RemoveInput(ctx, &ffstream_grpc.RemoveInputRequest{
 		Priority: priority,
+		Num:      num,
 	})
 	if err != nil {
 		return fmt.Errorf("query error: %w", err)
