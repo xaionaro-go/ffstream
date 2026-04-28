@@ -109,6 +109,103 @@ func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 	}, "GetInputsInfo must not panic on idx == len(Kernel0)")
 }
 
+// TestGetInputsInfo_IsActiveReflectsServingChain pins the contract that
+// InputInfo.IsActive is true ONLY for the chain currently selected by
+// InputWithFallback.InputSwitch (and whose kernel is open). Pre-fix the
+// handler set IsActive = KernelIsSet, which can be true for multiple
+// chains simultaneously — useless for "which input is live right now".
+//
+// Setup: two inputs at priority 0 (both land in InputChains[0]). Inject
+// an open kernel on chain 0 to simulate "kernel is set". InputSwitch
+// defaults CurrentValue to 0 (set in initSwitches), so chain 0 is the
+// currently-serving one.
+//
+// Note: we do NOT call FFStream.Start — opening real I/O for a fake URL
+// is brittle and orthogonal to the IsActive bookkeeping. The same
+// kernel-injection trick is used by TestGRPCServer_GetInputsInfo_BoundaryNum.
+func TestGetInputsInfo_IsActiveReflectsServingChain(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://cam",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	_, err = srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://mic",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	// Simulate "this chain's kernel is open" without doing real I/O.
+	chain := srv.FFStream.Inputs.InputChains[0]
+	retryable := chain.Input.Processor.Kernel
+	tee := kernel.Tee[kernel.Abstract]{nil, nil}
+	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
+	retryable.KernelIsSet = true
+
+	// initSwitches stores 0 into InputSwitch.CurrentValue; chain 0 is
+	// the live one. Be explicit anyway — the test must not depend on
+	// initialization order changing upstream.
+	srv.FFStream.Inputs.InputSwitch.CurrentValue.Store(int32(chain.ID))
+
+	reply, err := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, reply)
+	require.Len(t, reply.GetInputs(), 2,
+		"both resources at priority 0 must appear in the reply")
+
+	var activeCount int
+	for _, in := range reply.GetInputs() {
+		if in.GetIsActive() {
+			activeCount++
+		}
+	}
+	require.GreaterOrEqual(t, activeCount, 1,
+		"at least one input must report IsActive=true when its chain is "+
+			"the one InputSwitch currently selects (got 0 — IsActive is "+
+			"never set by the handler)")
+}
+
+// TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere is the
+// negative half: when InputSwitch.CurrentValue points to a chain that
+// does NOT exist among ours (or whose kernel is closed), IsActive must
+// be false for every input. Without this, a stale `KernelIsSet`-only
+// check would flag the wrong chain.
+func TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:      "test://cam",
+		Priority: 0,
+	})
+	require.NoError(t, err)
+
+	chain := srv.FFStream.Inputs.InputChains[0]
+	retryable := chain.Input.Processor.Kernel
+	tee := kernel.Tee[kernel.Abstract]{nil}
+	retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
+	retryable.KernelIsSet = true
+
+	// Point the switch at a non-existent chain.
+	srv.FFStream.Inputs.InputSwitch.CurrentValue.Store(int32(99))
+
+	reply, err := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	require.NoError(t, err)
+
+	for _, in := range reply.GetInputs() {
+		require.False(t, in.GetIsActive(),
+			"IsActive must be false when InputSwitch points to a different chain")
+	}
+}
+
 func TestGRPCServer_RemoveInput_NotFoundMapsToNotFound(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

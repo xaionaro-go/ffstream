@@ -299,6 +299,12 @@ func (srv *GRPCServer) GetInputsInfo(
 
 	var result []*ffstream_grpc.InputInfo
 	srv.FFStream.Inputs.InputChainsLocker.Do(ctx, func() {
+		// The InputSwitch routes packets from exactly one chain
+		// downstream at a time. Its CurrentValue holds that chain's ID.
+		// We treat a chain as "active" only when its kernel is open AND
+		// the switch is currently selecting it — matching the user-visible
+		// notion of "the input that is producing frames right now".
+		currentChainID := srv.FFStream.Inputs.InputSwitch.CurrentValue.Load()
 		for _, inputChain := range srv.FFStream.Inputs.InputChains {
 			k := inputChain.Input.Processor.Kernel
 			inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
@@ -311,6 +317,7 @@ func (srv *GRPCServer) GetInputsInfo(
 				logger.Errorf(ctx, "unable to get resources for input factory: %v", err)
 				continue
 			}
+			isCurrent := int32(inputChain.ID) == currentChainID
 			for idx, res := range resources {
 				inputKernel := func() *kernel.Input {
 					if !k.KernelLocker.ManualTryLock(ctx) {
@@ -342,7 +349,7 @@ func (srv *GRPCServer) GetInputsInfo(
 					Num:         uint64(idx),
 					Url:         res.URL,
 					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
-					IsActive:    k.KernelIsSet,
+					IsActive:    k.KernelIsSet && isCurrent,
 					Suppressed:  res.Suppressed,
 				})
 			}
