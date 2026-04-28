@@ -43,14 +43,25 @@ export GOMEMLIMIT
 
 # No hardcoded -f flv rtmp:// destination: wingout sets the real
 # output URL via the SetOutputURL RPC after gRPC connect.
-exec "$FFSTREAM_BIN" \
-    -listen_control tcp+ssl:0.0.0.0:3593 \
-    -listen_net_pprof 127.0.0.1:8238 \
-    -retry_input_timeout_on_failure 1s \
-    -mux_mode different_outputs_same_tracks \
-    -hwaccel mediacodec ndk_codec=1 \
-    -i 'rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3?fallback_priority=10' \
-    -s 1920x1080 \
-    -c:v av1_mediacodec -b:v 8000000 \
-    -c:a aac -ar 48000 -ac 1 -b:a 128000 \
-    -f null -
+#
+# Supervisor loop: restart on any non-zero exit. The script's name
+# starts with "loop-" — make that real instead of single-shot exec.
+# `set -e` would abort on a non-zero rc here; disable it inside the
+# loop so we observe rc and respawn.
+set +e
+while true; do
+    "$FFSTREAM_BIN" \
+        -listen_control tcp+ssl:0.0.0.0:3593 \
+        -listen_net_pprof 127.0.0.1:8238 \
+        -retry_input_timeout_on_failure 1s \
+        -mux_mode different_outputs_same_tracks \
+        -hwaccel mediacodec ndk_codec=1 \
+        -i 'rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3?fallback_priority=10' \
+        -s 1920x1080 \
+        -c:v av1_mediacodec -b:v 8000000 \
+        -c:a aac -ar 48000 -ac 1 -b:a 128000 \
+        -f null -
+    rc=$?
+    echo "[$(date -Iseconds)] ffstream exited rc=$rc; restarting in 2s" >&2
+    sleep 2
+done
