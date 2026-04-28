@@ -10,10 +10,12 @@ package ffstream
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xaionaro-go/avpipeline/node"
 )
 
 // newTestFFStream constructs an FFStream the same way TestInjectSubtitles
@@ -128,6 +130,166 @@ func TestRemoveInput_ByPriorityAndNum(t *testing.T) {
 		"RemoveInput must drop exactly one entry from the priority slot")
 	require.Equal(t, "test://b", s.InputsInfo[0][0].URL,
 		"the surviving entry must be the second one we added")
+}
+
+// TestDaemonSurvivesInputEOF asserts that pushing io.EOF onto the
+// pipeline error channel does NOT cancel the daemon context. This
+// pins the fix for the bug where Start's error-handler goroutine
+// returned (and thus invoked s.cancelFunc) on EOF, tearing the daemon
+// down even though InputWithFallback would have handled retry.
+//
+// The test invokes the production drainPipelineErrors helper directly
+// (extracted from Start) so the assertion tracks the actual code path
+// instead of a duplicated copy.
+func TestDaemonSurvivesInputEOF(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	daemonCtx, daemonCancel := context.WithCancel(ctx)
+	defer daemonCancel()
+
+	errCh := make(chan node.Error, 4)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+	}()
+
+	// Simulate an input EOF — the priority-10 RTMP source EOFs
+	// immediately when there is no active publisher.
+	errCh <- node.Error{Err: io.EOF}
+
+	// The daemon ctx must remain alive long enough for the
+	// fallback chain to retry. 1 s is the spec floor.
+	select {
+	case <-daemonCtx.Done():
+		t.Fatalf("daemon ctx was cancelled by io.EOF; "+
+			"InputWithFallback never got a chance to retry: %v",
+			daemonCtx.Err())
+	case <-time.After(1 * time.Second):
+		// Expected: daemon still alive after EOF.
+	}
+
+	// Push another EOF — still must not cancel.
+	errCh <- node.Error{Err: io.EOF}
+	select {
+	case <-daemonCtx.Done():
+		t.Fatalf("daemon ctx cancelled on second io.EOF: %v", daemonCtx.Err())
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// Sanity: closing the channel triggers loop exit, which in
+	// turn calls cancelFunc.
+	close(errCh)
+	select {
+	case <-daemonCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("error-handler did not exit after errCh close")
+	}
+	<-done
+}
+
+// TestDaemonSurvivesNonEOFPipelineError asserts that an arbitrary
+// non-EOF, non-Canceled error pushed onto the pipeline error channel
+// does NOT cancel the daemon context. This pins the always-on
+// contract: every subsystem (InputWithFallback, StreamMux) owns its
+// retry/failover, so a transient pipeline error must never tear the
+// daemon down.
+//
+// Regression for the "daemon clean-exits on Deactivate" path: after
+// wingout calls RemoveInput for both inputs at priority 0, the active
+// kernels eventually surface read errors that are not always io.EOF
+// (e.g. "unable to read a frame: ..."). Pre-fix, drainPipelineErrors
+// returned on the first such error and the daemon teardown chained
+// through cancelFunc; the fallback retry never got a chance to
+// rebuild on the next AddInput.
+func TestDaemonSurvivesNonEOFPipelineError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	daemonCtx, daemonCancel := context.WithCancel(ctx)
+	defer daemonCancel()
+
+	errCh := make(chan node.Error, 4)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+	}()
+
+	errCh <- node.Error{Err: errors.New("synthetic non-EOF read error")}
+
+	select {
+	case <-daemonCtx.Done():
+		t.Fatalf("daemon ctx cancelled on non-EOF pipeline error; "+
+			"the always-on contract is broken: %v", daemonCtx.Err())
+	case <-time.After(1 * time.Second):
+		// Expected: daemon still alive after a non-EOF error.
+	}
+
+	// A second non-EOF error must also not tear the daemon down.
+	errCh <- node.Error{Err: errors.New("another synthetic error")}
+	select {
+	case <-daemonCtx.Done():
+		t.Fatalf("daemon ctx cancelled on second non-EOF error: %v", daemonCtx.Err())
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// Sanity: closing the channel still triggers shutdown via
+	// cancelFunc — that is the legitimate end-of-Serve signal.
+	close(errCh)
+	select {
+	case <-daemonCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("error-handler did not exit after errCh close")
+	}
+	<-done
+}
+
+// TestDaemonSurvivesAllInputsRemoved asserts the user-visible
+// scenario: AddInput followed by RemoveInput must NOT cause the
+// daemon's error-handler to cancel the daemon ctx, even if the
+// pipeline subsequently emits a non-EOF read error from the now-empty
+// input chain. The 5-second floor matches the spec in the bug report.
+func TestDaemonSurvivesAllInputsRemoved(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+
+	_, err := s.AddInput(ctx, Resource{URL: "test://", Priority: 0})
+	require.NoError(t, err)
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
+	require.Empty(t, s.InputsInfo[0])
+
+	// Drive the same handler the daemon uses, with a synthetic
+	// errCh standing in for avpipeline.Serve. The post-RemoveInput
+	// shape we want to pin: any error short of ctx-cancel or
+	// errCh-close must not cancel the daemon.
+	daemonCtx, daemonCancel := context.WithCancel(ctx)
+	defer daemonCancel()
+	errCh := make(chan node.Error, 4)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		drainPipelineErrors(daemonCtx, errCh, daemonCancel)
+	}()
+
+	errCh <- node.Error{Err: io.EOF}
+	errCh <- node.Error{Err: errors.New("unable to read a frame")}
+
+	select {
+	case <-daemonCtx.Done():
+		t.Fatalf("daemon ctx cancelled while inputs were empty; "+
+			"reconnect via AddInput would never get a chance: %v",
+			daemonCtx.Err())
+	case <-time.After(5 * time.Second):
+		// Spec floor: the daemon must stay alive at least 5 s
+		// after the last RemoveInput so a UI Activate can rearm.
+	}
+
+	daemonCancel()
+	<-done
 }
 
 func TestRemoveInput_NumOutOfRange_ReturnsErrInputNotFound(t *testing.T) {

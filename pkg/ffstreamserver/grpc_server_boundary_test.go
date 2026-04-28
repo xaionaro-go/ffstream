@@ -74,7 +74,7 @@ func TestGRPCServer_SetInputCustomOption_PriorityBelowLen_DoesNotReturnOutOfRang
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
 	// Seed one input so InputChains has length 1.
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestGRPCServer_SetStopInput_PriorityBelowLen_DoesNotReturnOutOfRange(t *tes
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -171,7 +171,7 @@ func TestGRPCServer_GetInputsInfo_NilRetryableKernel_DoesNotPanic(t *testing.T) 
 
 	// AddInput populates InputsInfo[0] and creates an InputChain whose
 	// retryable kernel is NOT opened (StartOnInit=false).
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -202,7 +202,7 @@ func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T)
 	// Register two resources at priority 0 so the GetInputsInfo loop runs
 	// with idx=0,1.
 	for range 2 {
-		err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+		_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 			URL: "file:/does-not-exist",
 		})
 		require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) 
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput(t *testing.T) {
 						},
 					},
 				}
-				if err := srv.FFStream.AddInput(ctx, res); err != nil {
+				if _, err := srv.FFStream.AddInput(ctx, res); err != nil {
 					// Out-of-channel-capacity failures are expected at
 					// the tail; they must not panic, and the invariant
 					// must still hold, which the post-loop check
@@ -420,7 +420,7 @@ func TestFFStream_SnapshotInputsInfo_IsDeepCopy(t *testing.T) {
 	s, err := ffstream.New(ctx)
 	require.NoError(t, err)
 
-	err = s.AddInput(ctx, ffstream.Resource{
+	_, err = s.AddInput(ctx, ffstream.Resource{
 		URL: "url-0",
 		InputConfig: kernel.InputConfig{
 			CustomOptions: avptypes.DictionaryItems{

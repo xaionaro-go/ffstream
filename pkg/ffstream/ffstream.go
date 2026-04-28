@@ -107,6 +107,71 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 	}
 }
 
+// drainPipelineErrors runs the Start-time error handler loop for the
+// avpipeline.Serve goroutine. Pulled out of Start so the policy can be
+// regression-tested in isolation (see TestDaemonSurvivesInputEOF and
+// TestDaemonSurvivesAllInputsRemoved).
+//
+// Policy: the daemon is always-on by design. Lifecycle is owned by the
+// daemon ctx (external shutdown) and by avpipeline.Serve naturally
+// returning (errCh closed). Pipeline errors are advisory — every
+// subsystem owns its own retry/failover:
+//   - InputWithFallback retries inputs on EOF/EIO and falls back to
+//     lower-priority chains.
+//   - StreamMux re-establishes outputs on transient sender failures.
+//
+// Treating any single error as fatal would tear the daemon down on
+// every transient input drop (RTMP publisher disconnect, mic/cam
+// resource release on Deactivate, network glitch) and defeat that
+// retry. The error-handler therefore logs and continues; only the two
+// terminal signals end the loop and cancel the daemon ctx:
+//   - ctx done       → the caller already cancelled us.
+//   - errCh closed   → avpipeline.Serve returned, so there is nothing
+//     left to drive. Closing happens via the deferred close in Start's
+//     `avpipeline.Serve` goroutine — i.e., only when ctx propagates
+//     cancellation through the Serve tree.
+//
+// cancelFunc is invoked exactly once on return so the daemon ctx is
+// torn down deterministically when the loop exits. Callers MUST hold
+// the daemon-ctx cancel as the sole authoritative shutdown lever.
+func drainPipelineErrors(
+	ctx context.Context,
+	errCh <-chan node.Error,
+	cancelFunc context.CancelFunc,
+) {
+	defer cancelFunc()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err, ok := <-errCh:
+			if !ok {
+				logger.Debugf(ctx, "the error channel is closed")
+				return
+			}
+			// node.Error.Error() dereferences err.Node, which can be
+			// nil in unit-test fixtures and benign reporters. Format
+			// only the wrapped error to keep logs panic-free.
+			switch {
+			case errors.Is(err.Err, context.Canceled):
+				// Cancellation is already being handled by whoever
+				// triggered it; surface for trace-level debugging only.
+				logger.Debugf(ctx, "cancelled: %v", err.Err)
+			case errors.Is(err.Err, io.EOF):
+				logger.Debugf(ctx, "input EOF (handled by InputWithFallback): %v", err.Err)
+			default:
+				// Non-EOF errors used to terminate the daemon. They
+				// don't anymore — see the function comment. We log at
+				// Warn so the operator still sees them but the
+				// always-on contract holds (e.g. RemoveInput on the
+				// last active input no longer races a non-EOF read
+				// error into a daemon teardown).
+				logger.Warnf(ctx, "pipeline error (continuing — daemon is always-on): %v", err.Err)
+			}
+		}
+	}
+}
+
 func (s *FFStream) AddInput(
 	ctx context.Context,
 	resource Resource,
@@ -385,26 +450,7 @@ func (s *FFStream) Start(
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
-		defer s.cancelFunc()
-		select {
-		case <-ctx.Done():
-		case err, ok := <-errCh:
-			if !ok {
-				logger.Debugf(ctx, "the error channel is closed")
-				return
-			}
-
-			if errors.Is(err.Err, context.Canceled) {
-				logger.Debugf(ctx, "cancelled: %#+v", err)
-				return
-			}
-			if errors.Is(err.Err, io.EOF) {
-				logger.Debugf(ctx, "EOF: %#+v", err)
-				return
-			}
-			logger.Errorf(ctx, "stopping because received error: %v", err)
-			return
-		}
+		drainPipelineErrors(ctx, errCh, s.cancelFunc)
 	})
 
 	err = s.StreamMux.WaitForStart(ctx)
