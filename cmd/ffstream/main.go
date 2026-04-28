@@ -156,32 +156,9 @@ func main() {
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
-		outputOptions := outputParams.CustomOptions
-		var outputFormat string
-		for _, v := range outputOptions {
-			switch v.Key {
-			case "-f":
-				outputFormat = v.Value
-			}
-		}
 		// adding options required for fragmentation (that is a streaming-specific issue)
-		if outputFormat == "mpegts" {
-			var movFlags *avptypes.DictionaryItem
-			for idx, item := range outputOptions {
-				if item.Key == "movflags" {
-					movFlags = &outputOptions[idx]
-					break
-				}
-			}
-			if movFlags == nil {
-				outputOptions = append(outputOptions, avptypes.DictionaryItem{Key: "movflags"})
-				movFlags = &outputOptions[len(outputOptions)-1]
-			}
-			if movFlags.Value != "" {
-				movFlags.Value += "+"
-			}
-			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
-		}
+		outputOptions := injectMpegtsMovflags(outputParams.CustomOptions)
+
 		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
 			URLTemplate:                 outputParams.URL,
 			Options:                     outputOptions,
