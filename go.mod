@@ -23,11 +23,11 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/xaionaro-go/astiavlogger v0.0.0-20260314221542-e9fe7b13e00d
 	github.com/xaionaro-go/audio v0.0.0-20260429100547-5ed907afeef0
-	github.com/xaionaro-go/avd v0.0.0-20260429100624-5f69ac4b258e
-	github.com/xaionaro-go/avpipeline v0.0.0-20260429100607-74b8c53006f0
+	github.com/xaionaro-go/avd v0.0.0-20260429110936-2f2ebd8e71f8
+	github.com/xaionaro-go/avpipeline v0.0.0-20260429110917-69727a4d1336
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
-	github.com/xaionaro-go/ndk v0.0.0-20260309023337-691843bece17
+	github.com/xaionaro-go/ndk v0.0.0-20260323015810-1d0eccefa2d9
 	github.com/xaionaro-go/observability v0.0.0-20251102143534-3aeb2a25e57d
 	github.com/xaionaro-go/polyjson v0.0.0-20250825191950-a2ce35ee07f0
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
