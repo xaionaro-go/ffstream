@@ -54,6 +54,14 @@ func main() {
 	if flags.QueueSizeOutput != 0 {
 		outputInput = flags.QueueSizeOutput
 	}
+	// Framerate-adaptive default for the transcoder INPUT cap: at 60 fps
+	// the historical 60-frame default has 0% headroom against the worst-
+	// case MediaCodec encoder reconfig pause measured in mission F2
+	// (/tmp/mission_f2_measure.md). The helper bumps the cap to
+	// max(60, ceil(fps*2)) when the operator did not pin it explicitly.
+	// Output INPUT and *Error are left unscaled — they are not
+	// fps-bound (output is packet-rate, error is rare).
+	transcoderInput = computeTranscoderInputCap(transcoderInput, flags.Framerate)
 	transcoderError := flags.QueueSizeError
 	outputError := flags.QueueSizeError
 	// Pass uint64(0) to leave the avpipeline default unchanged for any

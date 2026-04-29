@@ -50,7 +50,13 @@ type Flags struct {
 	QueueSizeTranscoder uint64
 	QueueSizeOutput     uint64
 	QueueSizeError      uint64
-	Outputs             ffstream.Resources
+	// Framerate is the value of -r (output framerate). 0 means unset;
+	// main.go uses it (when non-zero) to derive a framerate-adaptive
+	// default transcoder queue cap. See computeTranscoderInputCap and
+	// /tmp/mission_f2_measure.md for the motivating reconfig-pause
+	// budget.
+	Framerate float64
+	Outputs   ffstream.Resources
 }
 
 type Encoder struct {
@@ -101,6 +107,10 @@ func parseFlags(args []string) (context.Context, Flags) {
 	queueSizeTranscoder := flag.AddParameter(p, "queue_size_transcoder", false, ptr(flag.Uint64(0)))
 	queueSizeOutput := flag.AddParameter(p, "queue_size_output", false, ptr(flag.Uint64(0)))
 	queueSizeError := flag.AddParameter(p, "queue_size_error", false, ptr(flag.Uint64(0)))
+	// rFlag captures -r (output framerate). The value is consumed by the
+	// adaptive transcoder queue cap (see main.go's call to
+	// computeTranscoderInputCap). Sentinel 0 = unset.
+	rFlag := flag.AddParameter(p, "r", false, ptr(flag.Float64(0)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -251,6 +261,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		QueueSizeTranscoder: queueSizeTranscoder.Value(),
 		QueueSizeOutput:     queueSizeOutput.Value(),
 		QueueSizeError:      queueSizeError.Value(),
+		Framerate:           rFlag.Value(),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,
