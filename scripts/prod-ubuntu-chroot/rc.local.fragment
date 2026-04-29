@@ -1,0 +1,10 @@
+swapoff /dev/block/zram0
+atop -w /root/.atop/"$(date +%Y%m%d%H%M)".log &
+kill-user-apps.sh --allow "com.termux com.termux.api center.dx.wingout org.xaionaro.wingout2 center.dx.streampanel com.k2fsa.sherpa.onnx.tts.engine"
+kill-pixel-services.sh
+nohup /usr/local/bin/loop-run-ffstream.sh >>/data/ubuntu/tmp/loop-run-ffstream.log 2>&1 &
+exit 0
+
+
+sleep inf
+
