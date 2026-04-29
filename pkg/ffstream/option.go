@@ -10,11 +10,29 @@ type Config struct {
 	// InputRetryInterval is a delay between input reconnect attempts.
 	// Zero means: use the internal/default retry interval.
 	InputRetryInterval time.Duration
+
+	// FrameDropVideo, when true, makes the avpipeline serve loop drop
+	// video frames whose downstream queue is full instead of blocking
+	// the producer. This prevents the upstream wedge under transient
+	// downstream backpressure (e.g. encoder/sender slowdowns) at the
+	// cost of visible glitches. Default: true (most aggressive; the
+	// wedge-protection knob).
+	FrameDropVideo bool
+	// FrameDropAudio mirrors FrameDropVideo for audio frames. Audio
+	// drops are perceptible (clicks/gaps), so the conservative default
+	// is false.
+	FrameDropAudio bool
+	// FrameDropOther mirrors FrameDropVideo for non-audio/video media
+	// types (subtitles, data). Default: false.
+	FrameDropOther bool
 }
 
 func DefaultConfig() Config {
 	return Config{
 		InputRetryInterval: -1,
+		FrameDropVideo:     true,
+		FrameDropAudio:     false,
+		FrameDropOther:     false,
 	}
 }
 
@@ -45,4 +63,25 @@ func (o OptionInputRetryIntervalValue) apply(cfg *Config) {
 
 func OptionInputRetryInterval(interval time.Duration) OptionInputRetryIntervalValue {
 	return OptionInputRetryIntervalValue(interval)
+}
+
+// OptionFrameDropVideo sets Config.FrameDropVideo. See the field doc.
+type OptionFrameDropVideo bool
+
+func (o OptionFrameDropVideo) apply(cfg *Config) {
+	cfg.FrameDropVideo = bool(o)
+}
+
+// OptionFrameDropAudio sets Config.FrameDropAudio. See the field doc.
+type OptionFrameDropAudio bool
+
+func (o OptionFrameDropAudio) apply(cfg *Config) {
+	cfg.FrameDropAudio = bool(o)
+}
+
+// OptionFrameDropOther sets Config.FrameDropOther. See the field doc.
+type OptionFrameDropOther bool
+
+func (o OptionFrameDropOther) apply(cfg *Config) {
+	cfg.FrameDropOther = bool(o)
 }

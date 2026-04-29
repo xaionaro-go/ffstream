@@ -40,6 +40,9 @@ type Flags struct {
 	AutoBitRate                 *streammuxtypes.AutoBitRateVideoConfig
 	RetryInputTimeoutOnFailure  time.Duration
 	RetryOutputTimeoutOnFailure time.Duration
+	FrameDropVideo              bool
+	FrameDropAudio              bool
+	FrameDropOther              bool
 	Outputs                     ffstream.Resources
 }
 
@@ -79,6 +82,9 @@ func parseFlags(args []string) (context.Context, Flags) {
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
 	retryInputTimeoutOnFailure := flag.AddParameter(p, "retry_input_timeout_on_failure", false, ptr(flag.Duration(ffstream.DefaultConfig().InputRetryInterval)))
 	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, ptr(flag.Duration(0)))
+	frameDropVideo := flag.AddParameter(p, "frame_drop_video", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropVideo)))
+	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
+	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -221,6 +227,10 @@ func parseFlags(args []string) (context.Context, Flags) {
 
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
+
+		FrameDropVideo: frameDropVideo.Value(),
+		FrameDropAudio: frameDropAudio.Value(),
+		FrameDropOther: frameDropOther.Value(),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,

@@ -54,6 +54,9 @@ func main() {
 
 	s, err := ffstream.New(ctx,
 		ffstream.OptionInputRetryIntervalValue(flags.RetryInputTimeoutOnFailure),
+		ffstream.OptionFrameDropVideo(flags.FrameDropVideo),
+		ffstream.OptionFrameDropAudio(flags.FrameDropAudio),
+		ffstream.OptionFrameDropOther(flags.FrameDropOther),
 	)
 	assertNoError(ctx, err)
 

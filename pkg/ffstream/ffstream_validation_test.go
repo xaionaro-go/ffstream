@@ -113,6 +113,11 @@ func TestFFStream_Options(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
 		cfg := DefaultConfig()
 		assert.Equal(t, time.Duration(-1), cfg.InputRetryInterval)
+		// Defaults: video drops on full queue (wedge protection),
+		// audio/other do not (perceptible drops are conservative).
+		assert.True(t, cfg.FrameDropVideo)
+		assert.False(t, cfg.FrameDropAudio)
+		assert.False(t, cfg.FrameDropOther)
 	})
 
 	t.Run("with retry interval", func(t *testing.T) {
@@ -123,5 +128,19 @@ func TestFFStream_Options(t *testing.T) {
 	t.Run("empty options use defaults", func(t *testing.T) {
 		cfg := Options{}.Config()
 		assert.Equal(t, time.Duration(-1), cfg.InputRetryInterval)
+		assert.True(t, cfg.FrameDropVideo)
+		assert.False(t, cfg.FrameDropAudio)
+		assert.False(t, cfg.FrameDropOther)
+	})
+
+	t.Run("frame drop overrides", func(t *testing.T) {
+		cfg := Options{
+			OptionFrameDropVideo(false),
+			OptionFrameDropAudio(true),
+			OptionFrameDropOther(true),
+		}.Config()
+		assert.False(t, cfg.FrameDropVideo)
+		assert.True(t, cfg.FrameDropAudio)
+		assert.True(t, cfg.FrameDropOther)
 	})
 }

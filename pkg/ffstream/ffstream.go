@@ -543,7 +543,11 @@ func (s *FFStream) Start(
 	observability.Go(ctx, func(ctx context.Context) {
 		defer close(errCh)
 		avpipeline.Serve(ctx, avpipeline.ServeConfig{
-			EachNode: node.ServeConfig{},
+			EachNode: node.ServeConfig{
+				FrameDropVideo: s.Config.FrameDropVideo,
+				FrameDropAudio: s.Config.FrameDropAudio,
+				FrameDropOther: s.Config.FrameDropOther,
+			},
 		}, errCh, []node.Abstract{s.Inputs}...)
 	})
 
