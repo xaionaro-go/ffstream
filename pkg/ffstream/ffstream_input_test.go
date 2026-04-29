@@ -572,3 +572,63 @@ func TestInputFactory_HasResources_TracksRemoval(t *testing.T) {
 		"after RemoveInput drops the only entry, HasResources must "+
 			"flip to false (no caching)")
 }
+
+// TestInputFactory_HasResources_NoSelfDeadlockUnderLock pins the
+// avpipeline contract that
+// inputwithfallback.InputFactoryWithAvailability.HasResources is
+// invoked by InputWithFallback.onInputChainError while it already
+// holds InputChainsLocker. The locker is xsync.Mutex (a
+// non-reentrant write lock); HasResources must NOT re-acquire it.
+//
+// Regression: prior to this fix HasResources called the locking
+// GetResources, which took InputChainsLocker for write a second time
+// in the same goroutine and self-deadlocked the input retry loop
+// indefinitely. Production observation: ffstream pid 17095 wedged
+// 27+ minutes; goroutine 24 stuck in xsync.RWMutex.Lock at
+// xsync.DoR2 -> InputFactory.GetResources called from
+// InputWithFallback.onInputChainError closure.
+//
+// Test reproduction: simulate the avpipeline call site by taking
+// InputChainsLocker.Do(ctx, ...) on the test goroutine and calling
+// HasResources from inside the closure with a deadline. Pre-fix this
+// blocks forever and the deadline fires; post-fix the call returns
+// promptly.
+func TestInputFactory_HasResources_NoSelfDeadlockUnderLock(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+	_, err := s.AddInput(ctx, Resource{URL: "test://x", Priority: 0})
+	require.NoError(t, err)
+
+	factory, ok := s.Inputs.InputChains[0].InputFactory.(*InputFactory)
+	require.True(t, ok)
+	avail, ok := any(factory).(inputwithfallback.InputFactoryWithAvailability)
+	require.True(t, ok)
+
+	// Reproduce the avpipeline onInputChainError call shape: the
+	// fallback walk runs inside InputChainsLocker.Do(...). The bug
+	// fired when HasResources nested another InputChainsLocker
+	// acquisition on the same goroutine.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.Inputs.InputChainsLocker.Do(ctx, func() {
+			// Must return without trying to re-acquire
+			// InputChainsLocker on this goroutine.
+			require.True(t, avail.HasResources(ctx),
+				"HasResources must report true under the caller's "+
+					"InputChainsLocker without re-acquiring it")
+		})
+	}()
+
+	select {
+	case <-done:
+		// expected: returned promptly
+	case <-time.After(2 * time.Second):
+		t.Fatal("HasResources self-deadlocked under InputChainsLocker " +
+			"(see goroutine dump for prod regression: " +
+			"xsync.RWMutex.Lock at GetResources call from inside " +
+			"onInputChainError closure)")
+	}
+}

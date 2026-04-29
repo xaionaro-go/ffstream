@@ -182,15 +182,29 @@ func (f *InputFactory) getResourcesLocked() (Resources, error) {
 // InputChainsLocker; it is not cached, so RemoveInput on the only
 // resource at a priority flips the verdict back to false on the next
 // fallback walk.
+//
+// Locking contract (per InputFactoryWithAvailability): the avpipeline
+// fallback walk in InputWithFallback.onInputChainError invokes this
+// method while it already holds InputChainsLocker. The lock is
+// non-reentrant (xsync.Mutex == xsync.RWMutex; Do takes a write lock
+// that recursing same-goroutine deadlocks). Therefore HasResources
+// MUST read InputsInfo through the *Locked variant only — calling
+// the locking GetResources here self-deadlocks the goroutine forever
+// (observed: prod ffstream wedged 27+ minutes in xsync.RWMutex.Lock
+// at xsync.DoR2 -> InputFactory.GetResources from this call site).
 func (f *InputFactory) HasResources(ctx context.Context) bool {
-	resources, err := f.GetResources(ctx)
+	if f.FFStream == nil {
+		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): FFStream is nil", f.FallbackPriority)
+		return false
+	}
+	resources, err := f.GetResourcesLocked()
 	if err != nil {
 		// Out-of-range priority is treated as empty (no resource is
 		// effectively reachable). This matches the legacy behavior:
 		// a chain with no live resource cannot be opened by NewInput
 		// and would error immediately if the fallback walk landed on
 		// it, so skipping it is always the right call.
-		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): GetResources failed: %v", f.FallbackPriority, err)
+		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): GetResourcesLocked failed: %v", f.FallbackPriority, err)
 		return false
 	}
 	return len(resources) > 0
