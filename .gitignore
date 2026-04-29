@@ -17,6 +17,7 @@
 /.roo
 /.github/instructions/test_plan*.md
 /.continue
+/.claude
 *.log
 /ff*
 *.mp4
