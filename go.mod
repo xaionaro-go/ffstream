@@ -21,10 +21,10 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	github.com/xaionaro-go/astiavlogger v0.0.0-20250331020605-ace76d63c7e9
-	github.com/xaionaro-go/audio v0.0.0-20260202195702-429dcb87c05c
-	github.com/xaionaro-go/avd v0.0.0-20260104210934-af571b0e52da
-	github.com/xaionaro-go/avpipeline v0.0.0-20260426192150-5efc31d8d8a3
+	github.com/xaionaro-go/astiavlogger v0.0.0-20260314221542-e9fe7b13e00d
+	github.com/xaionaro-go/audio v0.0.0-20260429091047-03533a092a72
+	github.com/xaionaro-go/avd v0.0.0-20260429091129-bc91f66d3199
+	github.com/xaionaro-go/avpipeline v0.0.0-20260429091107-3affdeea5bac
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20260309023337-691843bece17
@@ -32,8 +32,8 @@ require (
 	github.com/xaionaro-go/polyjson v0.0.0-20250825191950-a2ce35ee07f0
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
 	github.com/xaionaro-go/xgrpc v0.0.0-20251102160837-04b13583739a
-	github.com/xaionaro-go/xpath v0.0.0-20250111145115-55f5728f643f
-	github.com/xaionaro-go/xsync v0.0.0-20260103200624-2cd14b984747
+	github.com/xaionaro-go/xpath v0.0.0-20260426170210-a0fce9eae3ad
+	github.com/xaionaro-go/xsync v0.0.0-20260428163559-4093fc10e044
 	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
@@ -89,8 +89,8 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/xaionaro-go/androidetc v0.0.0-20250824193302-b7ecebb3b825 // indirect
-	github.com/xaionaro-go/avcommon v0.0.0-20250823173020-6a2bb1e1f59d // indirect
+	github.com/xaionaro-go/androidetc v0.0.0-20260428005202-900941e915dc // indirect
+	github.com/xaionaro-go/avcommon v0.0.0-20260427222009-1c80a99c61bc // indirect
 	github.com/xaionaro-go/avmediacodec v0.0.0-20250505012527-c819676502d8 // indirect
 	github.com/xaionaro-go/gorex v0.0.0-20241010205749-bcd59d639c4d // indirect
 	github.com/xaionaro-go/logrustash v0.0.0-20240804141650-d48034780a5f // indirect
