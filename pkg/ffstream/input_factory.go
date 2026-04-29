@@ -49,6 +49,7 @@ type streamIndexKey struct {
 
 var (
 	_ inputwithfallback.InputFactory[*Input, *DecoderFactory, CustomData] = (*InputFactory)(nil)
+	_ inputwithfallback.InputFactoryWithAvailability                      = (*InputFactory)(nil)
 	_ kernel.StreamIndexAssigner                                          = (*InputFactory)(nil)
 )
 
@@ -164,6 +165,35 @@ func (f *InputFactory) getResourcesLocked() (Resources, error) {
 	out := make(Resources, len(src))
 	copy(out, src)
 	return out, nil
+}
+
+// HasResources implements inputwithfallback.InputFactoryWithAvailability.
+//
+// The avpipeline fallback walk in InputWithFallback.onInputChainError
+// consults this method on every chain it scans past id+1 and skips
+// chains that report HasResources=false. This lets the walk jump
+// directly from the failing chain to the next priority that has
+// resources configured, rather than serializing each empty priority
+// through the procN switching latch — which is the race that
+// produced "another switch is in progress" log spam under
+// `-fallback_priority 10` with the camera at priority 0.
+//
+// HasResources is a live read of InputsInfo[priority] under
+// InputChainsLocker; it is not cached, so RemoveInput on the only
+// resource at a priority flips the verdict back to false on the next
+// fallback walk.
+func (f *InputFactory) HasResources(ctx context.Context) bool {
+	resources, err := f.GetResources(ctx)
+	if err != nil {
+		// Out-of-range priority is treated as empty (no resource is
+		// effectively reachable). This matches the legacy behavior:
+		// a chain with no live resource cannot be opened by NewInput
+		// and would error immediately if the fallback walk landed on
+		// it, so skipping it is always the right call.
+		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): GetResources failed: %v", f.FallbackPriority, err)
+		return false
+	}
+	return len(resources) > 0
 }
 
 // ResourceIndex is used as side data key to indicate which resource index

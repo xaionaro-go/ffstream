@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 )
 
@@ -471,4 +472,103 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 			"(KernelOpenBarrier pointer must change); "+
 			"this fails pre-fix because AddInput only appends to "+
 			"InputsInfo and never triggers Pause+Unpause")
+}
+
+// TestInputFactory_HasResources_SparsePriorities pins the contract
+// that the fallback walk in avpipeline/preset/inputwithfallback
+// relies on to skip empty priority slots: *InputFactory must
+// implement inputwithfallback.InputFactoryWithAvailability and
+// report HasResources accurately based on the live InputsInfo
+// snapshot.
+//
+// This is the regression test for the priority-0 + priority-10 race
+// documented in /tmp/rtmp_priority_10.md: when AddInput places a
+// resource at priority 10 with priority 0 already occupied, AddInput
+// densely grows InputChains to 11 slots — priorities 1..9 hold empty
+// chains (no resources). Pre-fix, the fallback walk advanced one
+// priority at a time and serialized every empty slot through the
+// procN switching latch, producing
+// "another switch is in progress (procN: N)" log spam and never
+// reaching chain 10. Post-fix, factories whose InputsInfo entry is
+// empty report HasResources=false; the avpipeline fallback walk
+// scans forward and jumps directly to the next occupied chain
+// (covered end-to-end by
+// TestInputWithFallback_OnInputChainError_SkipsEmptyChains_SparsePriorities
+// in avpipeline/preset/inputwithfallback).
+func TestInputFactory_HasResources_SparsePriorities(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+
+	// Reproduce the production layout: camera at priority 0, rtmp at
+	// priority 10. AddInput grows InputChains to 11 entries; only
+	// priorities 0 and 10 have resources.
+	_, err := s.AddInput(ctx, Resource{URL: "test://camera", Priority: 0})
+	require.NoError(t, err)
+	_, err = s.AddInput(ctx, Resource{URL: "test://rtmp-fallback", Priority: 10})
+	require.NoError(t, err)
+
+	require.Len(t, s.Inputs.InputChains, 11,
+		"AddInput at priority 10 with a priority-0 already present "+
+			"must allocate 11 chains (dense growth)")
+	require.Len(t, s.InputsInfo, 11)
+	require.Len(t, s.InputsInfo[0], 1, "priority 0 holds the camera resource")
+	require.Len(t, s.InputsInfo[10], 1, "priority 10 holds the rtmp resource")
+	for p := 1; p <= 9; p++ {
+		require.Empty(t, s.InputsInfo[p],
+			"priority %d must be empty in the sparse layout", p)
+	}
+
+	// Each InputChain holds an *InputFactory; that factory must
+	// satisfy the optional InputFactoryWithAvailability interface so
+	// the avpipeline fallback walk can skip empty chains. The
+	// HasResources verdict must reflect the live InputsInfo state.
+	for p, chain := range s.Inputs.InputChains {
+		factory, ok := chain.InputFactory.(*InputFactory)
+		require.Truef(t, ok, "chain %d InputFactory must be *InputFactory", p)
+		avail, ok := any(factory).(inputwithfallback.InputFactoryWithAvailability)
+		require.Truef(t, ok,
+			"*InputFactory must implement "+
+				"inputwithfallback.InputFactoryWithAvailability so the "+
+				"fallback walk can skip empty priorities (chain %d)", p)
+
+		switch p {
+		case 0, 10:
+			require.Truef(t, avail.HasResources(ctx),
+				"priority %d has a resource configured — "+
+					"HasResources must be true", p)
+		default:
+			require.Falsef(t, avail.HasResources(ctx),
+				"priority %d has no resource — HasResources must be "+
+					"false so the avpipeline fallback walk skips it", p)
+		}
+	}
+}
+
+// TestInputFactory_HasResources_TracksRemoval verifies that
+// HasResources reflects mutations to InputsInfo (RemoveInput drops
+// the entry, HasResources flips back to false). This guards against a
+// stale-state bug where HasResources caches its verdict.
+func TestInputFactory_HasResources_TracksRemoval(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+
+	_, err := s.AddInput(ctx, Resource{URL: "test://x", Priority: 0})
+	require.NoError(t, err)
+
+	factory, ok := s.Inputs.InputChains[0].InputFactory.(*InputFactory)
+	require.True(t, ok)
+	avail, ok := any(factory).(inputwithfallback.InputFactoryWithAvailability)
+	require.True(t, ok)
+
+	require.True(t, avail.HasResources(ctx),
+		"after AddInput, HasResources must be true")
+
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
+	require.False(t, avail.HasResources(ctx),
+		"after RemoveInput drops the only entry, HasResources must "+
+			"flip to false (no caching)")
 }
