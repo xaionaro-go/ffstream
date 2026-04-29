@@ -22,6 +22,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	barrierstategetter "github.com/xaionaro-go/avpipeline/kernel/barrier/stategetter"
 	"github.com/xaionaro-go/avpipeline/node"
 	packetorframefiltercondition "github.com/xaionaro-go/avpipeline/node/filter/packetorframefilter/condition"
 	"github.com/xaionaro-go/avpipeline/packet"
@@ -93,6 +94,15 @@ func New(
 	inputs, err := inputwithfallback.New[*Input, *DecoderFactory, CustomData](ctx, nil, inputOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the inputs handler: %w", err)
+	}
+	// Enable cross-chain PTS bridging on the InputSwitch when configured.
+	// avpipeline's flag defaults OFF; without this set the per-chain PTS
+	// offset bridge introduced in avpipeline 500d143 is a no-op and the
+	// cross-clock-domain freeze (camera->rtmp ~600s leap on chain switch)
+	// is NOT mitigated. ffstream's prod use-case is specifically the cross
+	// clock-domain switch, so the default (in DefaultConfig) is true.
+	if cfg.BridgePTSAcrossChains {
+		inputs.InputSwitch.Flags.Set(barrierstategetter.SwitchFlagBridgePTSAcrossChains)
 	}
 	s := &FFStream{
 		Config:                cfg,

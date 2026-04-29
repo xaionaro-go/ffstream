@@ -25,14 +25,30 @@ type Config struct {
 	// FrameDropOther mirrors FrameDropVideo for non-audio/video media
 	// types (subtitles, data). Default: false.
 	FrameDropOther bool
+
+	// BridgePTSAcrossChains, when true, sets
+	// barrierstategetter.SwitchFlagBridgePTSAcrossChains on the
+	// InputWithFallback InputSwitch so the per-chain PTS-offset bridge in
+	// avpipeline rebases the new chain's PTS/DTS at every chain switch,
+	// keeping the output stream a strictly-monotonic continuation of the
+	// previous chain's last PTS.
+	//
+	// This bridges cross-clock-domain transitions (e.g. rtmp upstream-
+	// derived PTS vs builtin camera+mic monotonic-epoch PTS) that would
+	// otherwise produce large forward / backward jumps at chain switches
+	// (~600s observed on camera->rtmp) and freeze players. The flag in
+	// avpipeline is OFF by default; the prod use-case here specifically
+	// is the cross-clock-domain switch, so ffstream defaults this ON.
+	BridgePTSAcrossChains bool
 }
 
 func DefaultConfig() Config {
 	return Config{
-		InputRetryInterval: -1,
-		FrameDropVideo:     true,
-		FrameDropAudio:     false,
-		FrameDropOther:     false,
+		InputRetryInterval:    -1,
+		FrameDropVideo:        true,
+		FrameDropAudio:        false,
+		FrameDropOther:        false,
+		BridgePTSAcrossChains: true,
 	}
 }
 
@@ -84,4 +100,12 @@ type OptionFrameDropOther bool
 
 func (o OptionFrameDropOther) apply(cfg *Config) {
 	cfg.FrameDropOther = bool(o)
+}
+
+// OptionBridgePTSAcrossChains sets Config.BridgePTSAcrossChains. See the
+// field doc.
+type OptionBridgePTSAcrossChains bool
+
+func (o OptionBridgePTSAcrossChains) apply(cfg *Config) {
+	cfg.BridgePTSAcrossChains = bool(o)
 }

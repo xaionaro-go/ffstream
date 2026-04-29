@@ -94,6 +94,7 @@ func main() {
 		ffstream.OptionFrameDropVideo(flags.FrameDropVideo),
 		ffstream.OptionFrameDropAudio(flags.FrameDropAudio),
 		ffstream.OptionFrameDropOther(flags.FrameDropOther),
+		ffstream.OptionBridgePTSAcrossChains(flags.BridgePTSAcrossChains),
 	)
 	assertNoError(ctx, err)
 
