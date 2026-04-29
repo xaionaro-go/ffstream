@@ -43,8 +43,14 @@ type Flags struct {
 	FrameDropVideo              bool
 	FrameDropAudio              bool
 	FrameDropOther              bool
-	QueueSizeDefault            uint64
-	Outputs                     ffstream.Resources
+	// QueueSizeDefault is a deprecated convenience knob that, when non-
+	// zero, fans out to the three per-role queue-size flags below. Use
+	// QueueSizeTranscoder / QueueSizeOutput / QueueSizeError instead.
+	QueueSizeDefault    uint64
+	QueueSizeTranscoder uint64
+	QueueSizeOutput     uint64
+	QueueSizeError      uint64
+	Outputs             ffstream.Resources
 }
 
 type Encoder struct {
@@ -86,7 +92,15 @@ func parseFlags(args []string) (context.Context, Flags) {
 	frameDropVideo := flag.AddParameter(p, "frame_drop_video", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropVideo)))
 	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
 	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
+	// queueSizeDefault is a deprecated convenience flag: when non-zero it
+	// fans out to all three per-role flags below. Prefer the per-role
+	// flags directly, since transcoder and output nodes have different
+	// burst profiles (transcoder = deterministic drain, output = network-
+	// bound). Sentinel 0 = leave the avpipeline compiled-in default.
 	queueSizeDefault := flag.AddParameter(p, "queue_size_default", false, ptr(flag.Uint64(0)))
+	queueSizeTranscoder := flag.AddParameter(p, "queue_size_transcoder", false, ptr(flag.Uint64(0)))
+	queueSizeOutput := flag.AddParameter(p, "queue_size_output", false, ptr(flag.Uint64(0)))
+	queueSizeError := flag.AddParameter(p, "queue_size_error", false, ptr(flag.Uint64(0)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -230,10 +244,13 @@ func parseFlags(args []string) (context.Context, Flags) {
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
-		FrameDropVideo:   frameDropVideo.Value(),
-		FrameDropAudio:   frameDropAudio.Value(),
-		FrameDropOther:   frameDropOther.Value(),
-		QueueSizeDefault: queueSizeDefault.Value(),
+		FrameDropVideo:      frameDropVideo.Value(),
+		FrameDropAudio:      frameDropAudio.Value(),
+		FrameDropOther:      frameDropOther.Value(),
+		QueueSizeDefault:    queueSizeDefault.Value(),
+		QueueSizeTranscoder: queueSizeTranscoder.Value(),
+		QueueSizeOutput:     queueSizeOutput.Value(),
+		QueueSizeError:      queueSizeError.Value(),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,

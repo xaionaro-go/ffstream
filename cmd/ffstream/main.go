@@ -40,26 +40,32 @@ func main() {
 
 	ctx, flags := parseFlags(os.Args)
 
-	// -queue_size_default overrides the package-level default factories used
-	// by every processor.NewTranscoder/NewOutputFromURL call across the
-	// avpipeline graph (decoder, autoheaders, mapstreamindices, encoder,
-	// each output sender). Sentinel 0 = leave compiled-in defaults.
-	if flags.QueueSizeDefault != 0 {
-		queueCap := uint(flags.QueueSizeDefault)
-		processor.DefaultOptionsTranscoder = func() []processor.Option {
-			return []processor.Option{
-				processor.OptionQueueSizeInput(queueCap),
-				processor.OptionQueueSizeOutput(10),
-				processor.OptionQueueSizeError(2),
-			}
-		}
-		processor.DefaultOptionsOutput = func() []processor.Option {
-			return []processor.Option{
-				processor.OptionQueueSizeInput(queueCap),
-				processor.OptionQueueSizeOutput(0),
-				processor.OptionQueueSizeError(2),
-			}
-		}
+	// Resolve the per-role queue-size flags: -queue_size_default is a
+	// deprecated convenience knob that fans out into the three per-role
+	// flags when non-zero; the explicit per-role flags override it (later
+	// wins) so a user can pin one role while leaving the others to the
+	// default fan-out. Sentinel 0 = leave the avpipeline compiled-in
+	// default for that role/channel.
+	transcoderInput := flags.QueueSizeDefault
+	outputInput := flags.QueueSizeDefault
+	if flags.QueueSizeTranscoder != 0 {
+		transcoderInput = flags.QueueSizeTranscoder
+	}
+	if flags.QueueSizeOutput != 0 {
+		outputInput = flags.QueueSizeOutput
+	}
+	transcoderError := flags.QueueSizeError
+	outputError := flags.QueueSizeError
+	// Pass uint64(0) to leave the avpipeline default unchanged for any
+	// channel the user did not explicitly target. The transcoder/output
+	// "Output" channel sizes are intentionally left at the avpipeline
+	// defaults (10 and 0 respectively): they are downstream-graph-shaped
+	// and unrelated to the input-side burst profile this CLI exposes.
+	if err := processor.SetDefaultQueueSizes(
+		transcoderInput, 0, transcoderError,
+		outputInput, 0, outputError,
+	); err != nil {
+		fatal(ctx, "unable to apply queue-size flags: %v", err)
 	}
 
 	ctx, cancelFunc := initRuntime(ctx, flags)
