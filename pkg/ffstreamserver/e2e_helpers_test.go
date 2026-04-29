@@ -249,13 +249,11 @@ func newMultiInputHarness(t *testing.T, inputPaths []string, opts ...harnessOpti
 	require.NoError(t, err)
 
 	for i, path := range inputPaths {
-		err = s.AddInput(pipeCtx, ffstream.Resource{
-			URL: path,
+		_, err = s.AddInput(pipeCtx, ffstream.Resource{
+			URL:      path,
+			Priority: uint(i),
 			InputConfig: kernel.InputConfig{
 				ForceRealTime: ptr(cfg.forceRealTime),
-				CustomOptions: avptypes.DictionaryItems{
-					{Key: "fallback_priority", Value: fmt.Sprintf("%d", i)},
-				},
 			},
 		})
 		require.NoError(t, err)

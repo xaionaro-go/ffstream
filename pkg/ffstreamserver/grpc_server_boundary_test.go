@@ -7,7 +7,6 @@ package ffstreamserver
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -315,10 +314,10 @@ func TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput(t *testing.T) {
 				priority := uint((w*7 + i) % maxPriority)
 				url := fmt.Sprintf("p%d-r?-ok", priority)
 				res := ffstream.Resource{
-					URL: url,
+					URL:      url,
+					Priority: priority,
 					InputConfig: kernel.InputConfig{
 						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: strconv.FormatUint(uint64(priority), 10)},
 							{Key: "f", Value: "mpegts"},
 						},
 					},
@@ -369,31 +368,10 @@ func TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput(t *testing.T) {
 						t.Errorf("torn URL read: missing \"-ok\" suffix: URL=%q", info.Url)
 						return
 					}
-					// InputConfig must have CustomOptions matching
-					// the canary format (the "fallback_priority"
-					// entry must have a value that parses as a
-					// uint64 and equals info.Priority). If we see
-					// any other value, it's a torn read.
-					if info.InputConfig == nil {
-						// valid: no InputConfig attached
-						continue
-					}
-					for _, opt := range info.InputConfig.GetCustomOptions() {
-						if opt.GetKey() != "fallback_priority" {
-							continue
-						}
-						parsed, perr := strconv.ParseUint(opt.GetValue(), 10, 64)
-						if perr != nil {
-							t.Errorf("torn CustomOption read: fallback_priority=%q (not a uint)",
-								opt.GetValue())
-							return
-						}
-						if parsed != info.Priority {
-							t.Errorf("torn CustomOption read: Priority=%d, fallback_priority=%d",
-								info.Priority, parsed)
-							return
-						}
-					}
+					// The typed Priority field replaces the old
+					// fallback_priority CustomOption canary; the URL
+					// prefix check above already ties Priority to the
+					// resource that wrote it.
 				}
 			}
 		})
