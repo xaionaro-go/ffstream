@@ -43,6 +43,7 @@ type Flags struct {
 	FrameDropVideo              bool
 	FrameDropAudio              bool
 	FrameDropOther              bool
+	QueueSizeDefault            uint64
 	Outputs                     ffstream.Resources
 }
 
@@ -85,6 +86,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	frameDropVideo := flag.AddParameter(p, "frame_drop_video", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropVideo)))
 	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
 	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
+	queueSizeDefault := flag.AddParameter(p, "queue_size_default", false, ptr(flag.Uint64(0)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -228,9 +230,10 @@ func parseFlags(args []string) (context.Context, Flags) {
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
-		FrameDropVideo: frameDropVideo.Value(),
-		FrameDropAudio: frameDropAudio.Value(),
-		FrameDropOther: frameDropOther.Value(),
+		FrameDropVideo:   frameDropVideo.Value(),
+		FrameDropAudio:   frameDropAudio.Value(),
+		FrameDropOther:   frameDropOther.Value(),
+		QueueSizeDefault: queueSizeDefault.Value(),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,

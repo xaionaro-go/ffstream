@@ -21,6 +21,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	"github.com/xaionaro-go/avpipeline/processor"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
@@ -38,6 +39,28 @@ func main() {
 	codec.FallbackToSoftwareOnNoHWCodec = true
 
 	ctx, flags := parseFlags(os.Args)
+
+	// -queue_size_default overrides the package-level default factories used
+	// by every processor.NewTranscoder/NewOutputFromURL call across the
+	// avpipeline graph (decoder, autoheaders, mapstreamindices, encoder,
+	// each output sender). Sentinel 0 = leave compiled-in defaults.
+	if flags.QueueSizeDefault != 0 {
+		queueCap := uint(flags.QueueSizeDefault)
+		processor.DefaultOptionsTranscoder = func() []processor.Option {
+			return []processor.Option{
+				processor.OptionQueueSizeInput(queueCap),
+				processor.OptionQueueSizeOutput(10),
+				processor.OptionQueueSizeError(2),
+			}
+		}
+		processor.DefaultOptionsOutput = func() []processor.Option {
+			return []processor.Option{
+				processor.OptionQueueSizeInput(queueCap),
+				processor.OptionQueueSizeOutput(0),
+				processor.OptionQueueSizeError(2),
+			}
+		}
+	}
 
 	ctx, cancelFunc := initRuntime(ctx, flags)
 	defer cancelFunc()
