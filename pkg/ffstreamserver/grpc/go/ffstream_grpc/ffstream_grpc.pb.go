@@ -51,6 +51,7 @@ const (
 	FFStream_RemoveInput_FullMethodName                   = "/ffstream_grpc.FFStream/RemoveInput"
 	FFStream_InjectSubtitles_FullMethodName               = "/ffstream_grpc.FFStream/InjectSubtitles"
 	FFStream_InjectData_FullMethodName                    = "/ffstream_grpc.FFStream/InjectData"
+	FFStream_ReinitEncoder_FullMethodName                 = "/ffstream_grpc.FFStream/ReinitEncoder"
 )
 
 // FFStreamClient is the client API for FFStream service.
@@ -88,6 +89,7 @@ type FFStreamClient interface {
 	RemoveInput(ctx context.Context, in *RemoveInputRequest, opts ...grpc.CallOption) (*RemoveInputReply, error)
 	InjectSubtitles(ctx context.Context, in *InjectSubtitlesRequest, opts ...grpc.CallOption) (*InjectSubtitlesReply, error)
 	InjectData(ctx context.Context, in *InjectDataRequest, opts ...grpc.CallOption) (*InjectDataReply, error)
+	ReinitEncoder(ctx context.Context, in *ReinitEncoderRequest, opts ...grpc.CallOption) (*ReinitEncoderReply, error)
 }
 
 type fFStreamClient struct {
@@ -426,6 +428,16 @@ func (c *fFStreamClient) InjectData(ctx context.Context, in *InjectDataRequest, 
 	return out, nil
 }
 
+func (c *fFStreamClient) ReinitEncoder(ctx context.Context, in *ReinitEncoderRequest, opts ...grpc.CallOption) (*ReinitEncoderReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReinitEncoderReply)
+	err := c.cc.Invoke(ctx, FFStream_ReinitEncoder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FFStreamServer is the server API for FFStream service.
 // All implementations must embed UnimplementedFFStreamServer
 // for forward compatibility.
@@ -461,6 +473,7 @@ type FFStreamServer interface {
 	RemoveInput(context.Context, *RemoveInputRequest) (*RemoveInputReply, error)
 	InjectSubtitles(context.Context, *InjectSubtitlesRequest) (*InjectSubtitlesReply, error)
 	InjectData(context.Context, *InjectDataRequest) (*InjectDataReply, error)
+	ReinitEncoder(context.Context, *ReinitEncoderRequest) (*ReinitEncoderReply, error)
 	mustEmbedUnimplementedFFStreamServer()
 }
 
@@ -563,6 +576,9 @@ func (UnimplementedFFStreamServer) InjectSubtitles(context.Context, *InjectSubti
 }
 func (UnimplementedFFStreamServer) InjectData(context.Context, *InjectDataRequest) (*InjectDataReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method InjectData not implemented")
+}
+func (UnimplementedFFStreamServer) ReinitEncoder(context.Context, *ReinitEncoderRequest) (*ReinitEncoderReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReinitEncoder not implemented")
 }
 func (UnimplementedFFStreamServer) mustEmbedUnimplementedFFStreamServer() {}
 func (UnimplementedFFStreamServer) testEmbeddedByValue()                  {}
@@ -1129,6 +1145,24 @@ func _FFStream_InjectData_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FFStream_ReinitEncoder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReinitEncoderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FFStreamServer).ReinitEncoder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FFStream_ReinitEncoder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FFStreamServer).ReinitEncoder(ctx, req.(*ReinitEncoderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FFStream_ServiceDesc is the grpc.ServiceDesc for FFStream service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1251,6 +1285,10 @@ var FFStream_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InjectData",
 			Handler:    _FFStream_InjectData_Handler,
+		},
+		{
+			MethodName: "ReinitEncoder",
+			Handler:    _FFStream_ReinitEncoder_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

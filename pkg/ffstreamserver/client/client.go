@@ -365,6 +365,26 @@ func (c *Client) SetFPSFraction(
 	return nil
 }
 
+// ReinitEncoder triggers an explicit close+reopen of the active video
+// encoder on the server. Returns the server-side wall-clock duration of
+// the reinit (close+open of the codec context only; excludes RPC
+// overhead).
+func (c *Client) ReinitEncoder(
+	ctx context.Context,
+) (time.Duration, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	resp, err := client.ReinitEncoder(ctx, &ffstream_grpc.ReinitEncoderRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("query error: %w", err)
+	}
+	return time.Duration(resp.GetDurationUs()) * time.Microsecond, nil
+}
+
 func (c *Client) GetBitRates(
 	ctx context.Context,
 ) (*streammuxtypes.BitRates, error) {

@@ -156,6 +156,13 @@ var (
 		Run:  autoBitRateConfigSet,
 	}
 
+	EncoderReinit = &cobra.Command{
+		Use:   "reinit",
+		Short: "trigger an explicit close+reopen of the active video encoder (for instrumented canary measurement)",
+		Args:  cobra.ExactArgs(0),
+		Run:   encoderReinit,
+	}
+
 	EncoderFPSFraction = &cobra.Command{
 		Use: "fps_fraction",
 	}
@@ -284,6 +291,8 @@ func init() {
 	Encoder.AddCommand(EncoderFPSFraction)
 	EncoderFPSFraction.AddCommand(EncoderFPSFractionGet)
 	EncoderFPSFraction.AddCommand(EncoderFPSFractionSet)
+
+	Encoder.AddCommand(EncoderReinit)
 
 	Root.PersistentFlags().Var(&LoggerLevel, "log-level", "")
 	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the address to an ffstream instance")
@@ -439,6 +448,31 @@ func encoderFPSFractionSet(cmd *cobra.Command, args []string) {
 	// expecting client.SetFPSFraction(ctx, num uint32, den uint32) error
 	err = c.SetFPSFraction(ctx, uint32(num64), uint32(den64))
 	assertNoError(ctx, err)
+}
+
+// encoderReinit calls the server-side ReinitEncoder RPC and prints the
+// reported close+open duration in milliseconds (with microsecond
+// precision). The duration is the server-side wall-clock measurement
+// of the codec context close+open and excludes RPC overhead.
+func encoderReinit(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	clientStart := time.Now()
+	dur, err := c.ReinitEncoder(ctx)
+	clientElapsed := time.Since(clientStart)
+	assertNoError(ctx, err)
+
+	fmt.Fprintf(
+		cmd.OutOrStdout(),
+		"server_reinit_us=%d client_roundtrip_us=%d\n",
+		dur.Microseconds(),
+		clientElapsed.Microseconds(),
+	)
 }
 
 func pipelinesGet(cmd *cobra.Command, args []string) {

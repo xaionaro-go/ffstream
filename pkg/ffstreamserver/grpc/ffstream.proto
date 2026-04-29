@@ -43,6 +43,7 @@ service FFStream {
   rpc RemoveInput(RemoveInputRequest) returns (RemoveInputReply) {}
   rpc InjectSubtitles(InjectSubtitlesRequest) returns (InjectSubtitlesReply) {}
   rpc InjectData(InjectDataRequest) returns (InjectDataReply) {}
+  rpc ReinitEncoder(ReinitEncoderRequest) returns (ReinitEncoderReply) {}
 }
 
 enum LoggingLevel {
@@ -415,3 +416,18 @@ message SetOutputURLRequest {
 }
 
 message SetOutputURLReply {}
+
+// ReinitEncoderRequest triggers an explicit close+reopen of the active
+// video encoder. It is intended for instrumented canary measurement of
+// the encoder reconfig pause (close + reopen of the MediaCodec / libav
+// codec context). The server returns the wall-clock duration of the
+// reinit in microseconds so callers can measure the pause without
+// relying on log-line granularity.
+message ReinitEncoderRequest {}
+
+// ReinitEncoderReply carries the wall-clock duration of the reinit on
+// the server side. duration_us covers the close+open of the codec
+// context only (it does not include client/server RPC overhead).
+message ReinitEncoderReply {
+  uint64 duration_us = 1;
+}

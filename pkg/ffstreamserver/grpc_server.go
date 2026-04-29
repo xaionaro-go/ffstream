@@ -533,6 +533,23 @@ func (srv *GRPCServer) AddInput(
 	return &ffstream_grpc.AddInputReply{Num: uint64(num)}, nil
 }
 
+func (srv *GRPCServer) ReinitEncoder(
+	ctx context.Context,
+	req *ffstream_grpc.ReinitEncoderRequest,
+) (_ret *ffstream_grpc.ReinitEncoderReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "ReinitEncoder")
+	defer func() { logger.Debugf(ctx, "/ReinitEncoder: %v %v", _ret, _err) }()
+
+	dur, err := srv.FFStream.ReinitEncoder(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "unable to reinit encoder: %v", err)
+	}
+	return &ffstream_grpc.ReinitEncoderReply{
+		DurationUs: uint64(dur.Microseconds()),
+	}, nil
+}
+
 func (srv *GRPCServer) RemoveInput(
 	ctx context.Context,
 	req *ffstream_grpc.RemoveInputRequest,

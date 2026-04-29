@@ -934,6 +934,43 @@ func (s *FFStream) SetFPSFraction(
 	return nil
 }
 
+// ReinitEncoder triggers an explicit close+reopen of the active video
+// encoder. It returns the wall-clock duration of the close+open phase.
+//
+// This is intended for instrumented canary measurement of the encoder
+// reconfig pause and as a building block for future automated tests.
+// In production, encoder reinit happens implicitly via SetResolution /
+// SetQuality with a codec change; this entry point lets callers
+// reproduce the same hot path on demand.
+func (s *FFStream) ReinitEncoder(
+	ctx context.Context,
+) (_dur time.Duration, _err error) {
+	logger.Debugf(ctx, "ReinitEncoder")
+	defer func() { logger.Debugf(ctx, "/ReinitEncoder: %v %v", _dur, _err) }()
+
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if s.StreamMux == nil {
+		return 0, fmt.Errorf("it is allowed to use ReinitEncoder only after Start is invoked")
+	}
+
+	encoderV, _ := s.StreamMux.GetEncoders(ctx)
+	if encoderV == nil {
+		return 0, fmt.Errorf("no active video encoder")
+	}
+
+	reiniter, ok := encoderV.(codec.EncoderReiniter)
+	if !ok {
+		return 0, fmt.Errorf("active video encoder %T does not support reinit (likely a copy/raw encoder)", encoderV)
+	}
+
+	start := time.Now()
+	if err := reiniter.Reinit(ctx); err != nil {
+		return 0, fmt.Errorf("encoder reinit failed: %w", err)
+	}
+	return time.Since(start), nil
+}
+
 func (s *FFStream) SetSuppressed(
 	ctx context.Context,
 	priority uint,
