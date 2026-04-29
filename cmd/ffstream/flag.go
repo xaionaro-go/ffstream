@@ -265,6 +265,12 @@ func parseFlags(args []string) (context.Context, Flags) {
 		if err != nil {
 			fatal(ctx, "unable to get default auto-bitrate config: %v", err)
 		}
+		// Use AllowedResolutionsAndBitRates() (which falls back to the full
+		// set when min/max filtering would produce empty) instead of
+		// directly mutating ResolutionsAndBitRates with MaxHeight/MinHeight,
+		// because some codec configs (e.g. AV1) collapse to a single high-
+		// resolution entry that gets nuked by a 1080p MaxHeight filter,
+		// leading to a nil-deref in Best() further below.
 		cfg.MaxResolution = codec.Resolution{Height: uint32(autoBitrateMaxHeight.Value())}
 		cfg.MinResolution = codec.Resolution{Height: uint32(autoBitrateMinHeight.Value())}
 		if flags.MuxMode == streammuxtypes.MuxModeForbid {
