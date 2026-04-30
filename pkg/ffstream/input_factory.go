@@ -244,6 +244,14 @@ func (f *InputFactory) NewInput(
 			}
 		}
 	}()
+	// All-or-nothing semantics: a single InputResource may carry multiple
+	// sub-resources (one per AV track — e.g. android_camera + android_microphone),
+	// all of which are mandatory for this priority's chain. If any sub-resource
+	// fails to open, the whole NewInput fails and the deferred cleanup above
+	// closes the partially-opened siblings. We do NOT fall back to subsequent
+	// sub-resources of the same Resource list; per-priority fallback is handled
+	// at a higher layer by inputwithfallback.InputWithFallback switching to the
+	// next priority's chain on error.
 	for idx, res := range resources {
 		cfg := kernel.InputConfig{
 			CustomOptions: res.CustomOptions,
