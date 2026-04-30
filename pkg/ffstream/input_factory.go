@@ -161,10 +161,15 @@ func (f *InputFactory) getResourcesLocked() (Resources, error) {
 	if int(f.FallbackPriority) >= len(f.FFStream.InputsInfo) {
 		return nil, fmt.Errorf("priority %d is out of range (inputs=%d)", f.FallbackPriority, len(f.FFStream.InputsInfo))
 	}
-	src := f.FFStream.InputsInfo[f.FallbackPriority]
-	out := make(Resources, len(src))
-	copy(out, src)
-	return out, nil
+	// Deep-copy via Resources.Clone() so the returned snapshot does
+	// not share its inner CustomOptions slice with the live InputsInfo
+	// entries. SetInputCustomOption and AddInput both mutate
+	// CustomOptions under FFStream.locker — without the deep copy, an
+	// in-flight NewInput / NewDecoderFactory iterating the snapshot's
+	// CustomOptions would race those writes (regression for task
+	// #156: hot-add via Pause+Unpause races SetInputCustomOption
+	// against the freshly-spawned InputFactory.NewInput goroutine).
+	return f.FFStream.InputsInfo[f.FallbackPriority].Clone(), nil
 }
 
 // HasResources implements inputwithfallback.InputFactoryWithAvailability.

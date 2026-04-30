@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/asticode/go-astiav"
 	"github.com/facebookincubator/go-belt/tool/logger"
@@ -38,10 +39,15 @@ func (f *DecoderFactory) String() string {
 	return f.NaiveDecoderFactory.String()
 }
 
-// lookupResource returns a copy of the Resource at (f.FallbackPriority, idx)
-// while holding FFStream.locker, or reports ok=false if the indices are out
-// of range. The copy isolates the caller from concurrent mutations of the
-// slice after the lock is released.
+// lookupResource returns a deep-copy of the Resource at
+// (f.FallbackPriority, idx) while holding FFStream.locker, or reports
+// ok=false if the indices are out of range. The deep copy clones
+// CustomOptions so the returned Resource does NOT alias the live
+// InputsInfo slice's CustomOptions backing array; without that,
+// concurrent SetInputCustomOption / SetSuppressed mutations through
+// withInputChainsLocker would race the unprotected reads in
+// NaiveDecoderFactory.NewDecoder → newCodec → DictionaryItemsToAstiav
+// (task #156).
 func (f *DecoderFactory) lookupResource(idx ResourceIndex) (Resource, bool) {
 	f.FFStream.locker.Lock()
 	defer f.FFStream.locker.Unlock()
@@ -52,7 +58,12 @@ func (f *DecoderFactory) lookupResource(idx ResourceIndex) (Resource, bool) {
 	if int(idx) < 0 || int(idx) >= len(resources) {
 		return Resource{}, false
 	}
-	return resources[idx], true
+	r := resources[idx]
+	// Clone the CustomOptions backing array so the caller can iterate
+	// it after releasing FFStream.locker without racing concurrent
+	// writers that hold InputChainsLocker but not s.locker.
+	r.CustomOptions = slices.Clone(r.CustomOptions)
+	return r, true
 }
 
 func (f *DecoderFactory) NewDecoder(

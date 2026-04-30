@@ -997,14 +997,47 @@ func (s *FFStream) SetSuppressed(
 		return fmt.Errorf("input num %d is out of range at priority %d", num, priority)
 	}
 
-	s.InputsInfo[priority][num].Suppressed = suppressed
+	s.withInputChainsLocker(ctx, func() {
+		s.InputsInfo[priority][num].Suppressed = suppressed
+	})
 	return nil
 }
 
+// withInputChainsLocker runs fn under FFStream.Inputs.InputChainsLocker
+// when Inputs is non-nil. The nil-Inputs branch lets unit tests
+// fabricate a partial FFStream literal (`&FFStream{InputsInfo: ...}`)
+// without re-routing every test through the full New(ctx) constructor.
+//
+// Production code paths always reach this through New(ctx) (or its
+// SDK callers), so Inputs is always non-nil there. Mutators that
+// touch InputsInfo[...] field-level state (Suppressed,
+// CustomOptions) MUST go through this helper so the write is
+// synchronized against InputFactory.GetResources readers — those
+// readers take InputChainsLocker (and only InputChainsLocker), so an
+// unprotected field write would race the slices.Clone in
+// getResourcesLocked. See task #156 for the hot-add reproducer.
+//
+// Lock order: callers MUST already hold FFStream.locker; this helper
+// then acquires InputChainsLocker on top. That matches AddInput's
+// outer s.locker → AddFactory → InputChainsLocker chain.
+func (s *FFStream) withInputChainsLocker(ctx context.Context, fn func()) {
+	if s.Inputs == nil {
+		fn()
+		return
+	}
+	s.Inputs.InputChainsLocker.Do(ctx, fn)
+}
+
 // SetInputCustomOption updates a CustomOptions entry on the resource at
-// (priority, num). The mutation is performed under FFStream.locker so it
-// does not race with AddInput and other readers that snapshot the slice
-// while holding the same lock.
+// (priority, num). The mutation is performed under FFStream.locker (to
+// serialize with sibling FFStream-state writers) and InputChainsLocker
+// (to synchronize against InputFactory readers that consume
+// CustomOptions from the kernel-open goroutine — task #156: hot-add
+// via AddInput's Pause+Unpause spawns a fresh InputFactory.NewInput
+// goroutine that iterates res.CustomOptions; without InputChainsLocker
+// the SetFirst write races slices.Clone in getResourcesLocked).
+//
+// Lock order matches AddInput: s.locker → InputChainsLocker.
 func (s *FFStream) SetInputCustomOption(
 	ctx context.Context,
 	priority uint,
@@ -1022,9 +1055,11 @@ func (s *FFStream) SetInputCustomOption(
 		return fmt.Errorf("input num %d is out of range at priority %d", num, priority)
 	}
 
-	s.InputsInfo[priority][num].CustomOptions.SetFirst(avptypes.DictionaryItem{
-		Key:   key,
-		Value: value,
+	s.withInputChainsLocker(ctx, func() {
+		s.InputsInfo[priority][num].CustomOptions.SetFirst(avptypes.DictionaryItem{
+			Key:   key,
+			Value: value,
+		})
 	})
 	return nil
 }
