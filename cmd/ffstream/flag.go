@@ -44,6 +44,10 @@ type Flags struct {
 	FrameDropAudio              bool
 	FrameDropOther              bool
 	BridgePTSAcrossChains       bool
+	// QuietEmptyPriority demotes by-design steady-state log spam to
+	// Debug when high-priority input slots are empty. See
+	// ffstream.Config.QuietEmptyPriority for the gated call sites.
+	QuietEmptyPriority bool
 	// QueueSizeDefault is a deprecated convenience knob that, when non-
 	// zero, fans out to the three per-role queue-size flags below. Use
 	// QueueSizeTranscoder / QueueSizeOutput / QueueSizeError instead.
@@ -100,6 +104,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
 	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
 	bridgePTSAcrossChains := flag.AddParameter(p, "bridge_pts_across_chains", false, ptr(flag.Bool(ffstream.DefaultConfig().BridgePTSAcrossChains)))
+	quietEmptyPriority := flag.AddParameter(p, "quiet_empty_priority", false, ptr(flag.Bool(ffstream.DefaultConfig().QuietEmptyPriority)))
 	// queueSizeDefault is a deprecated convenience flag: when non-zero it
 	// fans out to all three per-role flags below. Prefer the per-role
 	// flags directly, since transcoder and output nodes have different
@@ -260,6 +265,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		FrameDropAudio:        frameDropAudio.Value(),
 		FrameDropOther:        frameDropOther.Value(),
 		BridgePTSAcrossChains: bridgePTSAcrossChains.Value(),
+		QuietEmptyPriority:    quietEmptyPriority.Value(),
 		QueueSizeDefault:    queueSizeDefault.Value(),
 		QueueSizeTranscoder: queueSizeTranscoder.Value(),
 		QueueSizeOutput:     queueSizeOutput.Value(),

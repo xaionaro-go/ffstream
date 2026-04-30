@@ -91,6 +91,7 @@ func New(
 
 	var inputOpts []inputwithfallback.Option
 	inputOpts = append(inputOpts, inputwithfallback.OptionRetryInterval(cfg.InputRetryInterval))
+	inputOpts = append(inputOpts, inputwithfallback.OptionQuietEmptyPriority(cfg.QuietEmptyPriority))
 	inputs, err := inputwithfallback.New[*Input, *DecoderFactory, CustomData](ctx, nil, inputOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the inputs handler: %w", err)
@@ -512,6 +513,10 @@ func (s *FFStream) Start(
 	if err != nil {
 		return fmt.Errorf("unable to initialize a streammux: %w", err)
 	}
+	// Propagate the quiet-empty-priority flag so the autobitrate handler
+	// demotes its by-design "unable to get encoder" log to Debug while
+	// no input is flowing.
+	s.StreamMux.QuietMissingEncoder.Store(s.Config.QuietEmptyPriority)
 
 	if err := s.StreamMux.SetAutoBitRateVideoConfig(ctx, autoBitRateVideo); err != nil {
 		return fmt.Errorf("unable to set the auto-bitrate config %#+v: %w", autoBitRateVideo, err)

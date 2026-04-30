@@ -95,6 +95,7 @@ func main() {
 		ffstream.OptionFrameDropAudio(flags.FrameDropAudio),
 		ffstream.OptionFrameDropOther(flags.FrameDropOther),
 		ffstream.OptionBridgePTSAcrossChains(flags.BridgePTSAcrossChains),
+		ffstream.OptionQuietEmptyPriority(flags.QuietEmptyPriority),
 	)
 	assertNoError(ctx, err)
 

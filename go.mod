@@ -24,7 +24,7 @@ require (
 	github.com/xaionaro-go/astiavlogger v0.0.0-20260314221542-e9fe7b13e00d
 	github.com/xaionaro-go/audio v0.0.0-20260429100547-5ed907afeef0
 	github.com/xaionaro-go/avd v0.0.0-20260429111428-bd3aa6bd39d8
-	github.com/xaionaro-go/avpipeline v0.0.0-20260429111240-c2ff41c0205c
+	github.com/xaionaro-go/avpipeline v0.0.0-20260430222221-549f859376b8
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
 	github.com/xaionaro-go/ndk v0.0.0-20260314154134-02b59e1946bb

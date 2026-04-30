@@ -40,6 +40,18 @@ type Config struct {
 	// avpipeline is OFF by default; the prod use-case here specifically
 	// is the cross-clock-domain switch, so ffstream defaults this ON.
 	BridgePTSAcrossChains bool
+
+	// QuietEmptyPriority demotes by-design steady-state log spam to
+	// Debug when high-priority input slots are empty (the steady state
+	// before a gRPC `inputs add` provisions them). Three classes are
+	// gated:
+	//   - input chain "input N error: no input resources configured for priority N"
+	//   - autobitrate handler "unable to get encoder"
+	//   - input-with-fallback "onInputChainError: unable to switch to fallback N: another switch is in progress (...)"
+	// Default (false) preserves the legacy ERRO/WARN levels so existing
+	// diagnostics aren't lost; set true (CLI: -quiet_empty_priority) to
+	// suppress the noise during normal startup.
+	QuietEmptyPriority bool
 }
 
 func DefaultConfig() Config {
@@ -108,4 +120,12 @@ type OptionBridgePTSAcrossChains bool
 
 func (o OptionBridgePTSAcrossChains) apply(cfg *Config) {
 	cfg.BridgePTSAcrossChains = bool(o)
+}
+
+// OptionQuietEmptyPriority sets Config.QuietEmptyPriority. See the field
+// doc.
+type OptionQuietEmptyPriority bool
+
+func (o OptionQuietEmptyPriority) apply(cfg *Config) {
+	cfg.QuietEmptyPriority = bool(o)
 }
