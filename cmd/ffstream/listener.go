@@ -11,13 +11,40 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/cert"
 )
 
+// knownListenSchemes enumerates the prefixes that parseListenAddr
+// recognizes as scheme tokens. An input whose colon-prefix is not in
+// this set is treated as a bare addr (scheme returned empty) so the
+// caller can apply its default interpretation — pure paths go to unix,
+// host:port-style strings go to tcp. Keep in sync with the switch in
+// getListener.
+var knownListenSchemes = map[string]struct{}{
+	"tcp":        {},
+	"tcp4":       {},
+	"tcp6":       {},
+	"tcp+ssl":    {},
+	"udp":        {},
+	"udp4":       {},
+	"udp6":       {},
+	"unix":       {},
+	"unixpacket": {},
+}
+
 // parseListenAddr splits a listen address of the form "<scheme>:<addr>"
-// into its scheme and the remainder. When no scheme prefix is present
-// the returned scheme is empty and the original input is returned as-is,
-// which the caller treats as a unix-socket path.
+// into its scheme and the remainder. The scheme is recognized only when
+// the colon-prefix appears in knownListenSchemes; this lets a bare
+// "host:port" (e.g. "127.0.0.1:3593") pass through with scheme="" and
+// rest=addr so getListener can default it to tcp without colliding with
+// the unix-socket interpretation reserved for pure paths (no colon).
+//
+// When no colon is present, the returned scheme is empty and the
+// original input is returned as-is — getListener treats that case as a
+// unix-socket path.
 func parseListenAddr(addr string) (scheme, rest string) {
 	parts := strings.SplitN(addr, ":", 2)
 	if len(parts) == 1 {
+		return "", addr
+	}
+	if _, ok := knownListenSchemes[parts[0]]; !ok {
 		return "", addr
 	}
 	return parts[0], parts[1]
@@ -30,6 +57,13 @@ func getListener(
 	scheme, rest := parseListenAddr(addr)
 
 	if scheme == "" {
+		// No recognized scheme prefix. Disambiguate by content:
+		// an addr containing ":" is a bare host:port (e.g.
+		// "127.0.0.1:3593", "[::1]:3593") and defaults to tcp;
+		// anything else is treated as a unix-socket path.
+		if strings.Contains(rest, ":") {
+			return net.Listen("tcp", rest)
+		}
 		return net.Listen("unix", rest)
 	}
 
