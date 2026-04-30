@@ -24,6 +24,7 @@ import (
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
+	"github.com/xaionaro-go/ffstream/pkg/buildinfo"
 	"github.com/xaionaro-go/ffstream/pkg/ffmonitor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
@@ -35,6 +36,10 @@ var (
 
 	Root = &cobra.Command{
 		Use: os.Args[0],
+		// Version is the one-line identity rendered by `--version`.
+		// Cobra auto-installs the `--version` flag when this field
+		// is non-empty (see InitDefaultVersionFlag in cobra).
+		Version: buildinfo.VersionString(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 			l := logger.FromCtx(ctx).WithLevel(LoggerLevel)
@@ -269,6 +274,23 @@ var (
 )
 
 func init() {
+	// Render --version as the same indented JSON ffstream emits, so
+	// both binaries' --version output is byte-for-byte comparable.
+	// {{printf "%s"}} suppresses text/template's HTML-escape of the
+	// JSON `<`/`>`/`&` it would otherwise apply.
+	Root.SetVersionTemplate("{{printf \"%s\" .Annotations.versionJSON}}")
+
+	versionJSON, err := buildinfo.JSON()
+	if err != nil {
+		// Fall back to the one-line VersionString rather than failing
+		// the binary; --version must never crash a CLI tool.
+		versionJSON = []byte(buildinfo.VersionString() + "\n")
+	}
+	if Root.Annotations == nil {
+		Root.Annotations = map[string]string{}
+	}
+	Root.Annotations["versionJSON"] = string(versionJSON)
+
 	Root.AddCommand(Stats)
 	Stats.AddCommand(StatsEncoder)
 	Stats.AddCommand(StatsBitRates)
