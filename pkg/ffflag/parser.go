@@ -74,7 +74,15 @@ func (p *Parser) Parse(args []string) error {
 			break
 		}
 
-		flag := p.findOptionByName(arg[1:])
+		// Accept both ffmpeg-style "-name" and GNU-style "--name" by
+		// stripping up to two leading dashes before lookup. The `--`
+		// separator above is handled first so its semantics are
+		// unchanged.
+		name := arg[1:]
+		if strings.HasPrefix(name, "-") {
+			name = name[1:]
+		}
+		flag := p.findOptionByName(name)
 		if flag == nil {
 			p.nextCollectorOfUnknownOptions = append(p.nextCollectorOfUnknownOptions, arg)
 			continue

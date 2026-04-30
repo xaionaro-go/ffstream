@@ -21,6 +21,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/sirupsen/logrus"
+	"github.com/xaionaro-go/ffstream/pkg/buildinfo"
 	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/secret"
 	"github.com/xaionaro-go/xpath"
@@ -161,7 +162,7 @@ func getContext(
 	if u, err := user.Current(); err == nil {
 		ctx = belt.WithField(ctx, "user", u.Username)
 	}
-	buildInfo := getBuildInfo()
+	buildInfo := buildinfo.Get()
 	switch {
 	case buildInfo.BuildInfo != nil && buildInfo.BuildInfo.Main.Version != "" && buildInfo.BuildInfo.Main.Version != "(devel)":
 		ctx = belt.WithField(ctx, "revision", buildInfo.BuildInfo.Main.Version)

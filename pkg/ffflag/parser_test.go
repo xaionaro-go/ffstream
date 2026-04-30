@@ -227,6 +227,31 @@ func TestParser_Parse_InvalidArgumentToFlag(t *testing.T) {
 	assert.Contains(t, err.Error(), "unable to parse")
 }
 
+func TestParser_Parse_DoubleDashFlagForm(t *testing.T) {
+	// Both "-version" (ffmpeg-style) and "--version" (GNU-style) must
+	// resolve to the same registered flag; the bare "--" terminator
+	// must keep its original "stop processing" semantics.
+	t.Run("double dash short form", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"--version"}))
+		assert.True(t, v.Value())
+	})
+	t.Run("single dash short form still works", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"-version"}))
+		assert.True(t, v.Value())
+	})
+	t.Run("bare double dash still terminates", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"--", "--version"}))
+		assert.False(t, v.Value(), "tokens after -- must not be parsed as flags")
+		assert.Equal(t, []string{"--version"}, p.CollectedNonFlags)
+	})
+}
+
 func TestParser_NewDefaultParser(t *testing.T) {
 	p := NewDefaultParser()
 	require.Len(t, p.Options, 1)
