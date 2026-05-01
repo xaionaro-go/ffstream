@@ -474,6 +474,113 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 			"InputsInfo and never triggers Pause+Unpause")
 }
 
+// TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses pins the
+// Bug #182-A contract: when AddInput re-populates a priority that was
+// emptied via RemoveInput and the resulting chain is now paused (e.g.
+// because the runtime fallback walk demoted it after the kernel hit
+// "no input resources configured"), the next AddInput must unpause the
+// chain so the new resource is opened.
+//
+// Wingout's Re-Activate flow exercises exactly this path:
+//
+//	1. Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic).
+//	2. Deactivate -> RemoveInput drops both prio-0 entries; the
+//	   Retryable kernel keeps retrying, hits "no input resources",
+//	   and the chain ends up IsPaused=true under CurrentValue<=0.
+//	3. Re-Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic)
+//	   MUST unpause chain[0] so the freshly-attached resources are
+//	   opened. Pre-fix the !IsPaused-only branch returned without
+//	   touching the chain and the cam/mic inputs were silently
+//	   ignored — the user's Activate tap appeared to do nothing.
+//
+// We construct the paused state directly (chain.Pause after the kernel
+// is open) rather than driving the full Deactivate->Retryable->fallback
+// walk: that asynchronous state machine is exercised in
+// avpipeline/preset/inputwithfallback's tests; here we want a hermetic
+// unit-level pin for the AddInput branch logic itself.
+func TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s, err := New(ctx)
+	require.NoError(t, err)
+
+	// First AddInput at priority 0 to construct the chain.
+	res := Resource{
+		URL:      "testsrc=duration=10:rate=25",
+		Priority: 0,
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: "lavfi"},
+			},
+		},
+	}
+	_, err = s.AddInput(ctx, res)
+	require.NoError(t, err)
+	require.Len(t, s.Inputs.InputChains, 1)
+	chain := s.Inputs.InputChains[0]
+
+	// Open the kernel (mirrors inputwithfallback.Serve auto-unpause).
+	close(*chain.Input.Processor.Kernel.KernelOpenBarrier.Load())
+	require.Eventually(t, func() bool {
+		return chain.Input.Processor.Kernel.OriginalPacketSource() != nil
+	}, 5*time.Second, 10*time.Millisecond,
+		"chain's kernel must open before we pause it")
+
+	// Pause the chain to simulate the post-Deactivate stuck state.
+	// Production gets here via the Retryable retry loop hitting
+	// "no input resources configured" and the inputwithfallback
+	// fallback walk; that path's invariants are pinned in
+	// avpipeline/preset/inputwithfallback. Here we drive the input
+	// state directly so the test stays hermetic against the
+	// retry/fallback coupling.
+	require.NoError(t, chain.Pause(ctx))
+	require.Eventually(t, func() bool {
+		return chain.IsPaused(ctx)
+	}, 2*time.Second, 10*time.Millisecond,
+		"chain must report IsPaused=true after Pause")
+
+	// CurrentValue is 0 by default; AddInput's new branch fires when
+	// priority<=CurrentValue and the chain is paused. Sanity-check
+	// the precondition explicitly so a future change to the default
+	// surfaces as a test failure rather than a silent no-op.
+	require.LessOrEqual(t, int32(0), s.Inputs.InputSwitch.CurrentValue.Load(),
+		"CurrentValue must be <= priority 0 for the new branch to fire")
+
+	// Second AddInput at the same priority. Pre-fix this returns
+	// without touching the paused chain. Post-fix it unpauses the
+	// chain so the new resource is opened.
+	res2 := Resource{
+		URL:      "testsrc=duration=10:rate=25",
+		Priority: 0,
+		InputConfig: kernel.InputConfig{
+			CustomOptions: avptypes.DictionaryItems{
+				{Key: "f", Value: "lavfi"},
+			},
+		},
+	}
+	_, err = s.AddInput(ctx, res2)
+	require.NoError(t, err)
+
+	// Both Resources must coexist (slice bookkeeping is independent
+	// of the unpause branch but a sanity check).
+	require.Len(t, s.InputsInfo[0], 2,
+		"both Resources must coexist at priority 0 after re-AddInput")
+
+	// Witness: chain.IsPaused must flip back to false. Eventually
+	// polls because Unpause is followed by an asynchronous
+	// openKernelIfNeeded goroutine; the IsPaused flag itself flips
+	// synchronously inside Unpause but we keep the poll to stay
+	// robust against any internal scheduling.
+	require.Eventually(t, func() bool {
+		return !chain.IsPaused(ctx)
+	}, 5*time.Second, 10*time.Millisecond,
+		"AddInput at a paused priority<=CurrentValue must unpause "+
+			"the chain so the new resource is opened; pre-fix the "+
+			"!IsPaused-only branch left the chain stuck paused and "+
+			"the wingout Re-Activate tap silently no-op'd")
+}
+
 // TestInputFactory_HasResources_SparsePriorities pins the contract
 // that the fallback walk in avpipeline/preset/inputwithfallback
 // relies on to skip empty priority slots: *InputFactory must

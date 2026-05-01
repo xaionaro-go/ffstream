@@ -299,16 +299,34 @@ func (s *FFStream) AddInput(
 	//     force-unpausing here would prematurely open a fallback.
 	//   - Existing chain serving traffic (or in the retry loop
 	//     after a transient error): IsPaused=false, reload now.
+	//   - Existing chain at priority<=currentValue but paused (e.g.,
+	//     all resources were RemoveInput'd earlier and the chain was
+	//     paused as a side-effect of the resulting fallback walk):
+	//     unpause now so the new resource is opened. Without this,
+	//     re-Activate after Deactivate leaves the chain stuck paused
+	//     and the resource is silently ignored. The auto-unpause in
+	//     inputwithfallback.Serve only fires when a chain ARRIVES on
+	//     the channel — pre-existing chains miss it.
 	if chainPreExisted {
 		chain := xsync.DoR1(ctx, &s.Inputs.InputChainsLocker, func() *InputChain {
 			return s.Inputs.InputChains[priority]
 		})
-		if !chain.IsPaused(ctx) {
+		switch {
+		case !chain.IsPaused(ctx):
 			if err := chain.Pause(ctx); err != nil {
 				return num, fmt.Errorf("unable to pause input chain at priority %d for hot-reload: %w", priority, err)
 			}
 			if err := chain.Unpause(ctx); err != nil {
 				return num, fmt.Errorf("unable to unpause input chain at priority %d after hot-reload: %w", priority, err)
+			}
+		case int32(priority) <= s.Inputs.InputSwitch.CurrentValue.Load():
+			// Chain is paused but its priority is at-or-above the
+			// active fallback. Unpause so the new resource opens —
+			// the kernel-open path will request a switch back to
+			// this priority via onInputChainKernelOpen if the
+			// active fallback is currently a lower-priority chain.
+			if err := chain.Unpause(ctx); err != nil {
+				return num, fmt.Errorf("unable to unpause input chain at priority %d after hot-add: %w", priority, err)
 			}
 		}
 	}
