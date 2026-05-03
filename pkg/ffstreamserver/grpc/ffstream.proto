@@ -11,6 +11,7 @@ service FFStream {
   returns (GetCurrentOutputReply) {}
   rpc SwitchOutputByProps(SwitchOutputByPropsRequest)
   returns (SwitchOutputByPropsReply) {}
+  rpc SetOutputURL(SetOutputURLRequest) returns (SetOutputURLReply) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsReply) {}
   rpc GetOutputSRTStats(GetOutputSRTStatsRequest)
   returns (GetOutputSRTStatsReply) {}
@@ -38,8 +39,11 @@ service FFStream {
   rpc SetInputCustomOption(SetInputCustomOptionRequest) returns (SetInputCustomOptionReply) {}
   rpc SetStopInput(SetStopInputRequest) returns (SetStopInputReply) {}
   rpc SetInputSuppressed(SetInputSuppressedRequest) returns (SetInputSuppressedReply) {}
+  rpc AddInput(AddInputRequest) returns (AddInputReply) {}
+  rpc RemoveInput(RemoveInputRequest) returns (RemoveInputReply) {}
   rpc InjectSubtitles(InjectSubtitlesRequest) returns (InjectSubtitlesReply) {}
   rpc InjectData(InjectDataRequest) returns (InjectDataReply) {}
+  rpc ReinitEncoder(ReinitEncoderRequest) returns (ReinitEncoderReply) {}
 }
 
 enum LoggingLevel {
@@ -102,7 +106,16 @@ message SwitchOutputByPropsReply {}
 
 message GetStatsRequest {}
 
-message GetStatsReply { avpipeline.NodeCounters node_counters = 1; }
+message GetStatsReply {
+  avpipeline.NodeCounters node_counters = 1;
+  // pipeline_error_count counts non-EOF, non-Canceled errors
+  // observed by drainPipelineErrors since the daemon started.
+  // Useful as a coarse health signal: any sustained increase
+  // means the pipeline is logging recoverable errors that the
+  // operator may want to investigate. Each counter tick maps to
+  // one Warn line in the daemon log.
+  uint64 pipeline_error_count = 2;
+}
 
 message GetOutputSRTStatsRequest { int32 output_id = 1; }
 
@@ -367,3 +380,54 @@ message InjectDataRequest {
 }
 
 message InjectDataReply {}
+
+// AddInputRequest registers an input at the given fallback priority.
+// Multiple inputs may exist at the same priority, forming a fallback
+// chain (in addition to the priority-based fallback across priorities).
+// The server assigns a slot index (num) within the priority and returns
+// it in AddInputReply.
+message AddInputRequest {
+  string                 url          = 1;
+  avpipeline.InputConfig input_config = 2;
+  uint64                 priority     = 3;
+}
+
+// AddInputReply carries the server-assigned (priority, num) slot index.
+// Use (priority, num) to identify the input later (e.g. RemoveInput).
+message AddInputReply {
+  uint64 num = 1;
+}
+
+// RemoveInputRequest removes one input identified by (priority, num).
+// Returns NOT_FOUND if no input exists at that (priority, num).
+message RemoveInputRequest {
+  uint64 priority = 1;
+  uint64 num      = 2;
+}
+
+message RemoveInputReply {}
+
+// SetOutputURLRequest replaces the URL of the single output template.
+// The new URL takes effect on the next NewSender invocation, which is
+// triggered by the next SwitchOutputByProps call. Callers should
+// invoke SetOutputURL immediately followed by SwitchOutputByProps.
+message SetOutputURLRequest {
+  string url = 1;
+}
+
+message SetOutputURLReply {}
+
+// ReinitEncoderRequest triggers an explicit close+reopen of the active
+// video encoder. It is intended for instrumented canary measurement of
+// the encoder reconfig pause (close + reopen of the MediaCodec / libav
+// codec context). The server returns the wall-clock duration of the
+// reinit in microseconds so callers can measure the pause without
+// relying on log-line granularity.
+message ReinitEncoderRequest {}
+
+// ReinitEncoderReply carries the wall-clock duration of the reinit on
+// the server side. duration_us covers the close+open of the codec
+// context only (it does not include client/server RPC overhead).
+message ReinitEncoderReply {
+  uint64 duration_us = 1;
+}

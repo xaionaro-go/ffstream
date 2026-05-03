@@ -365,6 +365,26 @@ func (c *Client) SetFPSFraction(
 	return nil
 }
 
+// ReinitEncoder triggers an explicit close+reopen of the active video
+// encoder on the server. Returns the server-side wall-clock duration of
+// the reinit (close+open of the codec context only; excludes RPC
+// overhead).
+func (c *Client) ReinitEncoder(
+	ctx context.Context,
+) (time.Duration, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	resp, err := client.ReinitEncoder(ctx, &ffstream_grpc.ReinitEncoderRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("query error: %w", err)
+	}
+	return time.Duration(resp.GetDurationUs()) * time.Microsecond, nil
+}
+
 func (c *Client) GetBitRates(
 	ctx context.Context,
 ) (*streammuxtypes.BitRates, error) {
@@ -508,6 +528,55 @@ func (c *Client) GetInputsInfo(
 	}
 
 	return resp, nil
+}
+
+func (c *Client) AddInput(
+	ctx context.Context,
+	priority uint64,
+	url string,
+	inputConfig *avpipeline_proto.InputConfig,
+) (uint64, error) {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	if inputConfig == nil {
+		inputConfig = &avpipeline_proto.InputConfig{}
+	}
+	reply, err := client.AddInput(ctx, &ffstream_grpc.AddInputRequest{
+		Url:         url,
+		Priority:    priority,
+		InputConfig: inputConfig,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("query error: %w", err)
+	}
+
+	return reply.GetNum(), nil
+}
+
+func (c *Client) RemoveInput(
+	ctx context.Context,
+	priority uint64,
+	num uint64,
+) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.RemoveInput(ctx, &ffstream_grpc.RemoveInputRequest{
+		Priority: priority,
+		Num:      num,
+	})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) SetInputCustomOption(
@@ -662,5 +731,19 @@ func (c *Client) SwitchOutputByProps(
 		return fmt.Errorf("query error: %w", err)
 	}
 
+	return nil
+}
+
+func (c *Client) SetOutputURL(ctx context.Context, url string) error {
+	client, conn, err := c.grpcClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = client.SetOutputURL(ctx, &ffstream_grpc.SetOutputURLRequest{Url: url})
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
 	return nil
 }

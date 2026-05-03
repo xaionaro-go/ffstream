@@ -21,6 +21,7 @@ import (
 	"github.com/xaionaro-go/avpipeline/codec"
 	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
+	"github.com/xaionaro-go/avpipeline/processor"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver"
@@ -39,6 +40,42 @@ func main() {
 
 	ctx, flags := parseFlags(os.Args)
 
+	// Resolve the per-role queue-size flags: -queue_size_default is a
+	// deprecated convenience knob that fans out into the three per-role
+	// flags when non-zero; the explicit per-role flags override it (later
+	// wins) so a user can pin one role while leaving the others to the
+	// default fan-out. Sentinel 0 = leave the avpipeline compiled-in
+	// default for that role/channel.
+	transcoderInput := flags.QueueSizeDefault
+	outputInput := flags.QueueSizeDefault
+	if flags.QueueSizeTranscoder != 0 {
+		transcoderInput = flags.QueueSizeTranscoder
+	}
+	if flags.QueueSizeOutput != 0 {
+		outputInput = flags.QueueSizeOutput
+	}
+	// Framerate-adaptive default for the transcoder INPUT cap: at 60 fps
+	// the historical 60-frame default has 0% headroom against the worst-
+	// case MediaCodec encoder reconfig pause measured in mission F2
+	// (/tmp/mission_f2_measure.md). The helper bumps the cap to
+	// max(60, ceil(fps*2)) when the operator did not pin it explicitly.
+	// Output INPUT and *Error are left unscaled — they are not
+	// fps-bound (output is packet-rate, error is rare).
+	transcoderInput = computeTranscoderInputCap(transcoderInput, flags.Framerate)
+	transcoderError := flags.QueueSizeError
+	outputError := flags.QueueSizeError
+	// Pass uint64(0) to leave the avpipeline default unchanged for any
+	// channel the user did not explicitly target. The transcoder/output
+	// "Output" channel sizes are intentionally left at the avpipeline
+	// defaults (10 and 0 respectively): they are downstream-graph-shaped
+	// and unrelated to the input-side burst profile this CLI exposes.
+	if err := processor.SetDefaultQueueSizes(
+		transcoderInput, 0, transcoderError,
+		outputInput, 0, outputError,
+	); err != nil {
+		fatal(ctx, "unable to apply queue-size flags: %v", err)
+	}
+
 	ctx, cancelFunc := initRuntime(ctx, flags)
 	defer cancelFunc()
 
@@ -54,6 +91,11 @@ func main() {
 
 	s, err := ffstream.New(ctx,
 		ffstream.OptionInputRetryIntervalValue(flags.RetryInputTimeoutOnFailure),
+		ffstream.OptionFrameDropVideo(flags.FrameDropVideo),
+		ffstream.OptionFrameDropAudio(flags.FrameDropAudio),
+		ffstream.OptionFrameDropOther(flags.FrameDropOther),
+		ffstream.OptionBridgePTSAcrossChains(flags.BridgePTSAcrossChains),
+		ffstream.OptionQuietOnOpenFailure(flags.QuietOnOpenFailure),
 	)
 	assertNoError(ctx, err)
 
@@ -69,7 +111,7 @@ func main() {
 	}
 
 	for _, inputInfo := range flags.Inputs {
-		err = s.AddInput(ctx, inputInfo)
+		_, err = s.AddInput(ctx, inputInfo)
 		assertNoError(ctx, err)
 	}
 
@@ -93,9 +135,18 @@ func main() {
 	var audioChannels audio.Channel
 
 	var encoderVideoOptions avptypes.DictionaryItems
-	encoderVideoOptions = append(encoderVideoOptions,
-		codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...,
-	)
+	// MediaCodec encoders ship low-latency-friendly defaults from the OS and
+	// reject the SW-encoder tuning keys that LowLatencyOptions injects
+	// (zerolatency, bf, forced-idr, intra-refresh, priority). Combined with
+	// the unconditional AV_CODEC_FLAG_GLOBAL_HEADER set in
+	// avpipeline/codec/codec.go for video encoders, the post-init
+	// dummy-frame extradata generator can fail with AVERROR_INVALIDDATA on
+	// av1_mediacodec. Skip the SW-tuned tweaks for *_mediacodec encoders.
+	if !strings.HasSuffix(string(flags.VideoEncoder.Codec), "_mediacodec") {
+		encoderVideoOptions = append(encoderVideoOptions,
+			codec.LowLatencyOptions(ctx, flags.VideoEncoder.Codec, true)...,
+		)
+	}
 	encoderVideoOptions = append(encoderVideoOptions,
 		convertUnknownOptionsToCustomOptions(flags.VideoEncoder.Options)...,
 	)
@@ -156,35 +207,10 @@ func main() {
 
 	for _, outputParams := range flags.Outputs {
 		logger.Debugf(ctx, "outputParams == %#+v", outputParams)
-		outputOptions := outputParams.CustomOptions
-		var outputFormat string
-		for _, v := range outputOptions {
-			switch v.Key {
-			case "-f":
-				outputFormat = v.Value
-			}
-		}
-		// adding options required for fragmentation (that is a streaming-specific issue)
-		if outputFormat == "mpegts" {
-			var movFlags *avptypes.DictionaryItem
-			for idx, item := range outputOptions {
-				if item.Key == "movflags" {
-					movFlags = &outputOptions[idx]
-					break
-				}
-			}
-			if movFlags == nil {
-				outputOptions = append(outputOptions, avptypes.DictionaryItem{Key: "movflags"})
-				movFlags = &outputOptions[len(outputOptions)-1]
-			}
-			if movFlags.Value != "" {
-				movFlags.Value += "+"
-			}
-			movFlags.Value += "frag_keyframe+empty_moov+separate_moof"
-		}
+
 		err := s.AddOutputTemplate(ctx, ffstream.SenderTemplate{
 			URLTemplate:                 outputParams.URL,
-			Options:                     outputOptions,
+			Options:                     outputParams.CustomOptions,
 			RetryOutputTimeoutOnFailure: flags.RetryOutputTimeoutOnFailure,
 		})
 		assertNoError(ctx, err)

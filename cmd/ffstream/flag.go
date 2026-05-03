@@ -18,6 +18,18 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 )
 
+// autoBitrateMaxHeightDefault and autoBitrateMinHeightDefault are the
+// flag-default heights of the autobitrate ladder filter. Held as
+// constants so they can be referenced both by the -auto_bitrate_max_-
+// height/-min_height flag registrations and by docs/help. Conflict
+// detection uses Option.Changed() as the authoritative "operator passed
+// this flag" signal; the constants stay because they ARE the registered
+// defaults.
+const (
+	autoBitrateMaxHeightDefault uint64 = 1920
+	autoBitrateMinHeightDefault uint64 = 480
+)
+
 type Flags struct {
 	HWAccelGlobal               avptypes.HardwareDeviceType
 	Inputs                      ffstream.Resources
@@ -40,7 +52,27 @@ type Flags struct {
 	AutoBitRate                 *streammuxtypes.AutoBitRateVideoConfig
 	RetryInputTimeoutOnFailure  time.Duration
 	RetryOutputTimeoutOnFailure time.Duration
-	Outputs                     ffstream.Resources
+	FrameDropVideo              bool
+	FrameDropAudio              bool
+	FrameDropOther              bool
+	BridgePTSAcrossChains       bool
+	// QuietOnOpenFailure demotes by-design steady-state log spam to
+	// Debug when high-priority input slots are empty or upstream is
+	// not yet publishing. See ffstream.Config.QuietOnOpenFailure for
+	// the gated call sites.
+	QuietOnOpenFailure bool
+	// QueueSizeDefault is a deprecated convenience knob that, when non-
+	// zero, fans out to the three per-role queue-size flags below. Use
+	// QueueSizeTranscoder / QueueSizeOutput / QueueSizeError instead.
+	QueueSizeDefault    uint64
+	QueueSizeTranscoder uint64
+	QueueSizeOutput     uint64
+	QueueSizeError      uint64
+	// Framerate is the value of -r (output framerate). 0 means unset;
+	// main.go uses it (when non-zero) to derive a framerate-adaptive
+	// default transcoder queue cap. See computeTranscoderInputCap.
+	Framerate float64
+	Outputs   ffstream.Resources
 }
 
 type Encoder struct {
@@ -74,11 +106,55 @@ func parseFlags(args []string) (context.Context, Flags) {
 	mapFlag := flag.AddParameter(p, "map", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	muxModeString := flag.AddParameter(p, "mux_mode", false, ptr(flag.String("forbid")))
 	autoBitrate := flag.AddParameter(p, "auto_bitrate", false, ptr(flag.Bool(false)))
-	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(1080)))
-	autoBitrateMinHeight := flag.AddParameter(p, "auto_bitrate_min_height", false, ptr(flag.Uint64(480)))
+	autoBitrateMaxHeight := flag.AddParameter(p, "auto_bitrate_max_height", false, ptr(flag.Uint64(autoBitrateMaxHeightDefault)))
+	autoBitrateMinHeight := flag.AddParameter(p, "auto_bitrate_min_height", false, ptr(flag.Uint64(autoBitrateMinHeightDefault)))
 	autoBitrateAutoBypass := flag.AddParameter(p, "auto_bitrate_auto_bypass", false, ptr(flag.Bool(true)))
+	// auto_bitrate_resolution overrides the autobitrate ladder. Repeatable.
+	// Two syntaxes per occurrence:
+	//   - WxH                 — bare form; this resolution applies to all bitrates
+	//                           (single-pin, backward-compatible, codec-default
+	//                           [MinBitRate, MaxBitRate] envelope inherited).
+	//   - WxH:LowBps-HighBps  — banded form; this resolution covers exactly
+	//                           the named bitrate band. Multiple banded
+	//                           occurrences build the full ladder.
+	// Mixing bare and banded across occurrences is fatal. Bare form repeated
+	// is fatal. Overlapping banded ranges are fatal.
+	// Banded ranges are inclusive on BOTH ends, and adjacent ranges must NOT
+	// touch (sharing an endpoint would be ambiguous because BitRate() lookup
+	// is inclusive on both ends). Use e.g.
+	//   -auto_bitrate_resolution 1280x720:2M-4999999
+	//   -auto_bitrate_resolution 1920x1080:5M-12M
+	// rather than 2M-5M then 5M-12M (5M would belong to both rows).
+	// Bitrate values use go-humanize SI suffixes ('5M' = 5_000_000).
+	// Mutually exclusive with -auto_bitrate_max_height/-auto_bitrate_min_height.
+	// Runtime override: ffstreamctl encoder auto_bitrate config set replaces
+	// the entire AutoBitRateVideoConfig (CAS-atomically), winning over startup.
+	autoBitrateResolution := flag.AddParameter(p, "auto_bitrate_resolution", false, ptr(flag.StringsAsSeparateFlags(nil)))
 	retryInputTimeoutOnFailure := flag.AddParameter(p, "retry_input_timeout_on_failure", false, ptr(flag.Duration(ffstream.DefaultConfig().InputRetryInterval)))
 	retryOutputTimeoutOnFailure := flag.AddParameter(p, "retry_output_timeout_on_failure", false, ptr(flag.Duration(0)))
+	frameDropVideo := flag.AddParameter(p, "frame_drop_video", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropVideo)))
+	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
+	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
+	bridgePTSAcrossChains := flag.AddParameter(p, "bridge_pts_across_chains", false, ptr(flag.Bool(ffstream.DefaultConfig().BridgePTSAcrossChains)))
+	// quietOnOpenFailure is the canonical flag.
+	// quietEmptyPriority is the legacy alias retained as a deprecated
+	// spelling for run-script backward compatibility — both feed the
+	// same Flags.QuietOnOpenFailure via a parse-time OR.
+	quietOnOpenFailure := flag.AddParameter(p, "quiet_on_open_failure", false, ptr(flag.Bool(ffstream.DefaultConfig().QuietOnOpenFailure)))
+	quietEmptyPriority := flag.AddParameter(p, "quiet_empty_priority", false, ptr(flag.Bool(ffstream.DefaultConfig().QuietOnOpenFailure)))
+	// queueSizeDefault is a deprecated convenience flag: when non-zero it
+	// fans out to all three per-role flags below. Prefer the per-role
+	// flags directly, since transcoder and output nodes have different
+	// burst profiles (transcoder = deterministic drain, output = network-
+	// bound). Sentinel 0 = leave the avpipeline compiled-in default.
+	queueSizeDefault := flag.AddParameter(p, "queue_size_default", false, ptr(flag.Uint64(0)))
+	queueSizeTranscoder := flag.AddParameter(p, "queue_size_transcoder", false, ptr(flag.Uint64(0)))
+	queueSizeOutput := flag.AddParameter(p, "queue_size_output", false, ptr(flag.Uint64(0)))
+	queueSizeError := flag.AddParameter(p, "queue_size_error", false, ptr(flag.Uint64(0)))
+	// rFlag captures -r (output framerate). The value is consumed by the
+	// adaptive transcoder queue cap (see main.go's call to
+	// computeTranscoderInputCap). Sentinel 0 = unset.
+	rFlag := flag.AddParameter(p, "r", false, ptr(flag.Float64(0)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -112,8 +188,16 @@ func parseFlags(args []string) (context.Context, Flags) {
 		os.Exit(0)
 	}
 
+	// Zero positional outputs at parse time is no longer fatal: the
+	// rc.local supervisor model boots ffstream idle with just
+	// -listen_control and expects wingout to drive activation later
+	// via gRPC AddInput + SetOutputURL + SwitchOutputByProps.
+	// ffstream.Start accepts the same idle state. Empty
+	// unknownOptions/unknownNonOptions flow through the loops below
+	// as no-ops, leaving Inputs/Outputs as nil — exactly what the
+	// gRPC-only startup path expects.
 	if len(p.CollectedUnknownOptions) == 0 && len(p.CollectedNonFlags) == 0 {
-		fatal(ctx, "expected at least one output, but have not received any")
+		logger.Debugf(ctx, "no inputs/outputs specified at startup; awaiting gRPC AddInput + SetOutputURL")
 	}
 	logger.Debugf(ctx, "p.CollectedNonFlags: %#+v", p.CollectedNonFlags)
 	logger.Debugf(ctx, "p.CollectedUnknownOptions: %#+v", p.CollectedUnknownOptions)
@@ -159,9 +243,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 	var inputs ffstream.Resources
 	for idx, input := range inputsFlag.Value() {
 		collectedOptions := inputsFlag.CollectedUnknownOptions[idx]
+		opts := convertUnknownOptionsToAVPCustomOptions(collectedOptions)
+		priority, opts := extractAndStripPriority(ctx, opts)
 		inputConfig := kernel.InputConfig{
 			ForceRealTime: ptr(reFlag.Value()),
-			CustomOptions: convertUnknownOptionsToAVPCustomOptions(collectedOptions),
+			CustomOptions: opts,
 		}
 		var syncUsingReferenceAudio *int
 		var suppressed bool
@@ -183,6 +269,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		}
 		inputs = append(inputs, ffstream.Resource{
 			URL:                     input,
+			Priority:                priority,
 			CodecHWAccel:            hardwareDeviceType,
 			SyncUsingReferenceAudio: syncUsingReferenceAudio,
 			Suppressed:              suppressed,
@@ -219,6 +306,17 @@ func parseFlags(args []string) (context.Context, Flags) {
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
+		FrameDropVideo:        frameDropVideo.Value(),
+		FrameDropAudio:        frameDropAudio.Value(),
+		FrameDropOther:        frameDropOther.Value(),
+		BridgePTSAcrossChains: bridgePTSAcrossChains.Value(),
+		QuietOnOpenFailure:    quietOnOpenFailure.Value() || quietEmptyPriority.Value(),
+		QueueSizeDefault:      queueSizeDefault.Value(),
+		QueueSizeTranscoder:   queueSizeTranscoder.Value(),
+		QueueSizeOutput:       queueSizeOutput.Value(),
+		QueueSizeError:        queueSizeError.Value(),
+		Framerate:             rFlag.Value(),
+
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,
 		Outputs:       outputs,
@@ -252,6 +350,15 @@ func parseFlags(args []string) (context.Context, Flags) {
 		}
 	}
 
+	// -auto_bitrate_resolution without -auto_bitrate is a silent no-op
+	// — the entire autobitrate config block below is gated on
+	// autoBitrate.Value(). Fail loudly at parse time instead of
+	// silently dropping the operator's pin (consistent with the other
+	// auto_bitrate-family conflict fatals further down).
+	if autoBitrateResolution.Changed() && !autoBitrate.Value() {
+		fatal(ctx, "-auto_bitrate_resolution requires -auto_bitrate; the pin is silently ignored otherwise")
+	}
+
 	if autoBitrate.Value() {
 		logger.Tracef(ctx, "enabling auto bitrate")
 		vCodec := flags.VideoEncoder.Codec.Codec(ctx, true)
@@ -262,9 +369,34 @@ func parseFlags(args []string) (context.Context, Flags) {
 		if err != nil {
 			fatal(ctx, "unable to get default auto-bitrate config: %v", err)
 		}
+		// Use AllowedResolutionsAndBitRates() (which falls back to the full
+		// set when min/max filtering would produce empty) instead of
+		// directly mutating ResolutionsAndBitRates with MaxHeight/MinHeight,
+		// because some codec configs (e.g. AV1) collapse to a single high-
+		// resolution entry that gets nuked by a 1080p MaxHeight filter,
+		// leading to a nil-deref in Best() further below.
 		cfg.MaxResolution = codec.Resolution{Height: uint32(autoBitrateMaxHeight.Value())}
 		cfg.MinResolution = codec.Resolution{Height: uint32(autoBitrateMinHeight.Value())}
-		if flags.MuxMode == streammuxtypes.MuxModeForbid {
+
+		var pinnedRows streammuxtypes.AutoBitRateResolutionAndBitRateConfigs
+		var bareForm bool
+		if vs := autoBitrateResolution.Value(); len(vs) > 0 {
+			// Use Changed() rather than equality-against-default so
+			// "operator passed -auto_bitrate_max_height 1920" (which
+			// happens to equal the registered default) still trips the
+			// conflict fatal.
+			if autoBitrateMaxHeight.Changed() || autoBitrateMinHeight.Changed() {
+				fatal(ctx, "-auto_bitrate_resolution is mutually exclusive with -auto_bitrate_max_height/-auto_bitrate_min_height")
+			}
+			var err error
+			pinnedRows, bareForm, err = parseAutoBitrateResolutionRows(vs)
+			if err != nil {
+				fatal(ctx, "-auto_bitrate_resolution: %v", err)
+			}
+			cfg.MinResolution, cfg.MaxResolution = codec.Resolution{}, codec.Resolution{}
+		}
+
+		if flags.MuxMode == streammuxtypes.MuxModeForbid && len(pinnedRows) == 0 {
 			allowed := cfg.AllowedResolutionsAndBitRates()
 			cfg.ResolutionsAndBitRates = streammuxtypes.AutoBitRateResolutionAndBitRateConfigs{
 				*allowed.Best(),
@@ -274,8 +406,48 @@ func parseFlags(args []string) (context.Context, Flags) {
 		allowed := cfg.AllowedResolutionsAndBitRates()
 		cfg.MaxBitRate = allowed.Best().BitrateHigh
 		cfg.MinBitRate = allowed.Worst().BitrateLow
+
+		if len(pinnedRows) > 0 {
+			// Branch on the explicit bareForm signal rather than a zero-
+			// sentinel inspection of pinnedRows: a future contributor adding
+			// a banded entry with BitrateLow=0 must not collide with the
+			// "inherit envelope" path.
+			if bareForm {
+				// bare WxH: inherit codec-default envelope (preserves backward-compat)
+				pinnedRows[0].BitrateLow = cfg.MinBitRate
+				pinnedRows[0].BitrateHigh = cfg.MaxBitRate
+			} else {
+				cfg.MinBitRate = pinnedRows[0].BitrateLow
+				cfg.MaxBitRate = pinnedRows[len(pinnedRows)-1].BitrateHigh
+			}
+			cfg.ResolutionsAndBitRates = pinnedRows
+		}
 		flags.AutoBitRate = &cfg
 	}
 
 	return ctx, flags
+}
+
+func extractAndStripPriority(
+	ctx context.Context,
+	opts avptypes.DictionaryItems,
+) (uint, avptypes.DictionaryItems) {
+	var priority uint
+	result := make(avptypes.DictionaryItems, 0, len(opts))
+	for _, item := range opts {
+		if item.Key != "fallback_priority" {
+			result = append(result, item)
+			continue
+		}
+		v, err := strconv.ParseUint(item.Value, 10, 0)
+		if err != nil {
+			logger.Errorf(ctx, "unable to parse fallback priority %q: %v", item.Value, err)
+			continue
+		}
+		priority = uint(v)
+	}
+	if len(result) == 0 {
+		return priority, nil
+	}
+	return priority, result
 }

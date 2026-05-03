@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/asticode/go-astiav"
 	"github.com/facebookincubator/go-belt/tool/logger"
@@ -38,10 +39,14 @@ func (f *DecoderFactory) String() string {
 	return f.NaiveDecoderFactory.String()
 }
 
-// lookupResource returns a copy of the Resource at (f.FallbackPriority, idx)
-// while holding FFStream.locker, or reports ok=false if the indices are out
-// of range. The copy isolates the caller from concurrent mutations of the
-// slice after the lock is released.
+// lookupResource returns a deep-copy of the Resource at
+// (f.FallbackPriority, idx) while holding FFStream.locker, or reports
+// ok=false if the indices are out of range. The deep copy clones
+// CustomOptions so the returned Resource does NOT alias the live
+// InputsInfo slice's CustomOptions backing array; without that,
+// concurrent SetInputCustomOption / SetSuppressed mutations through
+// withInputChainsLocker would race the unprotected reads in
+// NaiveDecoderFactory.NewDecoder → newCodec → DictionaryItemsToAstiav.
 func (f *DecoderFactory) lookupResource(idx ResourceIndex) (Resource, bool) {
 	f.FFStream.locker.Lock()
 	defer f.FFStream.locker.Unlock()
@@ -52,7 +57,12 @@ func (f *DecoderFactory) lookupResource(idx ResourceIndex) (Resource, bool) {
 	if int(idx) < 0 || int(idx) >= len(resources) {
 		return Resource{}, false
 	}
-	return resources[idx], true
+	r := resources[idx]
+	// Clone the CustomOptions backing array so the caller can iterate
+	// it after releasing FFStream.locker without racing concurrent
+	// writers that hold InputChainsLocker but not s.locker.
+	r.CustomOptions = slices.Clone(r.CustomOptions)
+	return r, true
 }
 
 func (f *DecoderFactory) NewDecoder(
@@ -72,7 +82,25 @@ func (f *DecoderFactory) NewDecoder(
 		// by AddInput/SetSuppressed/SetInputCustomOption from other goroutines.
 		r, ok := f.lookupResource(resourceIndex)
 		if ok {
-			opts = append(opts, codectypes.OptionOverrideCustomOptions(r.CustomOptions))
+			customOptions := r.CustomOptions
+			if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo &&
+				r.CodecHWAccel == avptypes.HardwareDeviceTypeMediaCodec {
+				// Augment the per-Resource customOptions with the MediaCodec
+				// surface-passthrough hints. These flow through codec.go into
+				// av_hwdevice_ctx_create, which honours create_window=1 by
+				// allocating a persistent ANativeWindow on the hwdevice (see
+				// libavutil/hwcontext_mediacodec.c mc_device_init). Without
+				// this, the decoder falls back to buffer-mode output and the
+				// downstream encoder cannot reuse the surface.
+				// Use append-and-deduplicate (last-wins via Deduplicate) so
+				// any caller-supplied keys are preserved over our defaults.
+				augmented := make(avptypes.DictionaryItems, 0, len(customOptions)+2)
+				augmented = append(augmented, avptypes.DictionaryItem{Key: "pixel_format", Value: "mediacodec"})
+				augmented = append(augmented, avptypes.DictionaryItem{Key: "create_window", Value: "1"})
+				augmented = append(augmented, customOptions...)
+				customOptions = augmented.Deduplicate()
+			}
+			opts = append(opts, codectypes.OptionOverrideCustomOptions(customOptions))
 			if stream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
 				opts = append(opts, codectypes.OptionOverrideHardwareDeviceType(r.CodecHWAccel))
 			}

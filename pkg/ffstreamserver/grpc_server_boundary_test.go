@@ -7,9 +7,9 @@ package ffstreamserver
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +74,7 @@ func TestGRPCServer_SetInputCustomOption_PriorityBelowLen_DoesNotReturnOutOfRang
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
 	// Seed one input so InputChains has length 1.
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestGRPCServer_SetStopInput_PriorityBelowLen_DoesNotReturnOutOfRange(t *tes
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -159,19 +159,23 @@ func TestGRPCServer_SetStopInput_PriorityBelowLen_DoesNotReturnOutOfRange(t *tes
 		"valid priority must not trigger the priority out-of-range error")
 }
 
-// TestGRPCServer_GetInputsInfo_NilRetryableKernel_DoesNotPanic exercises the
-// closure in GetInputsInfo for the case where the retryable kernel has not
-// yet been opened: k.Kernel is the zero value (nil *Input). The closure then
-// returns nil, and BEFORE the fix, the subsequent inputKernel.GetObjectID()
-// would dereference a nil pointer. With the `if inputKernel == nil { continue }`
-// guard, the iteration must simply skip this resource.
-func TestGRPCServer_GetInputsInfo_NilRetryableKernel_DoesNotPanic(t *testing.T) {
+// TestGRPCServer_GetInputsInfo_NilRetryableKernel_EmitsInfoWithInactive
+// exercises the case where the retryable kernel has not yet been opened:
+// k.Kernel is the zero value (nil *Input). Pre-fix the resource was
+// skipped entirely — and the wingout Deactivate path could not see it
+// to issue RemoveInput. The contract is: the resource MUST appear in
+// the reply (so wingout can remove it) but with IsActive=false and
+// Id=0 (kernel-unopen has no ObjectID).
+//
+// The original "must not panic" property is also verified — the input row
+// still flows through the same closure that previously could nil-deref.
+func TestGRPCServer_GetInputsInfo_NilRetryableKernel_EmitsInfoWithInactive(t *testing.T) {
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
 	// AddInput populates InputsInfo[0] and creates an InputChain whose
 	// retryable kernel is NOT opened (StartOnInit=false).
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
@@ -184,25 +188,45 @@ func TestGRPCServer_GetInputsInfo_NilRetryableKernel_DoesNotPanic(t *testing.T) 
 
 	require.NoError(t, callErr)
 	require.NotNil(t, resp)
-	// With a nil kernel, the resource is skipped entirely.
-	assert.Empty(t, resp.Inputs,
-		"resource with unopened kernel must be skipped (no InputInfo emitted)")
+	// The resource appears in the reply even with kernel unopened, so
+	// wingout's Deactivate walk can remove it.
+	require.Len(t, resp.Inputs, 1,
+		"kernel-unopen resource must still surface in GetInputsInfo")
+	assert.Equal(t, "file:/does-not-exist", resp.Inputs[0].Url,
+		"the URL must round-trip from the registration to the reply")
+	assert.Equal(t, uint64(0), resp.Inputs[0].Priority)
+	assert.Equal(t, uint64(0), resp.Inputs[0].Num)
+	// Negative side of the dual contract: the reply must NOT claim the
+	// kernel is active when it has not yet opened — IsActive remains
+	// false and ObjectID is the zero value (no kernel.Abstract to read it
+	// from).
+	assert.False(t, resp.Inputs[0].IsActive,
+		"kernel-unopen resource must surface with IsActive=false")
+	assert.Equal(t, uint64(0), resp.Inputs[0].Id,
+		"kernel-unopen resource has no ObjectID (Id must be zero, not a stale value)")
 }
 
-// TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic exercises the
-// off-by-one at `if len(k.Kernel.Kernel0) <= idx`. We construct the kernel
-// manually so that k.Kernel != nil (passes the prior nil check) but
-// len(Kernel0) == idx (which must return nil). Before the fix (`< idx`), the
-// check returned false for the equal case and the next line indexed
-// Kernel0[idx] out of range.
-func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T) {
+// TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_EmitsInfoWithInactive
+// exercises the off-by-one at `if len(k.Kernel.Kernel0) <= idx`. We construct
+// the kernel manually so that k.Kernel != nil (passes the prior nil check)
+// but len(Kernel0) == idx (which must surface IsActive=false). Before the
+// boundary fix (`< idx`), the check returned false for the equal case and
+// the next line indexed Kernel0[idx] out of range — the panic-prevention
+// property is still asserted via require.NotPanics.
+//
+// Contract: a resource whose Tee slot is empty (kernel-open but Tee has
+// not yet appended this resource's slot) MUST still appear in the reply
+// with IsActive=false, so the wingout Deactivate walk can issue
+// RemoveInput against the registration even when the pipeline has not
+// yet reached steady state.
+func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_EmitsInfoWithInactive(t *testing.T) {
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
 	// Register two resources at priority 0 so the GetInputsInfo loop runs
 	// with idx=0,1.
 	for range 2 {
-		err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+		_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 			URL: "file:/does-not-exist",
 		})
 		require.NoError(t, err)
@@ -212,15 +236,24 @@ func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T)
 	// Reach into the retryable kernel and simulate an opened kernel whose
 	// Tee (Kernel0) has LEN < number of resources. At idx==len(Kernel0) the
 	// boundary check must short-circuit.
+	//
+	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
+	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
+	// reads KernelIsSet under KernelLocker (race fix), so the test must
+	// write under the same lock; quiesceRetryable terminates the pipeline
+	// init goroutine that would otherwise hold the lock indefinitely.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	// An empty Tee: len(Kernel0) == 0, so idx==0 and idx==1 both hit the
-	// boundary.
-	retryable.Kernel = &ffstream.Input{
-		Kernel0: kernel.Tee[kernel.Abstract]{},
-		Kernel1: nil,
-	}
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		// An empty Tee: len(Kernel0) == 0, so idx==0 and idx==1 both hit
+		// the boundary.
+		retryable.Kernel = &ffstream.Input{
+			Kernel0: kernel.Tee[kernel.Abstract]{},
+			Kernel1: nil,
+		}
+		retryable.KernelIsSet = true
+	})
 
 	var resp *ffstream_grpc.GetInputsInfoReply
 	var callErr error
@@ -230,9 +263,22 @@ func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T)
 
 	require.NoError(t, callErr)
 	require.NotNil(t, resp)
-	// Both resources are skipped because len(Kernel0)==0 is <= every idx.
-	assert.Empty(t, resp.Inputs,
-		"resources with idx >= len(Kernel0) must be skipped")
+	// Both resources surface in the reply with IsActive=false; the
+	// wingout Deactivate walk needs to see them to issue RemoveInput.
+	// The previous behaviour (skip on Tee-too-short) silently leaked
+	// these registrations.
+	require.Len(t, resp.Inputs, 2,
+		"resources with idx >= len(Kernel0) must still surface")
+	for i, info := range resp.Inputs {
+		assert.Equal(t, uint64(0), info.Priority,
+			"InputInfo[%d] priority", i)
+		assert.Equal(t, uint64(i), info.Num,
+			"InputInfo[%d] num must mirror its slot in InputsInfo[0]", i)
+		assert.False(t, info.IsActive,
+			"InputInfo[%d] IsActive must be false when Tee slot is empty", i)
+		assert.Equal(t, uint64(0), info.Id,
+			"InputInfo[%d] Id must be zero when no Tee entry backs the slot", i)
+	}
 }
 
 // TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo is the
@@ -243,21 +289,29 @@ func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) 
 	ctx := context.Background()
 	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
 		URL: "file:/does-not-exist",
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains))
 
+	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
+	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
+	// reads KernelIsSet under KernelLocker (race fix), so the test must
+	// write under the same lock; quiesceRetryable terminates the pipeline
+	// init goroutine that would otherwise hold the lock indefinitely.
 	chain := srv.FFStream.Inputs.InputChains[0]
 	retryable := chain.Input.Processor.Kernel
-	// Populate Kernel0 with a single *kernel.Input so idx==0 resolves to it.
-	realInput := &kernel.Input{}
-	retryable.Kernel = &ffstream.Input{
-		Kernel0: kernel.Tee[kernel.Abstract]{realInput},
-		Kernel1: nil,
-	}
-	retryable.KernelIsSet = true
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		// Populate Kernel0 with a single *kernel.Input so idx==0 resolves
+		// to it.
+		retryable.Kernel = &ffstream.Input{
+			Kernel0: kernel.Tee[kernel.Abstract]{&kernel.Input{}},
+			Kernel1: nil,
+		}
+		retryable.KernelIsSet = true
+	})
 
 	resp, callErr := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
 	require.NoError(t, callErr)
@@ -267,6 +321,72 @@ func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) 
 	assert.Equal(t, uint64(0), resp.Inputs[0].Priority)
 	assert.Equal(t, uint64(0), resp.Inputs[0].Num)
 	assert.Equal(t, "file:/does-not-exist", resp.Inputs[0].Url)
+}
+
+// TestGRPCServer_GetInputsInfo_MixedKernelState_EmitsAllResources
+// covers two resources registered at priority 0: idx=0 has a
+// kernel-backed Tee entry (will surface IsActive based on switch
+// state), idx=1 has no Tee entry (kernel-open but slot empty). BOTH
+// must appear in the reply — wingout's Deactivate walk needs to see
+// the registered count to issue RemoveInput on each.
+//
+// Falsification check: deleting the SnapshotInputsInfo path (reverting to
+// the pre-fix in-locker-only walk) makes idx=1 disappear from resp.Inputs
+// because the old loop skipped resources whose Tee slot was beyond
+// len(Kernel0). require.Len(t, resp.Inputs, 2) catches that regression.
+func TestGRPCServer_GetInputsInfo_MixedKernelState_EmitsAllResources(t *testing.T) {
+	ctx := context.Background()
+	srv := newGRPCServerForBoundaryTest(t, ctx)
+
+	// Two resources at priority 0 with distinct URLs so we can pin the
+	// reply rows to the registration rows.
+	for _, url := range []string{"file:/resource-0", "file:/resource-1"} {
+		_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{URL: url})
+		require.NoError(t, err)
+	}
+	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains),
+		"both resources share priority 0 -> exactly 1 InputChain")
+
+	// Open the kernel with a Tee that covers ONLY idx=0. idx=1 will hit
+	// the "Tee slot empty" branch.
+	chain := srv.FFStream.Inputs.InputChains[0]
+	retryable := chain.Input.Processor.Kernel
+	quiesceRetryable(ctx, t, retryable)
+	retryable.KernelLocker.Do(ctx, func() {
+		retryable.Kernel = &ffstream.Input{
+			Kernel0: kernel.Tee[kernel.Abstract]{&kernel.Input{}},
+			Kernel1: nil,
+		}
+		retryable.KernelIsSet = true
+	})
+
+	resp, callErr := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	require.NoError(t, callErr)
+	require.NotNil(t, resp)
+	// Contract: both resources surface, regardless of kernel state.
+	require.Len(t, resp.Inputs, 2,
+		"both registered resources must appear (kernel-open + kernel-Tee-short)")
+
+	// Pin idx=0: kernel-backed, URL matches its registration. The
+	// canonical row also survives the lock-order shuffle in the new
+	// snapshot-based handler.
+	assert.Equal(t, uint64(0), resp.Inputs[0].Priority)
+	assert.Equal(t, uint64(0), resp.Inputs[0].Num)
+	assert.Equal(t, "file:/resource-0", resp.Inputs[0].Url,
+		"idx=0 row must retain the URL it was registered with")
+
+	// Pin idx=1: kernel-Tee-short. URL still round-trips; IsActive is
+	// false; Id is zero. This is the row that the pre-fix handler
+	// dropped.
+	assert.Equal(t, uint64(0), resp.Inputs[1].Priority)
+	assert.Equal(t, uint64(1), resp.Inputs[1].Num)
+	assert.Equal(t, "file:/resource-1", resp.Inputs[1].Url,
+		"idx=1 row must surface: wingout Deactivate "+
+			"depends on every registered resource being visible")
+	assert.False(t, resp.Inputs[1].IsActive,
+		"idx=1 has no Tee entry; IsActive must be false")
+	assert.Equal(t, uint64(0), resp.Inputs[1].Id,
+		"idx=1 has no kernel.Abstract; Id must be zero (no stale value)")
 }
 
 // TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput launches concurrent
@@ -315,15 +435,15 @@ func TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput(t *testing.T) {
 				priority := uint((w*7 + i) % maxPriority)
 				url := fmt.Sprintf("p%d-r?-ok", priority)
 				res := ffstream.Resource{
-					URL: url,
+					URL:      url,
+					Priority: priority,
 					InputConfig: kernel.InputConfig{
 						CustomOptions: avptypes.DictionaryItems{
-							{Key: "fallback_priority", Value: strconv.FormatUint(uint64(priority), 10)},
 							{Key: "f", Value: "mpegts"},
 						},
 					},
 				}
-				if err := srv.FFStream.AddInput(ctx, res); err != nil {
+				if _, err := srv.FFStream.AddInput(ctx, res); err != nil {
 					// Out-of-channel-capacity failures are expected at
 					// the tail; they must not panic, and the invariant
 					// must still hold, which the post-loop check
@@ -369,31 +489,10 @@ func TestGRPCServer_GetInputsInfo_ConcurrentWithAddInput(t *testing.T) {
 						t.Errorf("torn URL read: missing \"-ok\" suffix: URL=%q", info.Url)
 						return
 					}
-					// InputConfig must have CustomOptions matching
-					// the canary format (the "fallback_priority"
-					// entry must have a value that parses as a
-					// uint64 and equals info.Priority). If we see
-					// any other value, it's a torn read.
-					if info.InputConfig == nil {
-						// valid: no InputConfig attached
-						continue
-					}
-					for _, opt := range info.InputConfig.GetCustomOptions() {
-						if opt.GetKey() != "fallback_priority" {
-							continue
-						}
-						parsed, perr := strconv.ParseUint(opt.GetValue(), 10, 64)
-						if perr != nil {
-							t.Errorf("torn CustomOption read: fallback_priority=%q (not a uint)",
-								opt.GetValue())
-							return
-						}
-						if parsed != info.Priority {
-							t.Errorf("torn CustomOption read: Priority=%d, fallback_priority=%d",
-								info.Priority, parsed)
-							return
-						}
-					}
+					// The typed Priority field replaces the old
+					// fallback_priority CustomOption canary; the URL
+					// prefix check above already ties Priority to the
+					// resource that wrote it.
 				}
 			}
 		})
@@ -420,7 +519,7 @@ func TestFFStream_SnapshotInputsInfo_IsDeepCopy(t *testing.T) {
 	s, err := ffstream.New(ctx)
 	require.NoError(t, err)
 
-	err = s.AddInput(ctx, ffstream.Resource{
+	_, err = s.AddInput(ctx, ffstream.Resource{
 		URL: "url-0",
 		InputConfig: kernel.InputConfig{
 			CustomOptions: avptypes.DictionaryItems{
@@ -465,4 +564,100 @@ func TestFFStream_SnapshotInputsInfo_IsDeepCopy(t *testing.T) {
 	snap3 := s.SnapshotInputsInfo(ctx)
 	assert.Equal(t, "mutated", snap3[0][0].CustomOptions[0].Value,
 		"mutating snap2 must not affect the live InputsInfo")
+}
+
+// TestGRPCServer_GetInputsInfo_KernelLockerHeld_EmitsResourceWithInactive
+// covers the kernel-unopen-but-resource-present path where KernelLocker
+// is HELD by an external holder (mimicking the pipeline goroutine
+// mid-Open). GetInputsInfo's ManualTryLock must fail-non-blocking, the
+// resource MUST still surface in the reply with IsActive=false, and
+// the handler must not block on the held lock.
+//
+// Difference from TestGRPCServer_GetInputsInfo_NilRetryableKernel_*:
+// that test exercises the "kernel never opened" path (KernelLocker
+// available, k.Kernel == nil). This test exercises the orthogonal
+// "kernel state unobservable from outside" path (KernelLocker held →
+// ManualTryLock returns false → emit IsActive=false without inspecting
+// kernel state).
+//
+// Falsifier-validate: deleting the `if !k.KernelLocker.ManualTryLock(ctx)
+// { return }` skip-on-fail in grpc_server.go GetInputsInfo (e.g.
+// reverting to plain k.KernelLocker.Do(ctx, ...)) makes the handler
+// block on ManualLock waiting for our test holder to release; the
+// surrounding test deadline (t.Fatal via context timeout) flips this
+// test red.
+func TestGRPCServer_GetInputsInfo_KernelLockerHeld_EmitsResourceWithInactive(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	srv := newGRPCServerForBoundaryTest(t, ctx)
+
+	// AddInput populates InputsInfo[0] and creates an InputChain. Whether
+	// the kernel opens is irrelevant — we will simulate "kernel state
+	// unobservable" by holding the lock from this goroutine.
+	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
+		URL: "file:/kernel-locker-held",
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains))
+
+	chain := srv.FFStream.Inputs.InputChains[0]
+	retryable := chain.Input.Processor.Kernel
+
+	// Terminate the pipeline init goroutine so we can deterministically
+	// claim the lock. quiesceRetryable returns once it has acquired and
+	// released the lock once — i.e. the init goroutine is gone.
+	quiesceRetryable(ctx, t, retryable)
+
+	// Hold KernelLocker for the duration of the GetInputsInfo call.
+	// xsync.CtxLocker is a chan struct{} of capacity 1; ManualLock
+	// blocks until the slot is empty (it is, post-quiesce). This is the
+	// same primitive the pipeline goroutine uses, so this faithfully
+	// mimics "pipeline holds the lock".
+	require.True(t, retryable.KernelLocker.ManualLock(ctx),
+		"precondition: must be able to acquire KernelLocker after quiesce")
+	defer retryable.KernelLocker.ManualUnlock(ctx)
+
+	// GetInputsInfo must return PROMPTLY without acquiring our held
+	// lock; the inner ManualTryLock is non-blocking by design. Bound
+	// the call duration well below the 10s outer ctx timeout so a
+	// regression that swaps ManualTryLock → ManualLock (blocking) is
+	// caught as a slow-path failure (the falsifier scenario:
+	// reverting the skip-on-fail line makes the handler block until
+	// our defer-Unlock fires after the test returns, or until ctx
+	// expires — both at ~10s, far above this 2s budget).
+	const callBudget = 2 * time.Second
+	callStart := time.Now()
+	resp, callErr := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
+	callDur := time.Since(callStart)
+	require.Less(t, callDur, callBudget,
+		"GetInputsInfo must return within %v while KernelLocker is held; "+
+			"a longer wait indicates the ManualTryLock skip-on-fail "+
+			"regressed to a blocking ManualLock", callBudget)
+	require.NoError(t, callErr)
+	require.NotNil(t, resp)
+
+	// The resource MUST appear even though kernel state is unobservable.
+	// Wingout's Deactivate walk depends on this.
+	require.Len(t, resp.Inputs, 1,
+		"resource must surface when KernelLocker is held by another holder "+
+			"(kernel-unobservable path)")
+
+	got := resp.Inputs[0]
+	assert.Equal(t, "file:/kernel-locker-held", got.Url,
+		"URL must round-trip from the registration to the reply")
+	assert.Equal(t, uint64(0), got.Priority)
+	assert.Equal(t, uint64(0), got.Num)
+
+	// Negative side of the dual contract: with KernelLocker held, the
+	// handler MUST emit IsActive=false (it cannot read KernelIsSet) and
+	// Id=0 (it cannot read kernel.Abstract.GetObjectID). Asserting the
+	// false-negative side guards against a future "best-effort" change
+	// that reads KernelIsSet without the lock — which would be a race.
+	assert.False(t, got.IsActive,
+		"with KernelLocker held by another holder, IsActive MUST be false "+
+			"(kernel state unobservable; user-visible truth is "+
+			"\"registered but not currently producing frames\")")
+	assert.Equal(t, uint64(0), got.Id,
+		"with KernelLocker held by another holder, Id MUST be zero "+
+			"(no kernel.Abstract reachable without the lock)")
 }

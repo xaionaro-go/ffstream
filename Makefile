@@ -95,15 +95,16 @@ ffstream-android-arm64-static-cgo: build $(GOPATH)/bin/pkg-config-wrapper 3rdpar
 	PKG_CONFIG_WRAPPER_LOG='/tmp/pkg_config_wrapper.log' \
 	PKG_CONFIG_WRAPPER_LOG_LEVEL='trace' \
 	PKG_CONFIG_LIBS_FORCE_STATIC='libav*,libsrt' \
-	PKG_CONFIG_ERASE="-fopenmp=*,-landroid,-lcamera2ndk,-lmediandk,-lpulse,-D_REENTRANT" \
+	PKG_CONFIG_ERASE="-fopenmp=*,-landroid,-lcamera2ndk,-lmediandk,-lpulse,-lz,-D_REENTRANT" \
 	PKG_CONFIG='$(GOPATH)/bin/pkg-config-wrapper' \
 	PKG_CONFIG_PATH='$(CURDIR)/3rdparty/arm64/sysroot/lib/pkgconfig' \
 	CGO_CFLAGS='-std=gnu99 -I$(NDK_SYSROOT)/usr/include/ -I$(CURDIR)/3rdparty/arm64/sysroot/include -Wno-incompatible-function-pointer-types -Wno-unused-result -Wno-xor-used-as-pow' \
-	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -lc++_static -lc++abi -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/arm64/sysroot/lib' \
+	CGO_LDFLAGS='-v -Wl,-Bstatic -lcrypto -lv4lconvert -ljpeg -lc++_static -lc++abi -Wl,-Bdynamic -ldl -lc -landroid -lcamera2ndk -lmediandk -lz -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/35/ -L$(NDK_SYSROOT)/usr/lib/aarch64-linux-android/ -L$(NDK_SYSROOT)/usr/lib/ -L$(CURDIR)/3rdparty/arm64/sysroot/lib' \
 	ANDROID_NDK_HOME="$(ANDROID_NDK_HOME)" \
 	CC="$(CC_PREFIX) $(ANDROID_ARM64_CC)" \
 	CXX="$(CC_PREFIX) $(ANDROID_ARM64_CXX)" \
 	CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
+	GOPROXY=off \
 	go build $(GOBUILD_FLAGS),mediacodec,patched_libav -ldflags='-linkmode=external' -o bin/ffstream-android-arm64 ./cmd/ffstream
 	ls -ldh bin/ffstream-android-arm64
 

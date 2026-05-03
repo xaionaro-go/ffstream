@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -36,10 +37,22 @@ type DeviceInfo struct {
 }
 
 // adbCmd runs an adb command and returns stdout, stderr, and error.
+//
+// Resolution order for the adb server socket:
+//  1. caller-provided ADB_SERVER_SOCKET env var — used as-is.
+//  2. otherwise, if the Docker-host shim "tcp:172.17.0.1:5037" can be
+//     reached, use it (preserves the in-Docker test behaviour).
+//  3. otherwise, leave the env clean so adb falls back to its default
+//     loopback adb-server (the bare-metal case).
 func adbCmd(ctx context.Context, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, "adb", args...)
-	if socket := getADBServerSocket(); socket != "" {
-		cmd.Env = append(os.Environ(), "ADB_SERVER_SOCKET="+socket)
+	switch {
+	case os.Getenv("ADB_SERVER_SOCKET") != "":
+		cmd.Env = os.Environ()
+	case adbDockerShimReachable():
+		cmd.Env = append(os.Environ(), "ADB_SERVER_SOCKET="+defaultADBServerSocket)
+	default:
+		cmd.Env = os.Environ()
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -48,6 +61,19 @@ func adbCmd(ctx context.Context, args ...string) (string, string, error) {
 
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+// adbDockerShimReachable probes the Docker-host adb shim
+// (172.17.0.1:5037) used by Docker-resident tests. Returns true if
+// a TCP connection succeeds within 200ms.
+func adbDockerShimReachable() bool {
+	d := net.Dialer{Timeout: 200 * time.Millisecond}
+	conn, err := d.Dial("tcp", "172.17.0.1:5037")
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 // adbCmdWithSerial runs an adb command targeting a specific device.

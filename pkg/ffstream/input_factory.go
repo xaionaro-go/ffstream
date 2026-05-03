@@ -21,6 +21,13 @@ import (
 	"github.com/xaionaro-go/xsync"
 )
 
+// Input is the per-priority input chain. Inner Tee uses kernel.Abstract
+// so the slice can hold both `*kernel.Input` (libav-backed URL inputs)
+// and special-cased non-libav kernels — currently
+// avpipeline/kernel/extra/android.Microphone — alongside one another.
+// This widening is the prerequisite for inputFormatFromResource()-driven
+// dispatch in newInputKernel, which routes `f=android_microphone` to
+// android.NewMicrophone instead of (libav-only) kernel.NewInputFromURL.
 type Input = kernel.ChainOfTwo[
 	kernel.Tee[kernel.Abstract],
 	*kernel.MapStreamIndices,
@@ -30,6 +37,23 @@ type InputFactory struct {
 	FFStream         *FFStream
 	FallbackPriority uint
 	Locker           xsync.Mutex
+
+	// quietOnOpenFailure is propagated into kernel.InputConfig.QuietOnOpenFailure
+	// at every NewInput, demoting kernel/input.go's by-design open-failure
+	// log noise (format-from-URL Warn, AsyncOpen Errorf) to Debug. Set
+	// true for steady-state-empty inputs (e.g. an upstream rtmp publisher
+	// not yet connected). newInputFactory wires this from
+	// Config.QuietOnOpenFailure so the same gRPC flag silences both the
+	// fallback-walk spam (avpipeline preset/inputwithfallback) and the
+	// underlying NewInputFromURL spam.
+	//
+	// Unexported because the bit is intended to be invariant across the
+	// factory's lifetime — Config.QuietOnOpenFailure itself is read-only
+	// after FFStream.New returns. Mutating an exported copy after
+	// construction would be a silent no-op (the running factories are
+	// already constructed) and a data race (NewInput goroutines read the
+	// field concurrently).
+	quietOnOpenFailure bool
 
 	streamIndexNext int
 	streamIndexMap  map[streamIndexKey]int
@@ -42,6 +66,7 @@ type streamIndexKey struct {
 
 var (
 	_ inputwithfallback.InputFactory[*Input, *DecoderFactory, CustomData] = (*InputFactory)(nil)
+	_ inputwithfallback.InputFactoryWithAvailability                      = (*InputFactory)(nil)
 	_ kernel.StreamIndexAssigner                                          = (*InputFactory)(nil)
 )
 
@@ -52,7 +77,15 @@ func newInputFactory(
 	return &InputFactory{
 		FFStream:         ffstream,
 		FallbackPriority: priority,
-		streamIndexMap:   make(map[streamIndexKey]int),
+		// Mirror Config.QuietOnOpenFailure into the factory so every
+		// NewInput call can pass it through to kernel.InputConfig
+		// (gates the format-from-URL Warn and AsyncOpen Errorf in
+		// avpipeline kernel/input.go). Wiring lives in the constructor
+		// rather than a setter so the bit is invariant across the
+		// factory's lifetime — Config.QuietOnOpenFailure itself is
+		// read-only after FFStream.New returns.
+		quietOnOpenFailure: ffstream.Config.QuietOnOpenFailure,
+		streamIndexMap:     make(map[streamIndexKey]int),
 	}
 }
 
@@ -113,14 +146,16 @@ func (f *InputFactory) streamIndexAssignLocked(
 }
 
 // GetResources returns a deep-copy snapshot of the Resources configured for
-// this InputFactory's FallbackPriority. It acquires FFStream.locker
-// internally so the snapshot does not race with AddInput, SetSuppressed, or
-// SetInputCustomOption, which all mutate FFStream.InputsInfo under the same
-// lock. The returned Resources are safe to read without further locking;
-// they do not alias the live slice.
+// this InputFactory's FallbackPriority, taking
+// FFStream.Inputs.InputChainsLocker so that concurrent AddInput /
+// RemoveInput writers (which mutate InputsInfo under the same lock) do
+// not race the slice header against this read. The returned Resources
+// are safe to read without further locking; they do not alias the live
+// slice.
 //
-// MUST NOT be called by goroutines that already hold FFStream.locker — use
-// getResourcesLocked in that case.
+// Callers that already hold InputChainsLocker MUST call
+// GetResourcesLocked instead — the lock is non-reentrant and a nested
+// acquire deadlocks.
 func (f *InputFactory) GetResources(
 	ctx context.Context,
 ) (_ret Resources, _err error) {
@@ -132,29 +167,77 @@ func (f *InputFactory) GetResources(
 	if f.FFStream == nil {
 		return nil, fmt.Errorf("FFStream is nil")
 	}
-	f.FFStream.locker.Lock()
-	defer f.FFStream.locker.Unlock()
-	resources, err := f.getResourcesLocked(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return resources.Clone(), nil
+	return xsync.DoR2(ctx, &f.FFStream.Inputs.InputChainsLocker, func() (Resources, error) {
+		return f.getResourcesLocked()
+	})
 }
 
-// getResourcesLocked returns the live Resources slice for this InputFactory's
-// FallbackPriority. Callers MUST hold FFStream.locker. The returned slice
-// aliases FFStream.InputsInfo[priority] and is only valid while the lock is
-// held.
-func (f *InputFactory) getResourcesLocked(
-	_ context.Context,
-) (Resources, error) {
+// GetResourcesLocked is the in-lock variant of GetResources. The caller
+// MUST hold FFStream.Inputs.InputChainsLocker. Returns a defensive
+// copy so the caller can release the lock before iterating.
+func (f *InputFactory) GetResourcesLocked() (Resources, error) {
 	if f.FFStream == nil {
 		return nil, fmt.Errorf("FFStream is nil")
 	}
+	return f.getResourcesLocked()
+}
+
+func (f *InputFactory) getResourcesLocked() (Resources, error) {
 	if int(f.FallbackPriority) >= len(f.FFStream.InputsInfo) {
 		return nil, fmt.Errorf("priority %d is out of range (inputs=%d)", f.FallbackPriority, len(f.FFStream.InputsInfo))
 	}
-	return f.FFStream.InputsInfo[f.FallbackPriority], nil
+	// Deep-copy via Resources.Clone() so the returned snapshot does
+	// not share its inner CustomOptions slice with the live InputsInfo
+	// entries. SetInputCustomOption and AddInput both mutate
+	// CustomOptions under FFStream.locker — without the deep copy, an
+	// in-flight NewInput / NewDecoderFactory iterating the snapshot's
+	// CustomOptions would race those writes (hot-add via Pause+Unpause
+	// races SetInputCustomOption against the freshly-spawned
+	// InputFactory.NewInput goroutine).
+	return f.FFStream.InputsInfo[f.FallbackPriority].Clone(), nil
+}
+
+// HasResources implements inputwithfallback.InputFactoryWithAvailability.
+//
+// The avpipeline fallback walk in InputWithFallback.onInputChainError
+// consults this method on every chain it scans past id+1 and skips
+// chains that report HasResources=false. This lets the walk jump
+// directly from the failing chain to the next priority that has
+// resources configured, rather than serializing each empty priority
+// through the procN switching latch — which is the race that
+// produced "another switch is in progress" log spam under
+// `-fallback_priority 10` with the camera at priority 0.
+//
+// HasResources is a live read of InputsInfo[priority] under
+// InputChainsLocker; it is not cached, so RemoveInput on the only
+// resource at a priority flips the verdict back to false on the next
+// fallback walk.
+//
+// Locking contract (per InputFactoryWithAvailability): the avpipeline
+// fallback walk in InputWithFallback.onInputChainError invokes this
+// method while it already holds InputChainsLocker. The lock is
+// non-reentrant (xsync.Mutex == xsync.RWMutex; Do takes a write lock
+// that recursing same-goroutine deadlocks). Therefore HasResources
+// MUST read InputsInfo through the *Locked variant only — calling
+// the locking GetResources here self-deadlocks the goroutine forever
+// (observed: prod ffstream wedged 27+ minutes in xsync.RWMutex.Lock
+// at xsync.DoR2 -> InputFactory.GetResources from this call site).
+func (f *InputFactory) HasResources(ctx context.Context) bool {
+	if f.FFStream == nil {
+		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): FFStream is nil", f.FallbackPriority)
+		return false
+	}
+	resources, err := f.GetResourcesLocked()
+	if err != nil {
+		// Out-of-range priority is treated as empty (no resource is
+		// effectively reachable). This matches the legacy behavior:
+		// a chain with no live resource cannot be opened by NewInput
+		// and would error immediately if the fallback walk landed on
+		// it, so skipping it is always the right call.
+		logger.Debugf(ctx, "InputFactory.HasResources(priority=%d): GetResourcesLocked failed: %v", f.FallbackPriority, err)
+		return false
+	}
+	return len(resources) > 0
 }
 
 // ResourceIndex is used as side data key to indicate which resource index
@@ -191,9 +274,18 @@ func (f *InputFactory) NewInput(
 			}
 		}
 	}()
+	// All-or-nothing semantics: a single InputResource may carry multiple
+	// sub-resources (one per AV track — e.g. android_camera + android_microphone),
+	// all of which are mandatory for this priority's chain. If any sub-resource
+	// fails to open, the whole NewInput fails and the deferred cleanup above
+	// closes the partially-opened siblings. We do NOT fall back to subsequent
+	// sub-resources of the same Resource list; per-priority fallback is handled
+	// at a higher layer by inputwithfallback.InputWithFallback switching to the
+	// next priority's chain on error.
 	for idx, res := range resources {
 		cfg := kernel.InputConfig{
-			CustomOptions: res.CustomOptions,
+			CustomOptions:      res.CustomOptions,
+			QuietOnOpenFailure: f.quietOnOpenFailure,
 		}
 		for _, opt := range res.CustomOptions {
 			switch opt.Key {
@@ -425,11 +517,11 @@ func (f *InputFactory) NewDecoderFactory(
 	}()
 
 	// NewDecoderFactory is invoked from FFStream.AddInput via
-	// inputwithfallback.addFactory while FFStream.locker is already held by
-	// this goroutine; re-acquiring it would deadlock. We only read the
-	// resources to decide whether to build a DecoderFactory, so the live
-	// slice is safe to access under the inherited lock.
-	resources, err := f.getResourcesLocked(ctx)
+	// inputwithfallback.addFactory while InputChainsLocker is already
+	// held by this goroutine; re-acquiring it would deadlock the
+	// non-reentrant lock. Use GetResourcesLocked to read the resources
+	// under the inherited lock.
+	resources, err := f.GetResourcesLocked()
 	if err != nil {
 		return nil, err
 	}

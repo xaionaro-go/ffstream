@@ -24,6 +24,7 @@ import (
 	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	avpipeline_proto "github.com/xaionaro-go/avpipeline/protobuf/avpipeline"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
+	"github.com/xaionaro-go/ffstream/pkg/buildinfo"
 	"github.com/xaionaro-go/ffstream/pkg/ffmonitor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/client"
 	"github.com/xaionaro-go/observability"
@@ -35,6 +36,10 @@ var (
 
 	Root = &cobra.Command{
 		Use: os.Args[0],
+		// Version is the one-line identity rendered by `--version`.
+		// Cobra auto-installs the `--version` flag when this field
+		// is non-empty (see InitDefaultVersionFlag in cobra).
+		Version: buildinfo.VersionString(),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 			l := logger.FromCtx(ctx).WithLevel(LoggerLevel)
@@ -156,6 +161,13 @@ var (
 		Run:  autoBitRateConfigSet,
 	}
 
+	EncoderReinit = &cobra.Command{
+		Use:   "reinit",
+		Short: "trigger an explicit close+reopen of the active video encoder (for instrumented canary measurement)",
+		Args:  cobra.ExactArgs(0),
+		Run:   encoderReinit,
+	}
+
 	EncoderFPSFraction = &cobra.Command{
 		Use: "fps_fraction",
 	}
@@ -220,6 +232,18 @@ var (
 		Run:  inputsSetStop,
 	}
 
+	InputsAdd = &cobra.Command{
+		Use:  "add <priority> <url>",
+		Args: cobra.ExactArgs(2),
+		Run:  inputsAdd,
+	}
+
+	InputsRemove = &cobra.Command{
+		Use:  "remove <priority> <num>",
+		Args: cobra.ExactArgs(2),
+		Run:  inputsRemove,
+	}
+
 	Output = &cobra.Command{
 		Use: "output",
 	}
@@ -228,6 +252,12 @@ var (
 		Use:  "switch <video_codec> <video_width> <video_height> <video_bitrate> <audio_codec> <audio_sample_rate> <audio_bitrate> <max_bitrate>",
 		Args: cobra.ExactArgs(8),
 		Run:  outputSwitch,
+	}
+
+	OutputSetURL = &cobra.Command{
+		Use:  "set-url <url>",
+		Args: cobra.ExactArgs(1),
+		Run:  outputSetURL,
 	}
 
 	InjectSubtitles = &cobra.Command{
@@ -244,6 +274,23 @@ var (
 )
 
 func init() {
+	// Render --version as the same indented JSON ffstream emits, so
+	// both binaries' --version output is byte-for-byte comparable.
+	// {{printf "%s"}} suppresses text/template's HTML-escape of the
+	// JSON `<`/`>`/`&` it would otherwise apply.
+	Root.SetVersionTemplate("{{printf \"%s\" .Annotations.versionJSON}}")
+
+	versionJSON, err := buildinfo.JSON()
+	if err != nil {
+		// Fall back to the one-line VersionString rather than failing
+		// the binary; --version must never crash a CLI tool.
+		versionJSON = []byte(buildinfo.VersionString() + "\n")
+	}
+	if Root.Annotations == nil {
+		Root.Annotations = map[string]string{}
+	}
+	Root.Annotations["versionJSON"] = string(versionJSON)
+
 	Root.AddCommand(Stats)
 	Stats.AddCommand(StatsEncoder)
 	Stats.AddCommand(StatsBitRates)
@@ -267,6 +314,8 @@ func init() {
 	EncoderFPSFraction.AddCommand(EncoderFPSFractionGet)
 	EncoderFPSFraction.AddCommand(EncoderFPSFractionSet)
 
+	Encoder.AddCommand(EncoderReinit)
+
 	Root.PersistentFlags().Var(&LoggerLevel, "log-level", "")
 	Root.PersistentFlags().String("remote-addr", "localhost:3594", "the address to an ffstream instance")
 	Root.PersistentFlags().String("go-net-pprof-addr", "", "address to listen to for net/pprof requests")
@@ -288,9 +337,13 @@ func init() {
 	Inputs.AddCommand(InputsInfo)
 	Inputs.AddCommand(InputsSetCustomOption)
 	Inputs.AddCommand(InputsSetStop)
+	InputsAdd.Flags().StringSlice("custom-option", nil, "custom input option (key=value); may be repeated")
+	Inputs.AddCommand(InputsAdd)
+	Inputs.AddCommand(InputsRemove)
 
 	Root.AddCommand(Output)
 	Output.AddCommand(OutputSwitch)
+	Output.AddCommand(OutputSetURL)
 
 	Root.AddCommand(InjectSubtitles)
 	InjectSubtitles.Flags().Duration("duration", time.Second, "the duration of the subtitle")
@@ -417,6 +470,31 @@ func encoderFPSFractionSet(cmd *cobra.Command, args []string) {
 	// expecting client.SetFPSFraction(ctx, num uint32, den uint32) error
 	err = c.SetFPSFraction(ctx, uint32(num64), uint32(den64))
 	assertNoError(ctx, err)
+}
+
+// encoderReinit calls the server-side ReinitEncoder RPC and prints the
+// reported close+open duration in milliseconds (with microsecond
+// precision). The duration is the server-side wall-clock measurement
+// of the codec context close+open and excludes RPC overhead.
+func encoderReinit(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	clientStart := time.Now()
+	dur, err := c.ReinitEncoder(ctx)
+	clientElapsed := time.Since(clientStart)
+	assertNoError(ctx, err)
+
+	fmt.Fprintf(
+		cmd.OutOrStdout(),
+		"server_reinit_us=%d client_roundtrip_us=%d\n",
+		dur.Microseconds(),
+		clientElapsed.Microseconds(),
+	)
 }
 
 func pipelinesGet(cmd *cobra.Command, args []string) {
@@ -623,6 +701,53 @@ func inputsSetStop(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 }
 
+func inputsAdd(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	priority, err := strconv.ParseUint(args[0], 10, 64)
+	assertNoError(ctx, err)
+	inputURL := args[1]
+
+	rawOpts, err := cmd.Flags().GetStringSlice("custom-option")
+	assertNoError(ctx, err)
+
+	var customOpts []*avpipeline_proto.CustomOption
+	for _, kv := range rawOpts {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || k == "" {
+			logger.Panicf(ctx, "invalid custom option %q (expected key=value)", kv)
+		}
+		customOpts = append(customOpts, &avpipeline_proto.CustomOption{Key: k, Value: v})
+	}
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	num, err := c.AddInput(ctx, priority, inputURL, &avpipeline_proto.InputConfig{CustomOptions: customOpts})
+	assertNoError(ctx, err)
+
+	logger.Infof(ctx, "added input at (priority=%d, num=%d)", priority, num)
+}
+
+func inputsRemove(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	priority, err := strconv.ParseUint(args[0], 10, 64)
+	assertNoError(ctx, err)
+	num, err := strconv.ParseUint(args[1], 10, 64)
+	assertNoError(ctx, err)
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	err = c.RemoveInput(ctx, priority, num)
+	assertNoError(ctx, err)
+}
+
 func outputSwitch(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
@@ -656,6 +781,22 @@ func outputSwitch(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	logger.Infof(ctx, "output switch completed successfully")
+}
+
+func outputSetURL(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	url := args[0]
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	logger.Infof(ctx, "setting output URL: %q", url)
+	err = c.SetOutputURL(ctx, url)
+	assertNoError(ctx, err)
+	logger.Infof(ctx, "output URL set successfully")
 }
 
 func injectSubtitles(cmd *cobra.Command, args []string) {

@@ -277,7 +277,7 @@ func runLocalFFstream(ctx context.Context, logOutput io.Writer, ports localPorts
 		controlErrCh <- ffstreamserver.New(s).ServeContext(ctx, controlListener)
 	}()
 
-	if err := s.AddInput(ctx, ffstream.Resource{
+	if _, err := s.AddInput(ctx, ffstream.Resource{
 		URL:          "rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3",
 		CodecHWAccel: avptypes.HardwareDeviceTypeNone,
 		InputConfig: kernel.InputConfig{
@@ -295,14 +295,12 @@ func runLocalFFstream(ctx context.Context, logOutput io.Writer, ports localPorts
 		return fmt.Errorf("unable to add primary input: %w", err)
 	}
 
-	if err := s.AddInput(ctx, ffstream.Resource{
+	if _, err := s.AddInput(ctx, ffstream.Resource{
 		URL:          "/tmp/input0-3.flv",
+		Priority:     1,
 		CodecHWAccel: avptypes.HardwareDeviceTypeNone,
 		InputConfig: kernel.InputConfig{
 			ForceRealTime: ptr(false),
-			CustomOptions: avptypes.DictionaryItems{
-				{Key: "fallback_priority", Value: "1"},
-			},
 		},
 	}); err != nil {
 		return fmt.Errorf("unable to add fallback input: %w", err)
@@ -410,7 +408,10 @@ func buildLocalFFstreamTranscoderConfig(
 		},
 	}
 
-	autoBitRateConfig := streammux.DefaultAutoBitRateVideoConfig(videoCodecValue.ID())
+	autoBitRateConfig, err := streammux.DefaultAutoBitRateVideoConfig(videoCodecValue.ID())
+	if err != nil {
+		return streammuxtypes.TranscoderConfig{}, nil, fmt.Errorf("unable to get default auto bitrate config: %w", err)
+	}
 	autoBitRateConfig.ResolutionsAndBitRates = autoBitRateConfig.ResolutionsAndBitRates.MaxHeight(uint32(1080))
 	autoBitRateConfig.ResolutionsAndBitRates = autoBitRateConfig.ResolutionsAndBitRates.MinHeight(uint32(180))
 	autoBitRateConfig.AutoByPass = false

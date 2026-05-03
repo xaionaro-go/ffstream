@@ -6,7 +6,6 @@ package ffstream
 
 import (
 	"context"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/asticode/go-astiav"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/packet"
 	"github.com/xaionaro-go/avpipeline/packetorframe"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
@@ -254,7 +252,7 @@ func TestBUG008_AddInput_InvariantHolds(t *testing.T) {
 	assert.Equal(t, 0, s.Inputs.GetInputChainsCount(ctx))
 
 	// Add a resource at priority 0.
-	err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist-1"})
+	_, err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist-1"})
 	require.NoError(t, err)
 	require.Equal(t, len(s.InputsInfo), s.Inputs.GetInputChainsCount(ctx),
 		"invariant len(InputsInfo) == len(InputChains) must hold after AddInput")
@@ -262,7 +260,7 @@ func TestBUG008_AddInput_InvariantHolds(t *testing.T) {
 	assert.Len(t, s.InputsInfo[0], 1)
 
 	// Add another resource at the same priority: no new chain, just append.
-	err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist-2"})
+	_, err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist-2"})
 	require.NoError(t, err)
 	require.Equal(t, len(s.InputsInfo), s.Inputs.GetInputChainsCount(ctx))
 	assert.Equal(t, 1, len(s.InputsInfo))
@@ -270,11 +268,9 @@ func TestBUG008_AddInput_InvariantHolds(t *testing.T) {
 
 	// Add a resource at priority 2 (skipping priority 1): grows both slices
 	// by 2 (priorities 1 and 2).
-	err = s.AddInput(ctx, Resource{
-		URL: "file:/does-not-exist-3",
-		InputConfig: kernel.InputConfig{
-			CustomOptions: avptypes.DictionaryItems{{Key: "fallback_priority", Value: "2"}},
-		},
+	_, err = s.AddInput(ctx, Resource{
+		URL:      "file:/does-not-exist-3",
+		Priority: 2,
 	})
 	require.NoError(t, err)
 	require.Equal(t, len(s.InputsInfo), s.Inputs.GetInputChainsCount(ctx),
@@ -307,7 +303,7 @@ func TestBUG008_AddInput_ConcurrentReadDuringGrowth(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range 20 {
-			_ = s.AddInput(ctx, Resource{URL: "file:/no"})
+			_, _ = s.AddInput(ctx, Resource{URL: "file:/no"})
 		}
 	}()
 
@@ -336,13 +332,9 @@ func TestBUG008_AddInput_RollbackKeepsInvariantOnFailure(t *testing.T) {
 	// 100 (the 101st chain), the append succeeds but the channel send
 	// hits the `default:` branch and AddFactory returns an error.
 	for p := range 100 {
-		err := s.AddInput(ctx, Resource{
-			URL: "file:/does-not-exist",
-			InputConfig: kernel.InputConfig{
-				CustomOptions: avptypes.DictionaryItems{
-					{Key: "fallback_priority", Value: strconv.Itoa(p)},
-				},
-			},
+		_, err := s.AddInput(ctx, Resource{
+			URL:      "file:/does-not-exist",
+			Priority: uint(p),
 		})
 		require.NoError(t, err, "priority %d", p)
 	}
@@ -352,13 +344,9 @@ func TestBUG008_AddInput_RollbackKeepsInvariantOnFailure(t *testing.T) {
 	// The 101st AddInput overflows the channel and triggers the failure
 	// path in addFactory: append happened, channel send fails, the
 	// inputChain is Closed, and an error is returned.
-	err = s.AddInput(ctx, Resource{
-		URL: "file:/does-not-exist",
-		InputConfig: kernel.InputConfig{
-			CustomOptions: avptypes.DictionaryItems{
-				{Key: "fallback_priority", Value: "100"},
-			},
-		},
+	_, err = s.AddInput(ctx, Resource{
+		URL:      "file:/does-not-exist",
+		Priority: 100,
 	})
 	require.Error(t, err, "expected AddInput to fail when newInputChainChan is full")
 
@@ -391,13 +379,9 @@ func TestBUG008_AddInput_MidLoopPartialFailure(t *testing.T) {
 	// Fill 99 slots so the channel has 99/100 items queued and no
 	// iteration of the AddInput loop below has been triggered yet.
 	for p := range 99 {
-		err := s.AddInput(ctx, Resource{
-			URL: "file:/does-not-exist",
-			InputConfig: kernel.InputConfig{
-				CustomOptions: avptypes.DictionaryItems{
-					{Key: "fallback_priority", Value: strconv.Itoa(p)},
-				},
-			},
+		_, err := s.AddInput(ctx, Resource{
+			URL:      "file:/does-not-exist",
+			Priority: uint(p),
 		})
 		require.NoError(t, err, "pre-fill priority %d", p)
 	}
@@ -411,13 +395,9 @@ func TestBUG008_AddInput_MidLoopPartialFailure(t *testing.T) {
 	// Prior to the fix, the rollback would truncate InputsInfo back to
 	// startLen (99), leaving len(InputsInfo)=99 but len(InputChains)=101
 	// — violating the invariant.
-	err = s.AddInput(ctx, Resource{
-		URL: "file:/does-not-exist",
-		InputConfig: kernel.InputConfig{
-			CustomOptions: avptypes.DictionaryItems{
-				{Key: "fallback_priority", Value: "100"},
-			},
-		},
+	_, err = s.AddInput(ctx, Resource{
+		URL:      "file:/does-not-exist",
+		Priority: 100,
 	})
 	require.Error(t, err, "AddInput(priority=100) must fail — channel is full")
 
@@ -489,7 +469,7 @@ func TestBUG009_FFStream_SetInputCustomOption_ConcurrentMutation(t *testing.T) {
 	s, err := New(ctx)
 	require.NoError(t, err)
 
-	err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist"})
+	_, err = s.AddInput(ctx, Resource{URL: "file:/does-not-exist"})
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup

@@ -5,6 +5,7 @@ package ffstreamserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -296,59 +297,149 @@ func (srv *GRPCServer) GetInputsInfo(
 ) (*ffstream_grpc.GetInputsInfoReply, error) {
 	ctx = srv.ctx(ctx)
 
-	// Snapshot InputsInfo under FFStream.locker BEFORE acquiring
+	// Emit InputInfo for EVERY registered resource, including those
+	// whose kernel slot has not yet opened. The wingout
+	// Deactivate path enumerates priority-0 entries via this RPC and
+	// issues RemoveInput on each — if a resource is omitted just because
+	// its kernel hasn't opened (e.g. a freshly-added android_camera
+	// whose libav demuxer is still negotiating), the UI loses track of
+	// it and Deactivate silently leaks the registration.
+	//
+	// Lock-order contract (preserved from the previous in-locker walk
+	// and from SnapshotInputsInfo godoc): take FFStream.locker BEFORE
 	// InputChainsLocker. AddInput holds FFStream.locker while calling
-	// AddFactory which acquires InputChainsLocker; taking the locks in the
-	// reverse order would deadlock. The snapshot returns deep copies of
-	// every Resource, so the subsequent reads of res.URL, res.Suppressed,
-	// and res.CustomOptions do not race with AddInput / SetSuppressed /
-	// SetInputCustomOption.
-	inputsInfo := srv.FFStream.SnapshotInputsInfo(ctx)
+	// AddFactory which in turn acquires InputChainsLocker; reversing
+	// that order here would deadlock.
+	//
+	// KernelLocker is acquired via ManualTryLock (non-blocking) inside
+	// the InputChainsLocker.Do closure below — this reverses the
+	// canonical KernelLocker→InputChainsLocker order observed elsewhere
+	// in ffstream.go, but is safe because ManualTryLock cannot deadlock:
+	// a failed try-lock skips kernel correlation for that priority and
+	// surfaces every resource at it with IsActive=false (the
+	// "registered but not currently producing frames" reading, which
+	// matches the user-visible truth when the pipeline goroutine holds
+	// KernelLocker mid-Open).
+	//
+	// TOCTOU race window: SnapshotInputsInfo
+	// (under FFStream.locker) and InputChainsLocker.Do are SEQUENTIAL,
+	// not nested-held. A concurrent RemoveInput between the two
+	// acquisitions can shift later entries' nums down and cause the Num
+	// field in the reply to be stale relative to the (post-RemoveInput)
+	// live registry. The wingout Deactivate path
+	// (CamerasBuiltin.qml._removeBuiltinInputsAtPriority0) tolerates
+	// this: each RemoveInput failure (NotFound on a stale num) is
+	// counted into failureCount, the walk continues forward, and the
+	// caller surfaces the partial-cleanup warning via
+	// deactivateErrorDialog. A nested-held alternative (snapshot under
+	// both locks) would deadlock against AddInput's
+	// FFStream.locker→InputChainsLocker order.
+	//
+	// Step 1: snapshot the full InputsInfo registration under
+	// FFStream.locker. The returned []Resources is a deep copy and may
+	// be iterated without further synchronisation.
+	snapshot := srv.FFStream.SnapshotInputsInfo(ctx)
 
+	// Step 2: under InputChainsLocker, correlate each snapshotted
+	// resource with its kernel state. A resource whose kernel has not
+	// yet opened still appears in the reply with IsActive=false; the
+	// previous behaviour (skip the row entirely) is now restricted to
+	// the truly-impossible case where InputChains has no entry at the
+	// snapshot's priority — that would indicate a bug, not a transient
+	// kernel-open delay.
 	var result []*ffstream_grpc.InputInfo
 	srv.FFStream.Inputs.InputChainsLocker.Do(ctx, func() {
+		// The InputSwitch routes packets from exactly one chain
+		// downstream at a time. Its CurrentValue holds that chain's ID.
+		// We treat a chain as "active" only when its kernel is open AND
+		// the switch is currently selecting it — matching the user-visible
+		// notion of "the input that is producing frames right now".
+		currentChainID := srv.FFStream.Inputs.InputSwitch.CurrentValue.Load()
+		// Build a priority -> InputChain index for O(1) correlation
+		// against the snapshot. The chain count and the snapshot's
+		// outer length are kept equal by AddInput's invariant
+		// (boundary_test verifies this); a mismatch here is a soft
+		// error logged and skipped, not a panic.
+		chainsByPriority := make(map[uint]*ffstream.InputChain, len(srv.FFStream.Inputs.InputChains))
 		for _, inputChain := range srv.FFStream.Inputs.InputChains {
-			k := inputChain.Input.Processor.Kernel
-			inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
-			priority := inputFactory.FallbackPriority
-			if int(priority) >= len(inputsInfo) {
-				// Snapshot was taken before this InputChain existed; skip
-				// it — the next GetInputsInfo call will observe it.
+			if inputChain == nil {
 				continue
 			}
-			resources := inputsInfo[priority]
+			inputFactory, ok := inputChain.InputFactory.(*ffstream.InputFactory)
+			if !ok {
+				continue
+			}
+			chainsByPriority[uint(inputFactory.FallbackPriority)] = inputChain
+		}
+
+		for priority, resources := range snapshot {
+			inputChain, ok := chainsByPriority[uint(priority)]
+			if !ok || inputChain == nil {
+				logger.Debugf(ctx, "GetInputsInfo: no InputChain for priority %d (snapshot has %d resources at this priority); skipping", priority, len(resources))
+				continue
+			}
+			k := inputChain.Input.Processor.Kernel
+			isCurrent := int32(inputChain.ID) == currentChainID
+
+			// Resolve kernel state once per priority (the kernel
+			// covers all resources at that priority via Kernel0[idx]).
+			// Reading KernelIsSet and Kernel together under the same
+			// KernelLocker hold matches the pre-fix race-fix invariant.
+			var kernelIsSet bool
+			var kernelTeeLen int
+			var kernelByIdx func(int) kernel.Abstract
+			func() {
+				if !k.KernelLocker.ManualTryLock(ctx) {
+					// KernelLocker held by the pipeline goroutine
+					// (e.g. mid-Open). Treat as "kernel state
+					// unobservable" — every resource at this
+					// priority surfaces with IsActive=false and a
+					// zero ID, which is correct: the user-visible
+					// truth is "registered but not currently
+					// producing frames".
+					return
+				}
+				defer k.KernelLocker.ManualUnlock(ctx)
+				kernelIsSet = k.KernelIsSet
+				if k.Kernel == nil {
+					return
+				}
+				kernelTeeLen = len(k.Kernel.Kernel0)
+				// Capture the slice via a closure so callers can
+				// look up specific idx values without holding the
+				// lock — the inner Tee is append-only during
+				// kernel-open and our snapshot of len limits the
+				// access range. Note: Kernel0 itself is a value-typed
+				// slice header captured here, so subsequent Tee
+				// mutations by the pipeline goroutine cannot extend
+				// our view; ID lookups remain safe.
+				teeSnapshot := k.Kernel.Kernel0
+				kernelByIdx = func(idx int) kernel.Abstract {
+					if idx >= len(teeSnapshot) {
+						return nil
+					}
+					return teeSnapshot[idx]
+				}
+			}()
+
 			for idx, res := range resources {
-				inputKernel := func() *kernel.Input {
-					if !k.KernelLocker.ManualTryLock(ctx) {
-						return nil
+				var (
+					id       uint64
+					isActive bool
+				)
+				if kernelByIdx != nil && idx < kernelTeeLen {
+					if abs := kernelByIdx(idx); abs != nil {
+						id = uint64(abs.GetObjectID())
+						isActive = kernelIsSet && isCurrent
 					}
-					defer k.KernelLocker.ManualUnlock(ctx)
-					if k.Kernel == nil {
-						return nil
-					}
-					if len(k.Kernel.Kernel0) <= idx {
-						return nil
-					}
-					kernelItem := k.Kernel.Kernel0[idx]
-					if kernelItem == nil {
-						return nil
-					}
-					input, ok := kernelItem.(*kernel.Input)
-					if !ok {
-						return nil
-					}
-					return input
-				}()
-				if inputKernel == nil {
-					continue
 				}
 				result = append(result, &ffstream_grpc.InputInfo{
-					Id:          uint64(inputKernel.GetObjectID()),
+					Id:          id,
 					Priority:    uint64(priority),
 					Num:         uint64(idx),
 					Url:         res.URL,
 					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
-					IsActive:    k.KernelIsSet,
+					IsActive:    isActive,
 					Suppressed:  res.Suppressed,
 				})
 			}
@@ -467,6 +558,18 @@ func (srv *GRPCServer) SwitchOutputByProps(
 	return &ffstream_grpc.SwitchOutputByPropsReply{}, nil
 }
 
+func (srv *GRPCServer) SetOutputURL(
+	ctx context.Context,
+	req *ffstream_grpc.SetOutputURLRequest,
+) (*ffstream_grpc.SetOutputURLReply, error) {
+	ctx = srv.ctx(ctx)
+	logger.Infof(ctx, "SetOutputURL: %q", req.GetUrl())
+	if err := srv.FFStream.SetOutputURL(ctx, req.GetUrl()); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "unable to set output URL: %v", err)
+	}
+	return &ffstream_grpc.SetOutputURLReply{}, nil
+}
+
 func (srv *GRPCServer) InjectSubtitles(
 	ctx context.Context,
 	req *ffstream_grpc.InjectSubtitlesRequest,
@@ -489,4 +592,56 @@ func (srv *GRPCServer) InjectData(
 		return nil, status.Errorf(codes.Unknown, "unable to inject data: %v", err)
 	}
 	return &ffstream_grpc.InjectDataReply{}, nil
+}
+
+func (srv *GRPCServer) AddInput(
+	ctx context.Context,
+	req *ffstream_grpc.AddInputRequest,
+) (_ret *ffstream_grpc.AddInputReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "AddInput: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/AddInput: %s: %v %v", spew.Sdump(req), _ret, _err) }()
+	resource := ffstream.Resource{
+		URL:         req.GetUrl(),
+		Priority:    uint(req.GetPriority()),
+		InputConfig: goconvavp.InputConfigFromProto(req.GetInputConfig()),
+	}
+	num, err := srv.FFStream.AddInput(ctx, resource)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to add input at priority %d: %v", req.GetPriority(), err)
+	}
+	return &ffstream_grpc.AddInputReply{Num: uint64(num)}, nil
+}
+
+func (srv *GRPCServer) ReinitEncoder(
+	ctx context.Context,
+	req *ffstream_grpc.ReinitEncoderRequest,
+) (_ret *ffstream_grpc.ReinitEncoderReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "ReinitEncoder")
+	defer func() { logger.Debugf(ctx, "/ReinitEncoder: %v %v", _ret, _err) }()
+
+	dur, err := srv.FFStream.ReinitEncoder(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "unable to reinit encoder: %v", err)
+	}
+	return &ffstream_grpc.ReinitEncoderReply{
+		DurationUs: uint64(dur.Microseconds()),
+	}, nil
+}
+
+func (srv *GRPCServer) RemoveInput(
+	ctx context.Context,
+	req *ffstream_grpc.RemoveInputRequest,
+) (_ret *ffstream_grpc.RemoveInputReply, _err error) {
+	ctx = srv.ctx(ctx)
+	logger.Debugf(ctx, "RemoveInput: %s", spew.Sdump(req))
+	defer func() { logger.Debugf(ctx, "/RemoveInput: %s: %v %v", spew.Sdump(req), _ret, _err) }()
+	if err := srv.FFStream.RemoveInput(ctx, uint(req.GetPriority()), uint(req.GetNum())); err != nil {
+		if errors.Is(err, ffstream.ErrInputNotFound) {
+			return nil, status.Errorf(codes.NotFound, "no input at (priority=%d, num=%d): %v", req.GetPriority(), req.GetNum(), err)
+		}
+		return nil, status.Errorf(codes.Unknown, "unable to remove input at (priority=%d, num=%d): %v", req.GetPriority(), req.GetNum(), err)
+	}
+	return &ffstream_grpc.RemoveInputReply{}, nil
 }

@@ -21,6 +21,21 @@ type GenericOption struct {
 	OptionSettings
 	Wrapped[any]
 	CollectedUnknownOptions [][]string
+	// changed is set true the first time the parser writes to this
+	// option. Distinguishes "operator passed the flag" from "left at
+	// registered default", which equality-against-default cannot do
+	// (e.g. operator passing the same value as the default would
+	// otherwise be indistinguishable). Callers consume it via
+	// Option.Changed().
+	changed bool
+}
+
+// Changed reports whether the parser observed this flag in argv. Use
+// this in preference to comparing Value() against a known default —
+// equality cannot tell "operator passed the default value verbatim"
+// from "operator did not pass the flag at all".
+func (opt Option[V, W]) Changed() bool {
+	return opt.GenericOption.changed
 }
 
 type Option[V any, W Wrapped[V]] struct {

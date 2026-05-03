@@ -227,6 +227,100 @@ func TestParser_Parse_InvalidArgumentToFlag(t *testing.T) {
 	assert.Contains(t, err.Error(), "unable to parse")
 }
 
+func TestParser_Parse_DoubleDashFlagForm(t *testing.T) {
+	// Both "-version" (ffmpeg-style) and "--version" (GNU-style) must
+	// resolve to the same registered flag; the bare "--" terminator
+	// must keep its original "stop processing" semantics.
+	t.Run("double dash short form", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"--version"}))
+		assert.True(t, v.Value())
+	})
+	t.Run("single dash short form still works", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"-version"}))
+		assert.True(t, v.Value())
+	})
+	t.Run("bare double dash still terminates", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "version", false)
+		require.NoError(t, p.Parse([]string{"--", "--version"}))
+		assert.False(t, v.Value(), "tokens after -- must not be parsed as flags")
+		assert.Equal(t, []string{"--version"}, p.CollectedNonFlags)
+	})
+}
+
+// TestDoubleDashFlagForm_EqualsForm pins the GNU "--name=VALUE" form
+// alongside the existing space-separated form. Pre-fix, the parser only
+// supported "--name VALUE" (or "-name VALUE") and treated "--name=VALUE"
+// as an unknown flag.
+func TestDoubleDashFlagForm_EqualsForm(t *testing.T) {
+	t.Run("equals form parameter", func(t *testing.T) {
+		p := NewParser()
+		v := AddParameter(p, "host", false, ptr(String("")))
+		require.NoError(t, p.Parse([]string{"--host=example.com"}))
+		assert.Equal(t, "example.com", v.Value())
+		assert.True(t, v.Changed())
+	})
+	t.Run("equals form bool flag", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "debug", false)
+		require.NoError(t, p.Parse([]string{"--debug=true"}))
+		assert.True(t, v.Value())
+		assert.True(t, v.Changed())
+	})
+	t.Run("equals form bool flag false", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "debug", false)
+		require.NoError(t, p.Parse([]string{"--debug=false"}))
+		assert.False(t, v.Value())
+		assert.True(t, v.Changed(), "flag was passed; only its value was false")
+	})
+	t.Run("equals form short single-dash", func(t *testing.T) {
+		p := NewParser()
+		v := AddParameter(p, "host", false, ptr(String("")))
+		require.NoError(t, p.Parse([]string{"-host=example.com"}))
+		assert.Equal(t, "example.com", v.Value())
+	})
+	t.Run("equals empty value", func(t *testing.T) {
+		p := NewParser()
+		v := AddParameter(p, "host", false, ptr(String("default")))
+		require.NoError(t, p.Parse([]string{"--host="}))
+		assert.Equal(t, "", v.Value())
+	})
+}
+
+// TestOption_Changed pins the operator-passed-vs-default discrimination
+// contract. Direct equality against a registered default cannot tell
+// "operator typed the default value verbatim" from "flag absent" — the
+// Changed() bit is what callers use to refuse silent-no-op /
+// conflict-fatal interactions.
+func TestOption_Changed(t *testing.T) {
+	t.Run("absentMeansFalse", func(t *testing.T) {
+		p := NewParser()
+		v := AddParameter(p, "x", false, ptr(Uint64(42)))
+		require.NoError(t, p.Parse(nil))
+		assert.False(t, v.Changed())
+		assert.Equal(t, uint64(42), v.Value())
+	})
+	t.Run("presentMeansTrueEvenIfValueEqualsDefault", func(t *testing.T) {
+		p := NewParser()
+		v := AddParameter(p, "x", false, ptr(Uint64(42)))
+		require.NoError(t, p.Parse([]string{"-x", "42"}))
+		assert.True(t, v.Changed(), "operator passed the flag verbatim; equality-with-default would miss this")
+		assert.Equal(t, uint64(42), v.Value())
+	})
+	t.Run("flagFormNoArgument", func(t *testing.T) {
+		p := NewParser()
+		v := AddFlag(p, "verbose", false)
+		require.NoError(t, p.Parse([]string{"-verbose"}))
+		assert.True(t, v.Changed())
+		assert.True(t, v.Value())
+	})
+}
+
 func TestParser_NewDefaultParser(t *testing.T) {
 	p := NewDefaultParser()
 	require.Len(t, p.Options, 1)

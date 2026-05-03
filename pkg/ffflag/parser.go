@@ -74,14 +74,37 @@ func (p *Parser) Parse(args []string) error {
 			break
 		}
 
-		flag := p.findOptionByName(arg[1:])
+		// Accept both ffmpeg-style "-name" and GNU-style "--name" by
+		// stripping up to two leading dashes before lookup. The `--`
+		// separator above is handled first so its semantics are
+		// unchanged. Also accept the GNU "--name=VALUE" form by
+		// splitting on the first '=' before lookup; only the head is
+		// consulted as the flag name, the tail is the inline value.
+		name := arg[1:]
+		if strings.HasPrefix(name, "-") {
+			name = name[1:]
+		}
+		var inlineValue string
+		var hasInlineValue bool
+		if eq := strings.IndexByte(name, '='); eq >= 0 {
+			inlineValue = name[eq+1:]
+			name = name[:eq]
+			hasInlineValue = true
+		}
+		flag := p.findOptionByName(name)
 		if flag == nil {
 			p.nextCollectorOfUnknownOptions = append(p.nextCollectorOfUnknownOptions, arg)
 			continue
 		}
 
 		var value string
-		if flag.WithArgument {
+		switch {
+		case hasInlineValue:
+			// "--name=VALUE": the value is in-band even for valueless
+			// flags (e.g. "--debug=true"). Parse() decides how to
+			// handle empty / non-empty for its concrete type.
+			value = inlineValue
+		case flag.WithArgument:
 			if idx+1 >= len(args) {
 				return fmt.Errorf("the flag '%s' (raw: '%s') at position #%d requires an argument, but one is not provided", flag.Name, arg, idx)
 			}
@@ -93,6 +116,7 @@ func (p *Parser) Parse(args []string) error {
 		if err != nil {
 			return fmt.Errorf("unable to parse the argument to the flag '%s' (raw: '%s') at position #%d: %w", flag.Name, arg, idx, err)
 		}
+		flag.changed = true
 
 		if flag.CollectUnknownOptions {
 			flag.CollectedUnknownOptions = append(
