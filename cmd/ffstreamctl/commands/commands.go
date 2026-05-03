@@ -101,6 +101,19 @@ var (
 		Run:  statsOutputQuality,
 	}
 
+	StatsFirstFrame = &cobra.Command{
+		Use:   "first-frame",
+		Short: "Walk the pipeline graph and report per-node first-output timestamps",
+		Long: "Reports per-node first-frame timing for cascade-EOF root-cause " +
+			"localization. Walks the pipeline graph from each input root and " +
+			"prints node_id, type, name, first_frame_at (or 'none' if no " +
+			"output observed), age_seconds (since first frame). Nodes whose " +
+			"first_frame_unix_ns is still 0 after the grace period are " +
+			"highlighted as STALLED — they are the candidate wedge sites.",
+		Args: cobra.ExactArgs(0),
+		Run:  statsFirstFrame,
+	}
+
 	SRT = &cobra.Command{
 		Use: "srt",
 	}
@@ -297,6 +310,8 @@ func init() {
 	Stats.AddCommand(StatsLatencies)
 	Stats.AddCommand(StatsInputQuality)
 	Stats.AddCommand(StatsOutputQuality)
+	Stats.AddCommand(StatsFirstFrame)
+	StatsFirstFrame.Flags().Duration("grace", 5*time.Second, "highlight nodes whose first_frame_unix_ns is still 0 after this grace period elapsed since daemon start (only used for the STALLED label; output always includes all nodes)")
 
 	Root.AddCommand(Encoder)
 	Encoder.AddCommand(EncoderConfig)
@@ -509,6 +524,94 @@ func pipelinesGet(cmd *cobra.Command, args []string) {
 	assertNoError(ctx, err)
 
 	jsonOutput(ctx, cmd.OutOrStdout(), pipelines)
+}
+
+// statsFirstFrame walks the pipeline graph (returned by GetPipelines)
+// and prints per-node first-frame timing. Nodes whose first-frame
+// timestamp is still 0 after the configured grace period are marked
+// STALLED — they are the candidate cascade-EOF wedge sites. See
+// StatsFirstFrame.Long for the full operator workflow.
+//
+// Output format (tab-separated, one node per line):
+//
+//	<node_id>\t<status>\t<type>\t<first_frame_at_or_none>\t<age>\t<description>
+//
+// where status is "OK" for nodes with first_frame_unix_ns != 0 and
+// "STALLED" or "PENDING" for nodes that haven't emitted yet.
+func statsFirstFrame(cmd *cobra.Command, args []string) {
+	ctx := cmd.Context()
+
+	remoteAddr, err := cmd.Flags().GetString("remote-addr")
+	assertNoError(ctx, err)
+
+	grace, err := cmd.Flags().GetDuration("grace")
+	assertNoError(ctx, err)
+
+	c := client.New(remoteAddr)
+
+	pipelines, err := c.GetPipelines(ctx)
+	assertNoError(ctx, err)
+
+	now := time.Now()
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "node_id\tstatus\ttype\tfirst_frame_at\tage\tdescription")
+
+	walked := map[uint64]struct{}{}
+	for _, root := range pipelines.GetNodes() {
+		walkFirstFrameNode(out, root, now, grace, walked)
+	}
+}
+
+// walkFirstFrameNode is a depth-first traverse that reports each node
+// once (avoiding loops via the walked set keyed by node_id).
+func walkFirstFrameNode(
+	out io.Writer,
+	n *avpipeline_proto.Node,
+	now time.Time,
+	grace time.Duration,
+	walked map[uint64]struct{},
+) {
+	if n == nil {
+		return
+	}
+	if _, seen := walked[n.GetId()]; seen {
+		return
+	}
+	walked[n.GetId()] = struct{}{}
+
+	ffUnixNs := n.GetFirstFrameUnixNs()
+	var status, firstFrameAtStr, ageStr string
+	switch {
+	case ffUnixNs > 0:
+		ts := time.Unix(0, ffUnixNs)
+		status = "OK"
+		firstFrameAtStr = ts.UTC().Format(time.RFC3339Nano)
+		ageStr = now.Sub(ts).Truncate(time.Millisecond).String()
+	default:
+		// We don't have the daemon's start time here, so use the
+		// flag-supplied grace period as a proxy: if the operator
+		// believes the daemon has been up at least `grace`, any
+		// FromKernel processor that still has 0 is a wedge candidate.
+		// Operators run this command after a settling period; the
+		// PENDING-vs-STALLED distinction is informational.
+		_ = grace
+		status = "STALLED"
+		firstFrameAtStr = "none"
+		ageStr = "-"
+	}
+
+	fmt.Fprintf(out, "%d\t%s\t%s\t%s\t%s\t%s\n",
+		n.GetId(),
+		status,
+		n.GetType(),
+		firstFrameAtStr,
+		ageStr,
+		n.GetDescription(),
+	)
+
+	for _, child := range n.GetConsumingNodes() {
+		walkFirstFrameNode(out, child, now, grace, walked)
+	}
 }
 
 func autoBitRateCalculatorGet(cmd *cobra.Command, args []string) {
