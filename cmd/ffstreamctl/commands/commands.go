@@ -580,14 +580,14 @@ func walkFirstFrameNode(
 
 	var status, firstFrameAtStr, ageStr string
 	switch {
-	case n.FirstFrameUnixNs == nil:
+	case n.FirstOutputUnixNs == nil:
 		// Processor type does not record first-output timestamps —
 		// distinct from "tracked but no output yet".
 		status = "N/A"
 		firstFrameAtStr = "none"
 		ageStr = "-"
-	case *n.FirstFrameUnixNs > 0:
-		ts := time.Unix(0, *n.FirstFrameUnixNs)
+	case *n.FirstOutputUnixNs > 0:
+		ts := time.Unix(0, *n.FirstOutputUnixNs)
 		status = "OK"
 		firstFrameAtStr = ts.UTC().Format(time.RFC3339Nano)
 		ageStr = now.Sub(ts).Truncate(time.Millisecond).String()
