@@ -1169,7 +1169,12 @@ func (s *FFStream) SetAutoBitRateCalculator(
 	if s.StreamMux == nil || s.StreamMux.AutoBitRateHandler == nil {
 		return fmt.Errorf("it is allowed to use SetAutoBitRateCalculator only after Start is invoked with non-nil AutoBitRateConfig")
 	}
-	s.StreamMux.AutoBitRateHandler.Calculator = calculator
+	// Atomic swap + transient slowdown state reset. A bare field write
+	// would let a Static(low) → Static(high) operator drive land while
+	// the autobitrate ticker still held the prior calculator's
+	// lastBitRateDecreaseTS, gating the upward request inside
+	// BitRateIncreaseSlowdown — the upward-recovery wedge.
+	s.StreamMux.AutoBitRateHandler.SwapCalculator(ctx, calculator)
 	return nil
 }
 
