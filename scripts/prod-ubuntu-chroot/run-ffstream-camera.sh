@@ -65,6 +65,10 @@ exec prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
 		-retry_output_timeout_on_failure 0 \
 		-quiet_on_open_failure true \
 		-hwaccel mediacodec \
+		-c:v av1_mediacodec \
+		-auto_bitrate true \
+		-auto_bitrate_resolution 1920x1920 \
+		-auto_bitrate_auto_bypass false \
 		-mux_mode different_outputs_same_tracks_split_av \
 		-listen_control tcp:127.0.0.1:3594 \
 		-listen_net_pprof 0.0.0.0:8239 \
