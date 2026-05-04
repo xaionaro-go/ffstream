@@ -107,9 +107,11 @@ var (
 		Long: "Reports per-node first-frame timing for cascade-EOF root-cause " +
 			"localization. Walks the pipeline graph from each input root and " +
 			"prints node_id, type, name, first_frame_at (or 'none' if no " +
-			"output observed), age_seconds (since first frame). Nodes whose " +
-			"first_frame_unix_ns is still 0 after the grace period are " +
-			"highlighted as STALLED — they are the candidate wedge sites.",
+			"output observed), age_seconds (since first frame). Each node is " +
+			"labelled OK (output observed), STALLED (tracked, no output yet) " +
+			"or N/A (this processor type does not record first-output " +
+			"timestamps). The first STALLED node walking from input toward " +
+			"output is the wedge candidate.",
 		Args: cobra.ExactArgs(0),
 		Run:  statsFirstFrame,
 	}
@@ -311,7 +313,6 @@ func init() {
 	Stats.AddCommand(StatsInputQuality)
 	Stats.AddCommand(StatsOutputQuality)
 	Stats.AddCommand(StatsFirstFrame)
-	StatsFirstFrame.Flags().Duration("grace", 5*time.Second, "highlight nodes whose first_frame_unix_ns is still 0 after this grace period elapsed since daemon start (only used for the STALLED label; output always includes all nodes)")
 
 	Root.AddCommand(Encoder)
 	Encoder.AddCommand(EncoderConfig)
@@ -527,24 +528,23 @@ func pipelinesGet(cmd *cobra.Command, args []string) {
 }
 
 // statsFirstFrame walks the pipeline graph (returned by GetPipelines)
-// and prints per-node first-frame timing. Nodes whose first-frame
-// timestamp is still 0 after the configured grace period are marked
-// STALLED — they are the candidate cascade-EOF wedge sites. See
-// StatsFirstFrame.Long for the full operator workflow.
+// and prints per-node first-frame timing. See StatsFirstFrame.Long
+// for the full operator workflow.
 //
 // Output format (tab-separated, one node per line):
 //
 //	<node_id>\t<status>\t<type>\t<first_frame_at_or_none>\t<age>\t<description>
 //
-// where status is "OK" for nodes with first_frame_unix_ns != 0 and
-// "STALLED" or "PENDING" for nodes that haven't emitted yet.
+// Status values:
+//   - OK: first_frame_unix_ns is set and non-zero — output observed.
+//   - STALLED: the processor type tracks first-output timestamps
+//     but none has been recorded yet; candidate cascade-EOF wedge.
+//   - N/A: the processor type does not record this fact (e.g. Dummy,
+//     StreamMux, NoServe wrappers).
 func statsFirstFrame(cmd *cobra.Command, args []string) {
 	ctx := cmd.Context()
 
 	remoteAddr, err := cmd.Flags().GetString("remote-addr")
-	assertNoError(ctx, err)
-
-	grace, err := cmd.Flags().GetDuration("grace")
 	assertNoError(ctx, err)
 
 	c := client.New(remoteAddr)
@@ -558,7 +558,7 @@ func statsFirstFrame(cmd *cobra.Command, args []string) {
 
 	walked := map[uint64]struct{}{}
 	for _, root := range pipelines.GetNodes() {
-		walkFirstFrameNode(out, root, now, grace, walked)
+		walkFirstFrameNode(out, root, now, walked)
 	}
 }
 
@@ -568,7 +568,6 @@ func walkFirstFrameNode(
 	out io.Writer,
 	n *avpipeline_proto.Node,
 	now time.Time,
-	grace time.Duration,
 	walked map[uint64]struct{},
 ) {
 	if n == nil {
@@ -579,22 +578,20 @@ func walkFirstFrameNode(
 	}
 	walked[n.GetId()] = struct{}{}
 
-	ffUnixNs := n.GetFirstFrameUnixNs()
 	var status, firstFrameAtStr, ageStr string
 	switch {
-	case ffUnixNs > 0:
-		ts := time.Unix(0, ffUnixNs)
+	case n.FirstFrameUnixNs == nil:
+		// Processor type does not record first-output timestamps —
+		// distinct from "tracked but no output yet".
+		status = "N/A"
+		firstFrameAtStr = "none"
+		ageStr = "-"
+	case *n.FirstFrameUnixNs > 0:
+		ts := time.Unix(0, *n.FirstFrameUnixNs)
 		status = "OK"
 		firstFrameAtStr = ts.UTC().Format(time.RFC3339Nano)
 		ageStr = now.Sub(ts).Truncate(time.Millisecond).String()
 	default:
-		// We don't have the daemon's start time here, so use the
-		// flag-supplied grace period as a proxy: if the operator
-		// believes the daemon has been up at least `grace`, any
-		// FromKernel processor that still has 0 is a wedge candidate.
-		// Operators run this command after a settling period; the
-		// PENDING-vs-STALLED distinction is informational.
-		_ = grace
 		status = "STALLED"
 		firstFrameAtStr = "none"
 		ageStr = "-"
@@ -610,7 +607,7 @@ func walkFirstFrameNode(
 	)
 
 	for _, child := range n.GetConsumingNodes() {
-		walkFirstFrameNode(out, child, now, grace, walked)
+		walkFirstFrameNode(out, child, now, walked)
 	}
 }
 
