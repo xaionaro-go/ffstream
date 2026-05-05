@@ -24,9 +24,18 @@ set -o pipefail
 #
 # Mission: see /home/streaming/go/src/github.com/xaionaro-go/mission.md
 
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+: "${FFSTREAM_CAMERA_PATH:=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin}"
+export PATH="$FFSTREAM_CAMERA_PATH"
 
-. /etc/streaming.env
+: "${FFSTREAM_CAMERA_STREAMING_ENV_FILE:=/etc/streaming.env}"
+. "$FFSTREAM_CAMERA_STREAMING_ENV_FILE"
+
+: "${FFSTREAM_BIN:=/data/user/0/com.termux/files/usr/bin/ffstream}"
+: "${FFSTREAM_BIN_RUNNER:=termux-root}"
+: "${FFSTREAM_END_MARKER_FILE:=/data/ubuntu/tmp/ffstream-camera.intentional-end}"
+: "${FFSTREAM_END_MARKER_FILE_CHROOT:=/android/data/ubuntu/tmp/ffstream-camera.intentional-end}"
+: "${FFSTREAM_CAMERA_LOG_FILE:=/data/ubuntu/tmp/ffstream-camera.log}"
+export FFSTREAM_END_MARKER_FILE
 
 # Mic-fix daemon (PulseAudio mic plumbing). Backgrounded — same as legacy.
 fix-mic &
@@ -50,19 +59,30 @@ echo 1000 > /proc/self/oom_score_adj
 #   -b:v/-bufsize/-g/-r (per-output bitrate/framerate tuning)
 #   -f <fmt> <DST_URL>          (per-output; SetOutputURL + SwitchOutputByProps)
 #
-# hardened_malloc (preloaded inside termux via /usr/local/bin/ffstream
-# wrapper) reserves ~1TB of virtual address space at startup. Inherited
-# RLIMIT_AS is too small without explicit lifting — without prlimit, the
-# binary aborts with "fatal allocator error: failed to reserve allocator
-# state" at process entry. Mirrors the legacy run-ffstream.sh.
-exec prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
+# hardened_malloc (preloaded inside termux via the canonical ffstream binary)
+# reserves ~1TB of virtual address space at startup. The Ubuntu chroot runs
+# Termux binaries through termux-root, so paths observed by ffstream are in the
+# Android namespace; the marker check uses the chroot-visible /android mirror.
+# The binary argument stays canonical.
+# The inherited RLIMIT_AS is too small without explicit lifting — without
+# prlimit, the binary aborts with "fatal allocator error: failed to reserve
+# allocator state" at process entry. Mirrors the legacy run-ffstream.sh.
+if [ -e "$FFSTREAM_END_MARKER_FILE_CHROOT" ]; then
+	if ! rm -f -- "$FFSTREAM_END_MARKER_FILE_CHROOT"; then
+		echo "unable to remove stale ffstream-camera End marker: $FFSTREAM_END_MARKER_FILE_CHROOT" >&2
+		exit 74
+	fi
+fi
+prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
 	nice -n -15 \
 	taskset -c 6-8 \
-	ffstream \
+	"$FFSTREAM_BIN_RUNNER" env \
+			FFSTREAM_END_MARKER_FILE="$FFSTREAM_END_MARKER_FILE" \
+		"$FFSTREAM_BIN" \
 			-v "$FFSTREAM_LOG_LEVEL" \
 			-retry_input_timeout_on_failure 1s \
 			-retry_output_timeout_on_failure 0 \
-			-exit_on_last_input_removed true \
+			-exit_on_last_input_removed false \
 			-quiet_on_open_failure true \
 			-hwaccel mediacodec \
 			-c:v av1_mediacodec \
@@ -82,4 +102,17 @@ exec prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
 		-rtbufsize 5M \
 		-probesize 32768 \
 		-analyzeduration 200000 \
-		2>&1 | tee /data/ubuntu/tmp/ffstream-camera.log
+		2>&1 | tee "$FFSTREAM_CAMERA_LOG_FILE"
+status=$?
+if [ -f "$FFSTREAM_END_MARKER_FILE_CHROOT" ]; then
+	if ! rm -f -- "$FFSTREAM_END_MARKER_FILE_CHROOT"; then
+		echo "unable to remove consumed ffstream-camera End marker: $FFSTREAM_END_MARKER_FILE_CHROOT" >&2
+		exit 74
+	fi
+	exit 0
+fi
+if [ "$status" -eq 0 ]; then
+	echo "ffstream-camera exited with status 0 without an End marker; treating as restartable failure" >&2
+	exit 70
+fi
+exit "$status"

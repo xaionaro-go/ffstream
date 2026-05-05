@@ -14,6 +14,8 @@ This directory is the SSOT for everything that runs in `/usr/local/bin/` and `/e
 |---|---|---|
 | `run-ffstream.sh` | `/usr/local/bin/run-ffstream.sh` | Per-launch wrapper; sources env, applies caps, execs `ffstream` |
 | `loop-run-ffstream.sh` | `/usr/local/bin/loop-run-ffstream.sh` | Supervisor loop (`while sleep 0.1; do run-ffstream.sh; done`) |
+| `run-ffstream-camera.sh` | `/usr/local/bin/run-ffstream-camera.sh` | Per-launch wrapper for the idle ffstream-camera daemon on port 3594 |
+| `loop-run-ffstream-camera.sh` | `/usr/local/bin/loop-run-ffstream-camera.sh` | Supervisor used by Wing Out's Android restart hook |
 | `streaming.env.template` | `/etc/streaming.env` (only if absent) | Env defaults; sourced by `run-ffstream.sh` |
 | `mediamtx.yml` | `/etc/mediamtx/mediamtx.yml` | mediamtx config |
 | `rc.local.fragment` | append to `/etc/rc.local` (manual) | rc.local launcher line + cleanup |
@@ -38,6 +40,10 @@ Header rule: `oom_score_adj=1000` is set unconditionally (kill-first OOM target)
 ```
 
 `deploy.sh` is non-destructive for `/etc/streaming.env` — it stages a copy at `/tmp/streaming.env.staged` and only installs if the prod copy is absent. Operator edits to env are preserved; reconcile by hand and update the template here.
+
+The deploy includes `/usr/local/bin/run-ffstream-camera.sh` and
+`/usr/local/bin/loop-run-ffstream-camera.sh`; `platform_android.cpp` invokes
+the latter from Wing Out's built-in camera restart hook.
 
 ## Triggering respawn after deploy
 

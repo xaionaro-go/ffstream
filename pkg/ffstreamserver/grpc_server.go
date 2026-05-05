@@ -20,8 +20,10 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
+	"github.com/xaionaro-go/observability"
 	"github.com/xaionaro-go/xsync"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -97,15 +99,47 @@ func (srv *GRPCServer) End(
 	req *ffstream_grpc.EndRequest,
 ) (*ffstream_grpc.EndReply, error) {
 	ctx = srv.ctx(ctx)
-	_ = ctx
+
 	srv.locker.Lock()
-	defer srv.locker.Unlock()
-	if srv.stopTranscodingFunc == nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "transcoding is not started")
+	stopTranscodingFunc := srv.stopTranscodingFunc
+	if stopTranscodingFunc != nil {
+		if err := ffstream.WriteEndMarkerFromEnv(); err != nil {
+			srv.locker.Unlock()
+			return nil, status.Errorf(codes.Internal, "unable to write End marker: %v", err)
+		}
+		srv.FFStream.MarkIntentionalEnd()
+		srv.stopTranscodingFunc = nil
+		srv.locker.Unlock()
+
+		srv.stopAfterRPC(ctx, stopTranscodingFunc)
+		return &ffstream_grpc.EndReply{}, nil
 	}
-	srv.stopTranscodingFunc()
-	srv.stopTranscodingFunc = nil
+	srv.locker.Unlock()
+
+	cancelFunc, err := srv.FFStream.PrepareEnd(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "unable to end transcoding: %v", err)
+	}
+	srv.stopAfterRPC(ctx, cancelFunc)
+
 	return &ffstream_grpc.EndReply{}, nil
+}
+
+func (srv *GRPCServer) stopAfterRPC(
+	ctx context.Context,
+	stopFunc context.CancelFunc,
+) {
+	if _, ok := peer.FromContext(ctx); !ok {
+		stopFunc()
+		return
+	}
+
+	rpcDone := ctx.Done()
+	runCtx := context.WithoutCancel(ctx)
+	observability.Go(runCtx, func(ctx context.Context) {
+		<-rpcDone
+		stopFunc()
+	})
 }
 
 func (srv *GRPCServer) GetPipelines(
@@ -297,14 +331,15 @@ func (srv *GRPCServer) GetInputsInfo(
 ) (*ffstream_grpc.GetInputsInfoReply, error) {
 	ctx = srv.ctx(ctx)
 
-	var result []*ffstream_grpc.InputInfo
+	type inputChainSnapshot struct {
+		id        int32
+		kernel    *kernel.Retryable[*ffstream.Input]
+		priority  uint
+		resources ffstream.Resources
+	}
+
+	var snapshots []inputChainSnapshot
 	srv.FFStream.Inputs.InputChainsLocker.Do(ctx, func() {
-		// The InputSwitch routes packets from exactly one chain
-		// downstream at a time. Its CurrentValue holds that chain's ID.
-		// We treat a chain as "active" only when its kernel is open AND
-		// the switch is currently selecting it — matching the user-visible
-		// notion of "the input that is producing frames right now".
-		currentChainID := srv.FFStream.Inputs.InputSwitch.CurrentValue.Load()
 		for _, inputChain := range srv.FFStream.Inputs.InputChains {
 			k := inputChain.Input.Processor.Kernel
 			inputFactory := inputChain.InputFactory.(*ffstream.InputFactory)
@@ -317,54 +352,54 @@ func (srv *GRPCServer) GetInputsInfo(
 				logger.Errorf(ctx, "unable to get resources for input factory: %v", err)
 				continue
 			}
-			isCurrent := int32(inputChain.ID) == currentChainID
-			for idx, res := range resources {
-				// kernelIsSet is read INSIDE the same locked region that
-				// resolves Kernel0[idx] so the pipeline goroutine can't
-				// race-mutate the flag between the resolve and the
-				// IsActive computation. The pipeline only writes
-				// KernelIsSet while holding KernelLocker, so reading it
-				// here under the same lock is the only safe path.
-				var kernelIsSet bool
-				// Inner Tee was widened from `*kernel.Input` to
-				// `kernel.Abstract` so non-libav kernels (e.g.
-				// android.Microphone) can sit alongside libav-backed
-				// inputs at the same priority. We only need
-				// GetObjectID here, which is part of `kernel.Abstract`.
-				// Return the underlying kernel.Abstract directly (no
-				// type-assertion to `*kernel.Input`) so non-libav
-				// kernels still surface their ObjectID; nil still means
-				// "kernel slot is empty / not yet opened" and the
-				// resource is skipped.
-				inputKernel := func() kernel.Abstract {
-					if !k.KernelLocker.ManualTryLock(ctx) {
-						return nil
-					}
-					defer k.KernelLocker.ManualUnlock(ctx)
-					kernelIsSet = k.KernelIsSet
-					if k.Kernel == nil {
-						return nil
-					}
-					if len(k.Kernel.Kernel0) <= idx {
-						return nil
-					}
-					return k.Kernel.Kernel0[idx]
-				}()
-				if inputKernel == nil {
-					continue
-				}
-				result = append(result, &ffstream_grpc.InputInfo{
-					Id:          uint64(inputKernel.GetObjectID()),
-					Priority:    uint64(priority),
-					Num:         uint64(idx),
-					Url:         res.URL,
-					InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
-					IsActive:    kernelIsSet && isCurrent,
-					Suppressed:  res.Suppressed,
-				})
-			}
+			snapshots = append(snapshots, inputChainSnapshot{
+				id:        int32(inputChain.ID),
+				kernel:    k,
+				priority:  priority,
+				resources: resources,
+			})
 		}
 	})
+
+	var result []*ffstream_grpc.InputInfo
+	// The InputSwitch routes packets from exactly one chain downstream at a
+	// time. Its CurrentValue holds that chain's ID. We treat a chain as active
+	// only when its kernel is open and the switch is currently selecting it.
+	currentChainID := srv.FFStream.Inputs.InputSwitch.CurrentValue.Load()
+	for _, snapshot := range snapshots {
+		isCurrent := snapshot.id == currentChainID
+		for idx, res := range snapshot.resources {
+			var kernelIsSet bool
+			var inputKernel kernel.Abstract
+			if !snapshot.kernel.KernelLocker.ManualLock(ctx) {
+				if err := ctx.Err(); err != nil {
+					return nil, status.FromContextError(err).Err()
+				}
+				return nil, status.Errorf(codes.Aborted, "unable to lock input kernel")
+			}
+			kernelIsSet = snapshot.kernel.KernelIsSet
+			// Inner Tee was widened from *kernel.Input to kernel.Abstract so
+			// non-libav kernels, such as android.Microphone, can sit alongside
+			// libav-backed inputs at the same priority. We only need
+			// GetObjectID, which is part of kernel.Abstract.
+			if snapshot.kernel.Kernel != nil && len(snapshot.kernel.Kernel.Kernel0) > idx {
+				inputKernel = snapshot.kernel.Kernel.Kernel0[idx]
+			}
+			snapshot.kernel.KernelLocker.ManualUnlock(ctx)
+			if inputKernel == nil {
+				continue
+			}
+			result = append(result, &ffstream_grpc.InputInfo{
+				Id:          uint64(inputKernel.GetObjectID()),
+				Priority:    uint64(snapshot.priority),
+				Num:         uint64(idx),
+				Url:         res.URL,
+				InputConfig: goconvavp.InputConfigToProto(res.InputConfig),
+				IsActive:    kernelIsSet && isCurrent,
+				Suppressed:  res.Suppressed,
+			})
+		}
+	}
 
 	return &ffstream_grpc.GetInputsInfoReply{
 		Inputs: result,

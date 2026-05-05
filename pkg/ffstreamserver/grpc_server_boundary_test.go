@@ -196,39 +196,16 @@ func TestGRPCServer_GetInputsInfo_NilRetryableKernel_DoesNotPanic(t *testing.T) 
 // Kernel0[idx] out of range.
 func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T) {
 	ctx := context.Background()
-	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	// Register two resources at priority 0 so the GetInputsInfo loop runs
-	// with idx=0,1.
-	for range 2 {
-		_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
-			URL: "file:/does-not-exist",
-		})
-		require.NoError(t, err)
-	}
-	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains))
-
-	// Reach into the retryable kernel and simulate an opened kernel whose
-	// Tee (Kernel0) has LEN < number of resources. At idx==len(Kernel0) the
-	// boundary check must short-circuit.
-	//
-	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
-	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
-	// reads KernelIsSet under KernelLocker (race fix), so the test must
-	// write under the same lock; quiesceRetryable terminates the pipeline
-	// init goroutine that would otherwise hold the lock indefinitely.
-	chain := srv.FFStream.Inputs.InputChains[0]
-	retryable := chain.Input.Processor.Kernel
-	quiesceRetryable(ctx, t, retryable)
-	retryable.KernelLocker.Do(ctx, func() {
-		// An empty Tee: len(Kernel0) == 0, so idx==0 and idx==1 both hit
-		// the boundary.
-		retryable.Kernel = &ffstream.Input{
-			Kernel0: kernel.Tee[kernel.Abstract]{},
-			Kernel1: nil,
-		}
-		retryable.KernelIsSet = true
-	})
+	srv, resetKernel := newGetInputsInfoSyntheticServer(
+		ctx,
+		t,
+		ffstream.Resources{
+			{URL: "file:/does-not-exist"},
+			{URL: "file:/does-not-exist"},
+		},
+	)
+	defer resetKernel()
 
 	var resp *ffstream_grpc.GetInputsInfoReply
 	var callErr error
@@ -245,35 +222,21 @@ func TestGRPCServer_GetInputsInfo_Kernel0LenEqualsIdx_DoesNotPanic(t *testing.T)
 
 // TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo is the
 // dual-sided positive check: when len(Kernel0) > idx AND the item is a
-// *kernel.Input, GetInputsInfo must emit an InputInfo. This proves the
-// boundary fix did not over-reject valid cases.
+// closeable kernel.Abstract, GetInputsInfo must emit an InputInfo. This proves
+// the boundary fix did not over-reject valid cases.
 func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) {
 	ctx := context.Background()
-	srv := newGRPCServerForBoundaryTest(t, ctx)
 
-	_, err := srv.FFStream.AddInput(ctx, ffstream.Resource{
-		URL: "file:/does-not-exist",
-	})
-	require.NoError(t, err)
-	require.Equal(t, 1, len(srv.FFStream.Inputs.InputChains))
-
-	// Writes to Kernel/KernelIsSet are wrapped in quiesceRetryable +
-	// KernelLocker.Do so the race detector accepts them. GetInputsInfo
-	// reads KernelIsSet under KernelLocker (race fix), so the test must
-	// write under the same lock; quiesceRetryable terminates the pipeline
-	// init goroutine that would otherwise hold the lock indefinitely.
-	chain := srv.FFStream.Inputs.InputChains[0]
-	retryable := chain.Input.Processor.Kernel
-	quiesceRetryable(ctx, t, retryable)
-	retryable.KernelLocker.Do(ctx, func() {
-		// Populate Kernel0 with a single *kernel.Input so idx==0 resolves
-		// to it.
-		retryable.Kernel = &ffstream.Input{
-			Kernel0: kernel.Tee[kernel.Abstract]{&kernel.Input{}},
-			Kernel1: nil,
-		}
-		retryable.KernelIsSet = true
-	})
+	testInput := newGetInputsInfoTestKernel(ctx)
+	srv, resetKernel := newGetInputsInfoSyntheticServer(
+		ctx,
+		t,
+		ffstream.Resources{
+			{URL: "file:/does-not-exist"},
+		},
+		testInput,
+	)
+	defer resetKernel()
 
 	resp, callErr := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
 	require.NoError(t, callErr)
@@ -282,6 +245,7 @@ func TestGRPCServer_GetInputsInfo_Kernel0Populated_EmitsInputInfo(t *testing.T) 
 		"one populated, well-typed Kernel0 entry must yield one InputInfo")
 	assert.Equal(t, uint64(0), resp.Inputs[0].Priority)
 	assert.Equal(t, uint64(0), resp.Inputs[0].Num)
+	assert.Equal(t, uint64(testInput.GetObjectID()), resp.Inputs[0].Id)
 	assert.Equal(t, "file:/does-not-exist", resp.Inputs[0].Url)
 }
 

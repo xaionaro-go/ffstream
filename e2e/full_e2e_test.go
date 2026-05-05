@@ -33,6 +33,9 @@ const (
 
 	// Test stream duration
 	testStreamDuration = 15 * time.Second
+
+	avdOutageSmokeDuration        = 2 * time.Minute
+	avdOutageSmokeRecoveryTimeout = 3 * time.Minute
 )
 
 // NOTE: Known Issues
@@ -64,7 +67,14 @@ type E2ETestSuite struct {
 
 // NewE2ETestSuite creates a new e2e test suite.
 func NewE2ETestSuite(t *testing.T) *E2ETestSuite {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	return NewE2ETestSuiteWithTimeout(t, 10*time.Minute)
+}
+
+func NewE2ETestSuiteWithTimeout(
+	t *testing.T,
+	timeout time.Duration,
+) *E2ETestSuite {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
 	return &E2ETestSuite{
@@ -540,6 +550,167 @@ func (s *E2ETestSuite) RunCameraStreamTest(duration time.Duration) error {
 	return nil
 }
 
+func (s *E2ETestSuite) avdOutageSmokeMediamtxDJICommand() string {
+	rtmpURL := fmt.Sprintf("rtmp://127.0.0.1:%d/test/stream", avdPublisherPort)
+	// Smoke-only coverage: this uses the test-deployed ffstream binary and
+	// reduced H.264 output settings. Mission proof remains the real E2E
+	// witness plan with the canonical production binary, AV1, and mission
+	// stream endpoints.
+	return fmt.Sprintf(`timeout 420 %s -v info \
+		-retry_input_timeout_on_failure 1s \
+		-retry_output_timeout_on_failure 0 \
+		-hwaccel mediacodec \
+		-mux_mode different_outputs_same_tracks_split_av \
+		-video_size 1920x1080 \
+		-fallback_priority 10 \
+		-i rtmp://127.0.0.1:1935/proxy/dji-osmo-pocket3 \
+		-s 640x360 \
+		-c:v h264_mediacodec \
+		-ar 48000 -ac 1 -sample_fmt fltp \
+		-c:a aac \
+		-b:v 2M -bufsize 2M \
+		-g 60 -r 30 \
+		-f flv %s`, ffstreamDevicePath, shQuote(rtmpURL))
+}
+
+func (s *E2ETestSuite) avdOutageSmokeBuiltinCameraCommand() string {
+	rtmpURL := fmt.Sprintf("rtmp://127.0.0.1:%d/test/stream", avdPublisherPort)
+	// Smoke-only coverage: this intentionally keeps the older 640x480/H.264
+	// path for fast retry-loop validation and is not a mission witness.
+	return fmt.Sprintf(`timeout 420 %s -v info \
+		-retry_input_timeout_on_failure 1s \
+		-retry_output_timeout_on_failure 0 \
+		-hwaccel mediacodec \
+		-mux_mode different_outputs_same_tracks_split_av \
+		-video_size 640x480 \
+		-camera_index 0 \
+		-framerate 30 \
+		-f android_camera -i '' \
+		-sample_rate 48000 \
+		-f android_microphone -i 0 \
+		-s 640x480 \
+		-c:v h264_mediacodec \
+		-b:v 2M -bufsize 2M \
+		-g 60 -r 30 \
+		-ar 48000 -ac 1 -sample_fmt fltp \
+		-c:a aac \
+		-f flv %s`, ffstreamDevicePath, shQuote(rtmpURL))
+}
+
+func (s *E2ETestSuite) runAVDOutageRecoverySmokeCase(name, command string) {
+	s.StopAVD()
+	if err := s.StartAVDWithAudio(1); err != nil {
+		s.t.Fatalf("Failed to start AVD for %s: %v", name, err)
+	}
+	if err := s.SetupReversePortForwarding(); err != nil {
+		s.t.Fatalf("Failed to set up reverse port forwarding for %s: %v", name, err)
+	}
+
+	pid, logPath, err := s.startDeviceStreamingCommand(name, command)
+	if err != nil {
+		s.t.Fatalf("Failed to start %s stream command: %v", name, err)
+	}
+	defer s.stopDeviceStreamingCommand(pid, logPath)
+
+	if err := s.waitForConsumerAudioVideo("test/stream", avdOutageSmokeRecoveryTimeout); err != nil {
+		s.t.Fatalf("%s did not produce initial audio+video before outage: %v\n%s",
+			name, err, s.deviceLogTail(logPath))
+	}
+
+	s.StopAVD()
+	s.t.Logf("AVD stopped for %s; sleeping %s", name, avdOutageSmokeDuration)
+	time.Sleep(avdOutageSmokeDuration)
+
+	if err := s.assertDeviceProcessAlive(pid); err != nil {
+		s.t.Fatalf("%s stream process exited during AVD outage: %v\n%s",
+			name, err, s.deviceLogTail(logPath))
+	}
+
+	if err := s.StartAVDWithAudio(1); err != nil {
+		s.t.Fatalf("Failed to restart AVD for %s: %v", name, err)
+	}
+	if err := s.SetupReversePortForwarding(); err != nil {
+		s.t.Fatalf("Failed to restore reverse port forwarding for %s: %v", name, err)
+	}
+
+	if err := s.waitForConsumerAudioVideo("test/stream", avdOutageSmokeRecoveryTimeout); err != nil {
+		s.t.Fatalf("%s did not restore audio+video after AVD outage: %v\n%s",
+			name, err, s.deviceLogTail(logPath))
+	}
+}
+
+func (s *E2ETestSuite) startDeviceStreamingCommand(name, command string) (pid string, logPath string, err error) {
+	logPath = fmt.Sprintf("%s/avd-outage-%s.log", androidTmpDir, name)
+	wrapped := fmt.Sprintf(
+		"cd %s && LD_LIBRARY_PATH=%s nohup sh -c %s > %s 2>&1 & echo $!",
+		androidBinDir,
+		androidBinDir,
+		shQuote(command),
+		shQuote(logPath),
+	)
+	out, err := s.deviceHelper.shell("sh", "-c", wrapped)
+	if err != nil {
+		return "", logPath, err
+	}
+	pid = strings.TrimSpace(out)
+	if pid == "" {
+		return "", logPath, fmt.Errorf("device did not return a background pid")
+	}
+	return pid, logPath, nil
+}
+
+func (s *E2ETestSuite) stopDeviceStreamingCommand(pid, logPath string) {
+	if pid != "" {
+		_, _ = s.deviceHelper.shell("sh", "-c", "kill "+shQuote(pid)+" 2>/dev/null || true")
+	}
+	if logPath != "" {
+		s.t.Logf("device stream log tail (%s):\n%s", logPath, s.deviceLogTail(logPath))
+	}
+}
+
+func (s *E2ETestSuite) assertDeviceProcessAlive(pid string) error {
+	_, err := s.deviceHelper.shell("sh", "-c", "kill -0 "+shQuote(pid))
+	return err
+}
+
+func (s *E2ETestSuite) deviceLogTail(path string) string {
+	out, err := s.deviceHelper.shell("sh", "-c", "tail -200 "+shQuote(path)+" 2>/dev/null || true")
+	if err != nil {
+		return fmt.Sprintf("unable to read %s: %v", path, err)
+	}
+	return out
+}
+
+func (s *E2ETestSuite) waitForConsumerAudioVideo(streamPath string, timeout time.Duration) error {
+	consumerURL := fmt.Sprintf("rtmp://127.0.0.1:%d/%s", avdConsumerPort, streamPath)
+	deadline := time.Now().Add(timeout)
+	var lastOutput string
+	var lastErr error
+
+	for time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		cmd := exec.CommandContext(ctx, "ffprobe",
+			"-v", "error",
+			"-show_entries", "stream=codec_type",
+			"-of", "csv=p=0",
+			consumerURL,
+		)
+		output, err := cmd.CombinedOutput()
+		cancel()
+
+		lastOutput = string(output)
+		lastErr = err
+		if strings.Contains(lastOutput, "video") && strings.Contains(lastOutput, "audio") {
+			return nil
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+
+	return fmt.Errorf("timed out waiting for audio+video at %s; last error=%v output=%s",
+		consumerURL, lastErr, lastOutput)
+}
+
 // VerifyStreamReceived checks if AVD received the stream.
 // This is a basic verification - a more complete version would
 // actually decode and verify frames.
@@ -655,6 +826,45 @@ func TestE2ECameraStream(t *testing.T) {
 	}
 
 	t.Log("Camera E2E test completed successfully")
+}
+
+func TestE2E_AVDOutageRecoverySmoke_MediamtxDJIAndBuiltinCamera(t *testing.T) {
+	if os.Getenv("RUN_AVD_OUTAGE_SMOKE") != "1" {
+		t.Skip("set RUN_AVD_OUTAGE_SMOKE=1 to run the two-minute AVD outage smoke test; mission proof requires the separate mission E2E witness plan")
+	}
+
+	suite := NewE2ETestSuiteWithTimeout(t, 20*time.Minute)
+	defer suite.Teardown()
+
+	if err := suite.Setup(); err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	if err := suite.CheckPrerequisites(); err != nil {
+		t.Skipf("Prerequisites not met: %v", err)
+	}
+	if err := suite.DeployFFstream(); err != nil {
+		t.Fatalf("Deploy failed: %v", err)
+	}
+
+	cases := []struct {
+		name    string
+		command string
+	}{
+		{
+			name:    "mediamtx-dji",
+			command: suite.avdOutageSmokeMediamtxDJICommand(),
+		},
+		{
+			name:    "builtin-camera",
+			command: suite.avdOutageSmokeBuiltinCameraCommand(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			suite.runAVDOutageRecoverySmokeCase(tc.name, tc.command)
+		})
+	}
 }
 
 // TestE2EProductionConfig tests with a production-like configuration.

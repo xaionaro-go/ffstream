@@ -4,6 +4,8 @@
 # Touches only paths inside the Ubuntu chroot:
 #   /usr/local/bin/run-ffstream.sh
 #   /usr/local/bin/loop-run-ffstream.sh
+#   /usr/local/bin/run-ffstream-camera.sh
+#   /usr/local/bin/loop-run-ffstream-camera.sh
 #   /etc/mediamtx/mediamtx.yml
 #   /etc/streaming.env (only when absent — non-destructive)
 #
@@ -13,8 +15,13 @@ set -euo pipefail
 TARGET="${1:-root@172.29.222.3}"
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-scp "$SCRIPT_DIR/run-ffstream.sh" "$SCRIPT_DIR/loop-run-ffstream.sh" "$TARGET:/usr/local/bin/"
-ssh "$TARGET" 'chmod +x /usr/local/bin/run-ffstream.sh /usr/local/bin/loop-run-ffstream.sh'
+scp \
+	"$SCRIPT_DIR/run-ffstream.sh" \
+	"$SCRIPT_DIR/loop-run-ffstream.sh" \
+	"$SCRIPT_DIR/run-ffstream-camera.sh" \
+	"$SCRIPT_DIR/loop-run-ffstream-camera.sh" \
+	"$TARGET:/usr/local/bin/"
+ssh "$TARGET" 'chmod +x /usr/local/bin/run-ffstream.sh /usr/local/bin/loop-run-ffstream.sh /usr/local/bin/run-ffstream-camera.sh /usr/local/bin/loop-run-ffstream-camera.sh'
 
 scp "$SCRIPT_DIR/mediamtx.yml" "$TARGET:/etc/mediamtx/"
 
@@ -24,3 +31,4 @@ ssh "$TARGET" 'test -f /etc/streaming.env || cp /tmp/streaming.env.staged /etc/s
 
 echo "Deploy done."
 echo "Restart ffstream via: ssh $TARGET 'kill \$(pidof ffstream)' (loop-run-ffstream.sh respawns within 0.1s)"
+echo "Android camera restart hook uses: /usr/local/bin/loop-run-ffstream-camera.sh"

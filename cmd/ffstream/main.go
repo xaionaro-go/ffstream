@@ -99,17 +99,6 @@ func main() {
 	)
 	assertNoError(ctx, err)
 
-	if flags.ListenControlSocket != "" {
-		logger.Debugf(ctx, "flags.ListenControlSocket == '%s'", flags.ListenControlSocket)
-		listener, err := getListener(ctx, flags.ListenControlSocket)
-		assertNoError(ctx, err)
-
-		observability.Go(ctx, func(ctx context.Context) {
-			logger.Infof(ctx, "listening for gRPC clients at %s (%T)", listener.Addr(), listener)
-			ffstreamserver.New(s).ServeContext(ctx, listener)
-		})
-	}
-
 	for _, inputInfo := range flags.Inputs {
 		_, err = s.AddInput(ctx, inputInfo)
 		assertNoError(ctx, err)
@@ -264,6 +253,17 @@ func main() {
 				Channels:       audioChannels,
 			}},
 		},
+	}
+
+	if flags.ListenControlSocket != "" {
+		logger.Debugf(ctx, "flags.ListenControlSocket == '%s'", flags.ListenControlSocket)
+		listener, err := getListener(ctx, flags.ListenControlSocket)
+		assertNoError(ctx, err)
+
+		observability.Go(ctx, func(ctx context.Context) {
+			logger.Infof(ctx, "listening for gRPC clients at %s (%T)", listener.Addr(), listener)
+			ffstreamserver.NewWithStop(s, cancelFunc).ServeContext(ctx, listener)
+		})
 	}
 
 	err = s.Start(ctx, transcoderConfig, flags.MuxMode, flags.AutoBitRate)

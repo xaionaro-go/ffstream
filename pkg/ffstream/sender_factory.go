@@ -75,10 +75,10 @@ func (s *senderFactory) NewSender(
 	ctx context.Context,
 	outputKey streammux.SenderKey,
 ) (streammux.SendingNode[CustomData], streammuxtypes.SenderConfig, error) {
-	if len(s.OutputTemplates) != 1 {
-		return nil, streammuxtypes.SenderConfig{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
+	outputTemplate, err := s.asFFStream().getSingleOutputTemplate()
+	if err != nil {
+		return nil, streammuxtypes.SenderConfig{}, err
 	}
-	outputTemplate := s.OutputTemplates[0]
 	outputURL := outputTemplate.GetURL(ctx, outputKey)
 	var sendBufSize uint
 	if ffstream := s.asFFStream(); ffstream != nil {
@@ -93,7 +93,7 @@ func (s *senderFactory) NewSender(
 					resCfg = autoBitrateHandler.AutoBitRateVideoConfig.ResolutionsAndBitRates.Best()
 				}
 				sendBufSize = uint(resCfg.BitrateHigh.ToBps()) // the buffer should be maxed out if we send traffic over 1000ms round-trip latency channel.
-				sendBufSize = max(sendBufSize, 10*1024)                      // at least 10KB
+				sendBufSize = max(sendBufSize, 10*1024)        // at least 10KB
 			}
 		}
 	}

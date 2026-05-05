@@ -1,8 +1,9 @@
 // ffstream_set_output_url_test.go covers FFStream.SetOutputURL: the
-// happy path of replacing a single output template's URL, the guard
-// that requires exactly one OutputTemplate, and the elimination of
-// any sticky `-f`/`-format` muxer override left over from a boot-time
-// launch line (regression for the `-f null -` foot-gun).
+// happy path of replacing a single output template's URL, the idle-daemon
+// path where the first runtime URL creates the template, the guard that
+// rejects multiple OutputTemplates, and the elimination of any sticky
+// `-f`/`-format` muxer override left over from a boot-time launch line
+// (regression for the `-f null -` foot-gun).
 
 package ffstream
 
@@ -30,16 +31,20 @@ func TestSetOutputURL_HappyPath(t *testing.T) {
 		"SetOutputURL must replace the URL of the single output template")
 }
 
-func TestSetOutputURL_NoOutputs_ReturnsError(t *testing.T) {
+func TestSetOutputURL_NoOutputs_CreatesTemplate(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	s := newTestFFStream(t, ctx)
 	// No AddOutputTemplate call — len(OutputTemplates) == 0.
 
-	err := s.SetOutputURL(ctx, "rtmp://example.com/app/stream")
-	require.Error(t, err,
-		"SetOutputURL with zero output templates must return an error")
+	const outputURL = "rtmp://example.com/app/stream"
+	require.NoError(t, s.SetOutputURL(ctx, outputURL),
+		"SetOutputURL with zero output templates must create the idle daemon's first template")
+	require.Len(t, s.OutputTemplates, 1,
+		"SetOutputURL must create exactly one template on the idle daemon path")
+	require.Equal(t, outputURL, s.OutputTemplates[0].URLTemplate,
+		"created output template must use the requested URL")
 }
 
 // TestSetOutputURL_StripsStickyFormat is a regression test for the

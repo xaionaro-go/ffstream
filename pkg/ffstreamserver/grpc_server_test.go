@@ -15,6 +15,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/kernel/boilerplate"
+	"github.com/xaionaro-go/avpipeline/node"
+	"github.com/xaionaro-go/avpipeline/processor"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"google.golang.org/grpc/codes"
@@ -77,6 +80,91 @@ func quiesceRetryable(
 	}
 }
 
+func newGetInputsInfoTestKernel(ctx context.Context) kernel.Abstract {
+	return boilerplate.NewFuncsToKernel(ctx, nil, nil, nil)
+}
+
+func installGetInputsInfoTestKernel(
+	ctx context.Context,
+	t *testing.T,
+	r *kernel.Retryable[*ffstream.Input],
+	inputFactory *ffstream.InputFactory,
+	inputs ...kernel.Abstract,
+) func() {
+	t.Helper()
+	require.NotNil(t, inputFactory)
+
+	r.KernelLocker.Do(ctx, func() {
+		r.KernelError = nil
+		r.Kernel = kernel.NewChainOfTwo(
+			kernel.Tee[kernel.Abstract](inputs),
+			kernel.NewMapStreamIndices(ctx, inputFactory),
+		)
+		r.KernelIsSet = true
+	})
+
+	return func() {
+		r.KernelLocker.Do(ctx, func() {
+			r.KernelIsSet = false
+			r.Kernel = nil
+			r.KernelError = io.EOF
+		})
+	}
+}
+
+func newGetInputsInfoSyntheticServer(
+	ctx context.Context,
+	t *testing.T,
+	resources ffstream.Resources,
+	inputs ...kernel.Abstract,
+) (*GRPCServer, func()) {
+	t.Helper()
+
+	s, err := ffstream.New(ctx)
+	require.NoError(t, err)
+
+	inputFactory := &ffstream.InputFactory{
+		FFStream:         s,
+		FallbackPriority: 0,
+	}
+	retryable := kernel.NewRetryable[*ffstream.Input](
+		ctx,
+		func(context.Context) (*ffstream.Input, error) {
+			return nil, io.EOF
+		},
+		nil,
+		kernel.RetryableOptionStartOnInit[*ffstream.Input](false),
+	)
+	inputNode := &node.NodeWithCustomData[
+		ffstream.CustomData,
+		*processor.FromKernel[*kernel.Retryable[*ffstream.Input]],
+	]{
+		Processor: &processor.FromKernel[*kernel.Retryable[*ffstream.Input]]{
+			Kernel: retryable,
+		},
+	}
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo = []ffstream.Resources{resources}
+		s.Inputs.InputChains = []*ffstream.InputChain{
+			{
+				ID:           0,
+				InputFactory: inputFactory,
+				Input:        inputNode,
+			},
+		}
+	})
+	s.Inputs.InputSwitch.CurrentValue.Store(0)
+
+	resetKernel := installGetInputsInfoTestKernel(
+		ctx,
+		t,
+		retryable,
+		inputFactory,
+		inputs...,
+	)
+	return NewGRPCServer(ctx, s), resetKernel
+}
+
 func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -114,66 +202,23 @@ func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {
 //
 // Pre-fix: panic on Kernel0[1] (caught by Go's test runtime), or empty
 // reply when run through the gRPC stack.
-// Post-fix: reply contains both entries (idx=0 with the injected nil
-// Input → Id=0, idx=1 skipped → Id=0), no panic.
+// Post-fix: idx=0 is emitted from the closeable test kernel, idx=1 is skipped,
+// and no panic occurs.
 func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	srv := newTestServer(t, ctx)
-
-	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
-		Url:      "test://a",
-		Priority: 0,
-	})
-	require.NoError(t, err)
-
-	// Inject a ChainOfTwo with Kernel0 of length 1 (Tee containing one
-	// nil *kernel.Input). This simulates the live state where the
-	// Retryable kernel was opened against the older InputsInfo before a
-	// second resource was added.
-	//
-	// quiesceRetryable terminates the pipeline init goroutine
-	// (FromKernel.startProcessing -> Retryable.Generate -> retry ->
-	// getKernel -> openKernelIfNeeded) which otherwise holds
-	// KernelLocker indefinitely while blocked on KernelOpenBarrier.
-	// Without quiescing, KernelLocker.Do below would deadlock until ctx
-	// times out. After quiesce the lock is free; we then mutate under
-	// KernelLocker so the race detector accepts the writes (the same
-	// fields are read under that lock by GetInputsInfo).
-	chain := srv.FFStream.Inputs.InputChains[0]
-	retryable := chain.Input.Processor.Kernel
-	quiesceRetryable(ctx, t, retryable)
-	retryable.KernelLocker.Do(ctx, func() {
-		tee := kernel.Tee[kernel.Abstract]{nil}
-		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
-		retryable.KernelIsSet = true
-	})
-	// Reset KernelIsSet=false (and clear Kernel) BEFORE the deferred
-	// cancel cancels ctx. finalize -> Retryable.Close spawns a Pause
-	// goroutine that may win the lock acquisition race against
-	// ctx.Done (CtxLocker.ManualLock uses Go select, which picks
-	// non-deterministically when both cases are ready). If Pause wins
-	// while KernelIsSet is true, pauseLocked calls r.Kernel.Close on
-	// the injected ChainOfTwo whose Kernel0 has nil entries and
-	// Kernel1 is a nil *MapStreamIndices — both panic on Close.
-	// Resetting here means pauseLocked takes the early !KernelIsSet
-	// branch and never touches r.Kernel. defers run LIFO so this
-	// fires before the `defer cancel()`.
-	defer func() {
-		retryable.KernelLocker.Do(ctx, func() {
-			retryable.KernelIsSet = false
-			retryable.Kernel = nil
-		})
-	}()
-
-	// Now AddInput a second resource — InputsInfo[0] has 2 entries,
-	// Kernel0 still has 1. idx=1 hits the boundary.
-	_, err = srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
-		Url:      "test://b",
-		Priority: 0,
-	})
-	require.NoError(t, err)
+	testInput := newGetInputsInfoTestKernel(ctx)
+	srv, resetKernel := newGetInputsInfoSyntheticServer(
+		ctx,
+		t,
+		ffstream.Resources{
+			{URL: "test://a"},
+			{URL: "test://b"},
+		},
+		testInput,
+	)
+	defer resetKernel()
 
 	// In standalone, GetInputsInfo skips entries whose Kernel0 slot is
 	// nil (or out-of-range when idx >= len(Kernel0)). The original
@@ -185,6 +230,8 @@ func TestGRPCServer_GetInputsInfo_BoundaryNum(t *testing.T) {
 		reply, err := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
 		require.NoError(t, err)
 		require.NotNil(t, reply)
+		require.Len(t, reply.GetInputs(), 1)
+		require.Equal(t, uint64(testInput.GetObjectID()), reply.GetInputs()[0].GetId())
 	}, "GetInputsInfo must not panic on idx == len(Kernel0)")
 }
 
@@ -206,61 +253,17 @@ func TestGetInputsInfo_IsActiveReflectsServingChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	srv := newTestServer(t, ctx)
-
-	_, err := srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
-		Url:      "test://cam",
-		Priority: 0,
-	})
-	require.NoError(t, err)
-
-	_, err = srv.AddInput(ctx, &ffstream_grpc.AddInputRequest{
-		Url:      "test://mic",
-		Priority: 0,
-	})
-	require.NoError(t, err)
-
-	// Simulate "this chain's kernel is open" without doing real I/O.
-	// Standalone's GetInputsInfo skips entries whose Kernel0 slot is
-	// nil (or whose closure returns nil), so to make the reply contain
-	// 2 entries we must inject a ChainOfTwo whose Kernel0 (a Tee) holds
-	// 2 non-nil *kernel.Input items. Empty &kernel.Input{} values are
-	// enough — the handler only calls GetObjectID, which returns the
-	// pointer-as-ID without dereferencing fields.
-	//
-	// quiesceRetryable terminates the pipeline init goroutine that
-	// holds KernelLocker while blocked on KernelOpenBarrier — without
-	// quiescing, KernelLocker.Do below would deadlock until ctx times
-	// out. Then we write KernelIsSet/Kernel under KernelLocker so the
-	// race detector accepts the writes (the same fields are read under
-	// that lock by GetInputsInfo).
-	//
-	// The deferred reset runs BEFORE `defer cancel()` (LIFO) and clears
-	// KernelIsSet+Kernel under the lock. Without it, finalize ->
-	// Retryable.Close spawns a Pause goroutine that may win the lock
-	// race against ctx.Done; if Pause wins while KernelIsSet=true,
-	// pauseLocked calls r.Kernel.Close on the injected ChainOfTwo
-	// whose Kernel0 has bare *kernel.Input entries (no AVFormatCtx)
-	// and Kernel1 is a nil *MapStreamIndices — both panic on Close.
-	chain := srv.FFStream.Inputs.InputChains[0]
-	retryable := chain.Input.Processor.Kernel
-	quiesceRetryable(ctx, t, retryable)
-	retryable.KernelLocker.Do(ctx, func() {
-		tee := kernel.Tee[kernel.Abstract]{&kernel.Input{}, &kernel.Input{}}
-		retryable.Kernel = kernel.NewChainOfTwo(tee, (*kernel.MapStreamIndices)(nil))
-		retryable.KernelIsSet = true
-	})
-	defer func() {
-		retryable.KernelLocker.Do(ctx, func() {
-			retryable.KernelIsSet = false
-			retryable.Kernel = nil
-		})
-	}()
-
-	// initSwitches stores 0 into InputSwitch.CurrentValue; chain 0 is
-	// the live one. Be explicit anyway — the test must not depend on
-	// initialization order changing upstream.
-	srv.FFStream.Inputs.InputSwitch.CurrentValue.Store(int32(chain.ID))
+	srv, resetKernel := newGetInputsInfoSyntheticServer(
+		ctx,
+		t,
+		ffstream.Resources{
+			{URL: "test://cam"},
+			{URL: "test://mic"},
+		},
+		newGetInputsInfoTestKernel(ctx),
+		newGetInputsInfoTestKernel(ctx),
+	)
+	defer resetKernel()
 
 	reply, err := srv.GetInputsInfo(ctx, &ffstream_grpc.GetInputsInfoRequest{})
 	require.NoError(t, err)
@@ -301,6 +304,7 @@ func TestGetInputsInfo_IsActiveFalseWhenSwitchPointsElsewhere(t *testing.T) {
 	retryable := chain.Input.Processor.Kernel
 	quiesceRetryable(ctx, t, retryable)
 	retryable.KernelLocker.Do(ctx, func() {
+		retryable.KernelError = nil
 		retryable.KernelIsSet = true
 	})
 

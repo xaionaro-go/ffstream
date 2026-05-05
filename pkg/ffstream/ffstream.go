@@ -71,9 +71,14 @@ type FFStream struct {
 	// goroutine can increment it without contending the daemon
 	// locker.
 	pipelineErrorCount atomic.Uint64
+	intentionalEnd     atomic.Bool
+	runtimeReady       atomic.Bool
 
 	cancelFunc context.CancelFunc
+	startDone  <-chan struct{}
 	locker     sync.Mutex
+
+	outputTemplatesLocker sync.Mutex
 
 	audioStreamIndices map[fallbackResourceKey]int
 }
@@ -135,7 +140,7 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 //
 // Policy: the daemon is always-on by design. Lifecycle is owned by the
 // daemon ctx (external shutdown) and by avpipeline.Serve naturally
-// returning (errCh closed). Pipeline errors are advisory — every
+// returning (daemon ctx canceled). Pipeline errors are advisory — every
 // subsystem owns its own retry/failover:
 //   - InputWithFallback retries inputs on EOF/EIO and falls back to
 //     lower-priority chains.
@@ -147,10 +152,8 @@ func (s *FFStream) addCancelFnLocked(cancelFn context.CancelFunc) {
 // retry. The error-handler therefore logs and continues; only the two
 // terminal signals end the loop and cancel the daemon ctx:
 //   - ctx done       → the caller already cancelled us.
-//   - errCh closed   → avpipeline.Serve returned, so there is nothing
-//     left to drive. Closing happens via the deferred close in Start's
-//     `avpipeline.Serve` goroutine — i.e., only when ctx propagates
-//     cancellation through the Serve tree.
+//   - errCh closed   → test/custom producer returned, so there is
+//     nothing left to drain.
 //
 // cancelFunc is invoked exactly once on return so the daemon ctx is
 // torn down deterministically when the loop exits. Callers MUST hold
@@ -368,10 +371,27 @@ func (s *FFStream) AddOutputTemplate(
 ) (_err error) {
 	logger.Debugf(ctx, "AddOutputTemplate(ctx, %#+v)", outputTemplate)
 	defer func() { logger.Debugf(ctx, "/AddOutputTemplate(ctx, %#+v): %v", outputTemplate, _err) }()
-	s.locker.Lock()
-	defer s.locker.Unlock()
+	s.outputTemplatesLocker.Lock()
+	defer s.outputTemplatesLocker.Unlock()
 	s.OutputTemplates = append(s.OutputTemplates, outputTemplate)
 	return nil
+}
+
+func (s *FFStream) getOutputTemplateCount() int {
+	s.outputTemplatesLocker.Lock()
+	defer s.outputTemplatesLocker.Unlock()
+	return len(s.OutputTemplates)
+}
+
+func (s *FFStream) getSingleOutputTemplate() (SenderTemplate, error) {
+	s.outputTemplatesLocker.Lock()
+	defer s.outputTemplatesLocker.Unlock()
+	if len(s.OutputTemplates) != 1 {
+		return SenderTemplate{}, fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
+	}
+	outputTemplate := s.OutputTemplates[0]
+	outputTemplate.Options = slices.Clone(outputTemplate.Options)
+	return outputTemplate, nil
 }
 
 func (s *FFStream) GetTranscoderConfig(
@@ -399,10 +419,17 @@ func (s *FFStream) SetOutputURL(
 ) (_err error) {
 	logger.Debugf(ctx, "SetOutputURL(ctx, %q)", url)
 	defer func() { logger.Debugf(ctx, "/SetOutputURL(ctx, %q): %v", url, _err) }()
-	s.locker.Lock()
-	defer s.locker.Unlock()
-	if len(s.OutputTemplates) != 1 {
-		return fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
+	s.outputTemplatesLocker.Lock()
+	defer s.outputTemplatesLocker.Unlock()
+	switch len(s.OutputTemplates) {
+	case 0:
+		s.OutputTemplates = append(s.OutputTemplates, SenderTemplate{
+			URLTemplate: url,
+		})
+		return nil
+	case 1:
+	default:
+		return fmt.Errorf("at most one output template is supported, got %d", len(s.OutputTemplates))
 	}
 	s.OutputTemplates[0].URLTemplate = url
 	s.OutputTemplates[0].Options = slices.DeleteFunc(
@@ -421,11 +448,22 @@ func (s *FFStream) SwitchOutputByProps(
 	ctx context.Context,
 	props streammuxtypes.SenderProps,
 ) (_err error) {
+	s.locker.Lock()
+	streamMux := s.StreamMux
+	s.locker.Unlock()
+	return s.switchOutputByProps(ctx, streamMux, props)
+}
+
+func (s *FFStream) switchOutputByProps(
+	ctx context.Context,
+	streamMux *streammux.StreamMux[CustomData],
+	props streammuxtypes.SenderProps,
+) (_err error) {
 	logger.Debugf(ctx, "SwitchOutputByProps(ctx, %#+v)", props)
 	defer func() {
 		logger.Debugf(ctx, "/SwitchOutputByProps(ctx, %#+v): %v", props, _err)
 	}()
-	if s.StreamMux == nil {
+	if streamMux == nil {
 		return fmt.Errorf("it is allowed to use SwitchOutputByProps only after Start is invoked")
 	}
 	if len(props.Output.AudioTrackConfigs) > 0 {
@@ -440,7 +478,7 @@ func (s *FFStream) SwitchOutputByProps(
 			return fmt.Errorf("resolution must be set for video codec %q", videoCfg.CodecName)
 		}
 	}
-	return s.StreamMux.SwitchToOutputByProps(ctx, props)
+	return streamMux.SwitchToOutputByProps(ctx, props)
 }
 
 func (s *FFStream) GetStats(
@@ -504,23 +542,35 @@ func (s *FFStream) Start(
 	logger.Debugf(ctx, "Start")
 	defer func() { logger.Debugf(ctx, "/Start: %v", _err) }()
 
-	if s.StreamMux != nil {
-		return fmt.Errorf("this ffstream was already used")
-	}
-	if s.Inputs.GetInputChainsCount(ctx) == 0 {
-		return fmt.Errorf("no inputs added")
-	}
-	if len(s.OutputTemplates) != 1 {
-		return fmt.Errorf("exactly one output template is required, got %d", len(s.OutputTemplates))
-	}
-
+	startDone := ctx.Done()
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer func() {
 		if _err != nil {
 			cancelFn()
 		}
 	}()
+
+	s.locker.Lock()
+	setupDone := false
+	defer func() {
+		if !setupDone {
+			s.locker.Unlock()
+		}
+	}()
+
+	if s.StreamMux != nil {
+		return fmt.Errorf("this ffstream was already used")
+	}
+	outputTemplateCount := s.getOutputTemplateCount()
+	if outputTemplateCount > 1 {
+		return fmt.Errorf("at most one output template is supported, got %d", outputTemplateCount)
+	}
+
+	s.intentionalEnd.Store(false)
+	s.runtimeReady.Store(false)
+	s.startDone = startDone
 	s.addCancelFnLocked(cancelFn)
+	cancelForDrain := s.cancelFunc
 
 	var err error
 	s.StreamMux, err = streammux.NewWithCustomData(
@@ -561,20 +611,25 @@ func (s *FFStream) Start(
 		syncNode.AddPushTo(ctx, s.StreamMux, packetorframefiltercondition.Function(s.shouldForwardToOutput))
 	}
 
-	if err := s.SwitchOutputByProps(ctx, streammuxtypes.SenderProps{
-		TranscoderConfig: transcoderConfig,
-		SenderNodeProps:  streammuxtypes.SenderNodeProps{},
-	}); err != nil {
-		return fmt.Errorf("SwitchOutputByProps(%#+v): %w", transcoderConfig, err)
-	}
+	streamMux := s.StreamMux
+	setupDone = true
+	s.locker.Unlock()
 
-	if autoBitRateVideo != nil {
-		s.preemptivelyInitAutoBitRateOutputs(ctx, transcoderConfig, autoBitRateVideo)
+	if outputTemplateCount == 1 {
+		if err := s.switchOutputByProps(ctx, streamMux, streammuxtypes.SenderProps{
+			TranscoderConfig: transcoderConfig,
+			SenderNodeProps:  streammuxtypes.SenderNodeProps{},
+		}); err != nil {
+			return fmt.Errorf("SwitchOutputByProps(%#+v): %w", transcoderConfig, err)
+		}
+
+		if autoBitRateVideo != nil {
+			s.preemptivelyInitAutoBitRateOutputs(ctx, transcoderConfig, autoBitRateVideo)
+		}
 	}
 
 	errCh := make(chan node.Error, 100)
 	observability.Go(ctx, func(ctx context.Context) {
-		defer close(errCh)
 		avpipeline.Serve(ctx, avpipeline.ServeConfig{
 			EachNode: node.ServeConfig{
 				FrameDropVideo: s.Config.FrameDropVideo,
@@ -582,16 +637,18 @@ func (s *FFStream) Start(
 				FrameDropOther: s.Config.FrameDropOther,
 			},
 		}, errCh, []node.Abstract{s.Inputs}...)
+		cancelForDrain()
 	})
 
 	observability.Go(ctx, func(ctx context.Context) {
-		drainPipelineErrors(ctx, errCh, s.cancelFunc, &s.pipelineErrorCount)
+		drainPipelineErrors(ctx, errCh, cancelForDrain, &s.pipelineErrorCount)
 	})
 
 	err = s.StreamMux.WaitForStart(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to wait for streammux's start: %w", err)
 	}
+	s.runtimeReady.Store(true)
 
 	return nil
 }
@@ -848,7 +905,94 @@ func (s *FFStream) Wait(
 ) (_err error) {
 	logger.Debugf(ctx, "Wait")
 	defer func() { logger.Debugf(ctx, "/Wait: %v", _err) }()
-	return s.StreamMux.WaitForStop(ctx)
+
+	if s == nil {
+		return fmt.Errorf("ffstream is nil")
+	}
+
+	s.locker.Lock()
+	streamMux := s.StreamMux
+	startDone := s.startDone
+	s.locker.Unlock()
+	if streamMux == nil {
+		return fmt.Errorf("ffstream is not started")
+	}
+
+	err := streamMux.WaitForStop(ctx)
+	if errors.Is(err, context.Canceled) && s.intentionalEnd.Load() {
+		return nil
+	}
+	if err == nil && !s.intentionalEnd.Load() {
+		select {
+		case <-startDone:
+			return context.Canceled
+		default:
+		}
+	}
+	return err
+}
+
+func (s *FFStream) MarkIntentionalEnd() {
+	if s == nil {
+		return
+	}
+	s.intentionalEnd.Store(true)
+	s.runtimeReady.Store(false)
+}
+
+func (s *FFStream) IsRuntimeReady() bool {
+	if s == nil {
+		return false
+	}
+	return s.runtimeReady.Load()
+}
+
+func (s *FFStream) End(
+	ctx context.Context,
+) (_err error) {
+	logger.Debugf(ctx, "End")
+	defer func() { logger.Debugf(ctx, "/End: %v", _err) }()
+
+	cancelFunc, err := s.PrepareEnd(ctx)
+	if err != nil {
+		return err
+	}
+
+	cancelFunc()
+	return nil
+}
+
+// PrepareEnd records clean-shutdown intent and returns the runtime cancellation
+// handle. Callers that must acknowledge a request before shutdown can invoke the
+// returned function after the acknowledgement is no longer using the runtime.
+func (s *FFStream) PrepareEnd(
+	ctx context.Context,
+) (_ret context.CancelFunc, _err error) {
+	logger.Debugf(ctx, "PrepareEnd")
+	defer func() { logger.Debugf(ctx, "/PrepareEnd: %v", _err) }()
+
+	if s == nil {
+		return nil, fmt.Errorf("ffstream is nil")
+	}
+
+	s.locker.Lock()
+	cancelFunc := s.cancelFunc
+	if cancelFunc == nil {
+		s.locker.Unlock()
+		return nil, fmt.Errorf("ffstream is not started")
+	}
+
+	if err := WriteEndMarkerFromEnv(); err != nil {
+		s.locker.Unlock()
+		return nil, fmt.Errorf("unable to write End marker: %w", err)
+	}
+
+	s.intentionalEnd.Store(true)
+	s.runtimeReady.Store(false)
+	s.cancelFunc = nil
+	s.locker.Unlock()
+
+	return cancelFunc, nil
 }
 
 func (s *FFStream) GetAutoBitRateVideoConfig(

@@ -214,7 +214,7 @@ func TestE2E_MultipleOutputTemplatesError(t *testing.T) {
 
 	err = h.FFStream.Start(h.pipelineCtx, transcoderConfig, streammuxtypes.MuxModeForbid, nil)
 	require.Error(t, err, "Start() should reject multiple output templates")
-	assert.Contains(t, err.Error(), "exactly one output template",
+	assert.Contains(t, err.Error(), "at most one output template",
 		"error should mention output template constraint")
 	t.Logf("expected error: %v", err)
 }
