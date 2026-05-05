@@ -60,6 +60,12 @@ validate_ffstream_binary() {
 	fi
 }
 
+validate_video_codec() {
+	if [ "$VCODEC" != "av1_mediacodec" ]; then
+		fail_config "VCODEC must be av1_mediacodec for the mediamtx-side daemon; got: $VCODEC"
+	fi
+}
+
 : "${FFSTREAM_STREAMING_ENV_FILE:=/etc/streaming.env}"
 if [ ! -r "$FFSTREAM_STREAMING_ENV_FILE" ]; then
 	fail_config "missing or unreadable config file: $FFSTREAM_STREAMING_ENV_FILE"
@@ -82,6 +88,7 @@ require_config_var FFSTREAM_AUTO_BITRATE
 require_config_var FFSTREAM_AUTOBITRATE_MAX_HEIGHT
 require_config_var FFSTREAM_AUTOBITRATE_MIN_HEIGHT
 require_config_var FFSTREAM_AUTO_BYPASS
+validate_video_codec
 
 : "${FFSTREAM_BIN:=/data/user/0/com.termux/files/usr/bin/ffstream}"
 : "${FFSTREAM_BIN_RUNNER:=termux-root}"

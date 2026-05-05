@@ -1,10 +1,10 @@
 # prod-ubuntu-chroot — versioned launcher scripts
 
-Production launcher chain for ffstream running inside the Ubuntu chroot on the prod phone (`root@172.29.222.3`, formerly `172.29.221.28`). Source-of-truth lives here; prod is a checkout target.
+Production launcher chain for ffstream running inside the Ubuntu chroot on the phone. Source-of-truth lives here; deployed devices are checkout targets.
 
 ## Why this directory exists
 
-Critic B (ECI iter-1) finding **F7**: `run-ffstream.sh` was hand-edited on the device with no version control. `loop-run-ffstream.sh` had a versioned cousin under `scripts/loop-run-ffstream.sh` for the test-phone path, but the prod chroot variant diverged. Result: drift, no review trail, lost edits.
+The phone runs two supervised ffstream daemons: the mediamtx-side daemon on port 3593 and the built-in camera daemon on port 3594. These versioned wrappers keep the two launch paths reviewable and prevent hand-edited device drift.
 
 This directory is the SSOT for everything that runs in `/usr/local/bin/` and `/etc/` of the prod chroot. Hand edits on the device are bugs to be reconciled here first.
 
@@ -16,7 +16,7 @@ This directory is the SSOT for everything that runs in `/usr/local/bin/` and `/e
 | `loop-run-ffstream.sh` | `/usr/local/bin/loop-run-ffstream.sh` | Supervisor loop (`while sleep 0.1; do run-ffstream.sh; done`) |
 | `run-ffstream-camera.sh` | `/usr/local/bin/run-ffstream-camera.sh` | Per-launch wrapper for the idle ffstream-camera daemon on port 3594 |
 | `loop-run-ffstream-camera.sh` | `/usr/local/bin/loop-run-ffstream-camera.sh` | rc.local-owned camera supervisor |
-| `streaming.env.template` | `/etc/streaming.env` (only if absent) | Env defaults; sourced by both per-launch wrappers |
+| `streaming.env.template` | `/etc/streaming.env` (only if absent) | Env defaults; mediamtx-side VCODEC is fixed to AV1 |
 | `mediamtx.yml` | `/etc/mediamtx/mediamtx.yml` | mediamtx config |
 | `rc.local.fragment` | append to `/etc/rc.local` (manual) | rc.local launcher line + cleanup |
 | `deploy.sh` | n/a | Push files to prod via scp |
@@ -39,14 +39,19 @@ created by the running launchers, not by `deploy.sh`:
 
 ## Env-var contract
 
-Set in `/etc/streaming.env`; read by both per-launch wrappers:
+Set in `/etc/streaming.env`; read by one or both per-launch wrappers:
 
 | Var | Default | Effect |
 |---|---|---|
+| `VCODEC` | `av1_mediacodec` | Required mediamtx-side video encoder; any other value is a terminal setup error |
 | `FFSTREAM_BIN` | `/data/user/0/com.termux/files/usr/bin/ffstream` | Canonical Termux ffstream binary path passed through `termux-root` |
 | `FFSTREAM_BIN_RUNNER` | `termux-root` | Runner used by the Ubuntu chroot wrappers to execute the Termux binary |
 | `FFSTREAM_RAM_CAP_AS` | `unlimited` | `prlimit --as=` value (RLIMIT_AS / virtual address space); numeric values below `1099511627776` fail setup with status 78 |
 | `FFSTREAM_GOMEMLIMIT` | `15GiB` | Exported to ffstream; Go runtime soft memory target |
+
+`run-ffstream.sh` is the mediamtx-side launcher. It consumes the phone
+mediamtx path at 1920x1080 and refuses to start unless `VCODEC=av1_mediacodec`.
+The built-in camera launcher bakes its own 1920x1920 AV1 settings.
 
 `FFSTREAM_RAM_CAP_AS` defaults to `unlimited` because the Termux ffstream
 process reserves roughly 1 TiB of virtual address space at startup. A too-low

@@ -106,7 +106,7 @@ cat > "$streaming_env" <<'EOF'
 WIDTH=1920
 HEIGHT=1080
 ACODEC=aac
-VCODEC=h265_mediacodec
+VCODEC=av1_mediacodec
 FRAMERATE=30
 KEYFRAME_INTERVAL=1
 ADDR_HOME=127.0.0.1
@@ -144,6 +144,28 @@ fi
 if ! grep -qx -- "--as=unlimited" "$PRLIMIT_ARGS_LOG"; then
 	cat "$PRLIMIT_ARGS_LOG" >&2
 	fail "run-ffstream.sh must pass the validated AS cap to prlimit"
+fi
+
+rm -f "$FFSTREAM_STUB_ARGS_LOG" "$TERMUX_ROOT_ARGS_LOG" "$PRLIMIT_ARGS_LOG"
+set +e
+non_av1_env="$tmp_dir/non-av1.env"
+sed 's/VCODEC=av1_mediacodec/VCODEC=h265_mediacodec/' \
+	"$streaming_env" > "$non_av1_env"
+env FFSTREAM_STREAMING_ENV_FILE="$non_av1_env" "$script" \
+	> "$tmp_dir/non-av1.out" 2> "$tmp_dir/non-av1.err"
+status=$?
+set -e
+if [ "$status" -ne 78 ]; then
+	cat "$tmp_dir/non-av1.err" >&2
+	fail "non-AV1 VCODEC must exit 78; got $status"
+fi
+if [ -e "$FFSTREAM_STUB_ARGS_LOG" ]; then
+	fail "non-AV1 VCODEC must fail before launching ffstream"
+fi
+if ! grep -q "VCODEC" "$tmp_dir/non-av1.err" \
+		|| ! grep -q "av1_mediacodec" "$tmp_dir/non-av1.err"; then
+	cat "$tmp_dir/non-av1.err" >&2
+	fail "non-AV1 diagnostic must mention VCODEC and av1_mediacodec"
 fi
 
 rm -f "$FFSTREAM_STUB_ARGS_LOG" "$TERMUX_ROOT_ARGS_LOG" "$PRLIMIT_ARGS_LOG"
