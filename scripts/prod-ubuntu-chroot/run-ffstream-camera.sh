@@ -1,7 +1,7 @@
 #!/bin/bash
 set -o pipefail
 #
-# run-ffstream-camera.sh supervises an IDLE-mode ffstream daemon
+# run-ffstream-camera.sh launches one IDLE-mode ffstream daemon instance
 # alongside the legacy run-ffstream.sh path. Keeps every global flag from
 # the legacy launcher (low-latency input defaults, hwaccel, auto-bitrate,
 # retry behaviour, scheduling/affinity), keeps mission output defaults, and
@@ -50,7 +50,9 @@ echo 1000 > /proc/self/oom_score_adj
 # All flags below are GLOBAL defaults (apply to every later AddInput RPC's
 # AVFormatContext) — preserved verbatim from run-ffstream.sh except for
 # the per-input/per-output flags that wingout drives via gRPC at
-# user-tap-Activate time. Dropped relative to the legacy launcher:
+# user-tap-Activate time. A clean End returns status 0 to the outer supervisor,
+# which relaunches a fresh idle daemon for the next Activate. Dropped relative
+# to the legacy launcher:
 #   -i <url>                    (replaced by AddInput RPC)
 #   -fallback_priority <n>      (per-input; AddInput carries Priority)
 #   -itsoffset <ts>             (per-input; AddInput as needed)

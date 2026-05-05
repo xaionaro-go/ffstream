@@ -60,6 +60,12 @@ exec "$@"
 STUB
 cat > "$bin_dir/ffstream-stub" <<'STUB'
 #!/bin/bash
+if [ -n "${FFSTREAM_STUB_ARGS_LOG:-}" ]; then
+	: > "$FFSTREAM_STUB_ARGS_LOG"
+	for arg in "$@"; do
+		printf '%s\n' "$arg" >> "$FFSTREAM_STUB_ARGS_LOG"
+	done
+fi
 case "${FFSTREAM_STUB_MODE:-no-marker}" in
 	marker)
 		mkdir -p "$(dirname "$FFSTREAM_END_MARKER_FILE")"
@@ -91,6 +97,7 @@ export FFSTREAM_END_MARKER_FILE="$tmp_dir/end-marker"
 export FFSTREAM_END_MARKER_FILE_CHROOT="$tmp_dir/end-marker"
 export FFSTREAM_CAMERA_LOG_FILE="$tmp_dir/ffstream-camera.log"
 export FFSTREAM_RAM_CAP_AS=unlimited
+export FFSTREAM_STUB_ARGS_LOG="$tmp_dir/ffstream-args.log"
 
 run_case() {
 	local name=$1
@@ -118,6 +125,21 @@ run_case marker_zero env FFSTREAM_STUB_MODE=marker FFSTREAM_STUB_STATUS=0 "$scri
 	> "$tmp_dir/marker.out" 2> "$tmp_dir/marker.err" || fail "End marker should produce clean exit"
 if [ -e "$FFSTREAM_END_MARKER_FILE" ]; then
 	fail "consumed End marker must be removed"
+fi
+if grep -qx -- "-i" "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must not include built-in camera/mic inputs"
+fi
+if grep -qx -- "-f" "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must not include output format/publish target"
+fi
+if grep -Eq "android_camera|android_microphone|rtmp://|rtmps://|srt://" "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must not include built-in inputs or publish URLs"
+fi
+if ! grep -qx -- "-listen_control" "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must expose the control socket for later Activate"
+fi
+if ! grep -qx -- "tcp:127.0.0.1:3594" "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must listen on the camera control port"
 fi
 
 printf 'stale\n' > "$FFSTREAM_END_MARKER_FILE"

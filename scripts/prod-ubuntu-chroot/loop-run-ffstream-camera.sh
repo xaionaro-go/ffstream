@@ -3,6 +3,7 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/ga
 
 lock_file=${FFSTREAM_CAMERA_SUPERVISOR_LOCK_FILE:-/tmp/ffstream-camera-supervisor.flock}
 run_ffstream_camera=${FFSTREAM_CAMERA_RUNNER:-run-ffstream-camera.sh}
+stop_statuses=${FFSTREAM_CAMERA_SUPERVISOR_STOP_STATUSES:-"74 78 126 127"}
 
 if ! command -v flock >/dev/null 2>&1; then
 	echo "ffstream-camera supervisor requires flock" >&2
@@ -21,19 +22,27 @@ printf '%s\n' "$$" >&9
 # - Tracks consecutive rapid-failure starts.
 # - Backs off 0.1 -> 1 -> 5 -> 30 seconds.
 # - Resets backoff after a successful long-running invocation (>= 60s).
-# - Stops after a clean ffstream-camera exit; UI Deactivate owns clean daemon
-#   shutdown through the End RPC.
+# - A clean End exits the active ffstream instance, then relaunches an idle
+#   daemon so the next Activate works without operator intervention.
+# - Stops only for statuses that indicate unrecoverable configuration/setup
+#   failure. Runtime exits are restartable.
 delay=0.1
 while true; do
 	start=$(date +%s)
 	"$run_ffstream_camera"
 	status=$?
-	if [ "$status" -eq 0 ]; then
-		exit 0
-	fi
+	case " $stop_statuses " in
+		*" $status "*)
+			echo "ffstream-camera supervisor stopping after unrecoverable status $status" >&2
+			exit "$status"
+			;;
+	esac
 	end=$(date +%s)
 	dur=$((end - start))
-	if [ "$dur" -ge 60 ]; then
+	if [ "$status" -eq 0 ]; then
+		# Intentional End: relaunch an idle daemon promptly.
+		delay=0.1
+	elif [ "$dur" -ge 60 ]; then
 		# Successful long run; reset backoff.
 		delay=0.1
 	else

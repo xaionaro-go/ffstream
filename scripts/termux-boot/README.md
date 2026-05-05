@@ -10,7 +10,7 @@ differs per host.
 ```
 scripts/
   loop-run-ffstream.sh        # common supervised launcher (POSIX sh)
-  rc.local.snippet            # one-liner the prod /etc/rc.local sources
+  rc.local.snippet            # prod /etc/rc.local launcher additions
   termux-boot/
     start-ffstream            # Termux:Boot trigger (thin wrapper)
     README.md                 # this file
@@ -107,6 +107,7 @@ Deferred until prod cutover authorization. When authorized:
    `/usr/local/bin/loop-run-ffstream.sh` on the prod host
    (`172.29.222.3`, inside the ubuntu chroot). `chmod 755`.
 2. Append the contents of `scripts/rc.local.snippet` to
-   `/etc/rc.local` (before `exit 0`).
+   `/etc/rc.local` (before `exit 0`) so rc.local starts both the mediamtx
+   ffstream supervisor and the camera ffstream supervisor.
 3. The flag set is the *same* one the test phone uses — change it
    in `loop-run-ffstream.sh`, not in the trigger.
