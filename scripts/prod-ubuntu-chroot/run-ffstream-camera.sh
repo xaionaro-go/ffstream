@@ -2,9 +2,9 @@
 set -o pipefail
 #
 # run-ffstream-camera.sh launches one IDLE-mode ffstream daemon instance
-# alongside the legacy run-ffstream.sh path. Keeps every global flag from
-# the legacy launcher (low-latency input defaults, hwaccel, auto-bitrate,
-# retry behaviour, scheduling/affinity), keeps mission output defaults, and
+# alongside the mediamtx-side run-ffstream.sh daemon. Keeps the shared
+# low-latency input defaults, hwaccel, auto-bitrate, retry behaviour,
+# scheduling/affinity, keeps mission output defaults, and
 # drops only inputs / output URLs (those are added at runtime via wingout's gRPC):
 #   AddInput(camera) + AddInput(mic) + SetOutputURL + SwitchOutputByProps.
 #
@@ -13,9 +13,9 @@ set -o pipefail
 # bands are anchored to the built-in camera geometry before the first Activate
 # RPC arrives.
 #
-# Split with the legacy script — both daemons co-exist on one phone:
-#   - Listens on tcp:127.0.0.1:3594 (legacy: 3593)
-#   - pprof on 0.0.0.0:8239         (legacy: 8238)
+# Split from the mediamtx-side script — both daemons co-exist on one phone:
+#   - Listens on tcp:127.0.0.1:3594 (mediamtx-side: 3593)
+#   - pprof on 0.0.0.0:8239         (mediamtx-side: 8238)
 #   - Logs to /data/ubuntu/tmp/ffstream-camera.log
 #
 # -mux_mode different_outputs_same_tracks_split_av makes the daemon emit two
@@ -40,6 +40,49 @@ require_config_var() {
 	fi
 }
 
+decimal_at_least() {
+	local value=$1
+	local minimum=$2
+	value="${value#"${value%%[!0]*}"}"
+	if [ -z "$value" ]; then
+		value=0
+	fi
+	if [ "${#value}" -gt "${#minimum}" ]; then
+		return 0
+	fi
+	if [ "${#value}" -lt "${#minimum}" ]; then
+		return 1
+	fi
+	[[ "$value" > "$minimum" || "$value" == "$minimum" ]]
+}
+
+validate_ram_cap_as() {
+	local minimum=${FFSTREAM_MIN_RAM_CAP_AS:-1099511627776}
+	case "${FFSTREAM_RAM_CAP_AS:-}" in
+		unlimited)
+			return
+			;;
+		"")
+			fail_config "FFSTREAM_RAM_CAP_AS is empty; use unlimited or at least $minimum bytes"
+			;;
+		*[!0-9]*)
+			fail_config "FFSTREAM_RAM_CAP_AS must be unlimited or integer bytes >= $minimum"
+			;;
+	esac
+	if ! decimal_at_least "$FFSTREAM_RAM_CAP_AS" "$minimum"; then
+		fail_config "FFSTREAM_RAM_CAP_AS=$FFSTREAM_RAM_CAP_AS is below Termux ffstream VAS minimum $minimum"
+	fi
+}
+
+validate_ffstream_binary() {
+	if ! command -v "$FFSTREAM_BIN_RUNNER" >/dev/null 2>&1; then
+		fail_config "FFSTREAM_BIN_RUNNER not found: $FFSTREAM_BIN_RUNNER"
+	fi
+	if ! "$FFSTREAM_BIN_RUNNER" test -x "$FFSTREAM_BIN"; then
+		fail_config "FFSTREAM_BIN is missing or not executable in the Termux namespace: $FFSTREAM_BIN"
+	fi
+}
+
 : "${FFSTREAM_CAMERA_STREAMING_ENV_FILE:=/etc/streaming.env}"
 if [ ! -r "$FFSTREAM_CAMERA_STREAMING_ENV_FILE" ]; then
 	fail_config "missing or unreadable config file: $FFSTREAM_CAMERA_STREAMING_ENV_FILE"
@@ -55,12 +98,15 @@ require_config_var ACODEC
 
 : "${FFSTREAM_BIN:=/data/user/0/com.termux/files/usr/bin/ffstream}"
 : "${FFSTREAM_BIN_RUNNER:=termux-root}"
+: "${FFSTREAM_RAM_CAP_AS:=unlimited}"
 : "${FFSTREAM_END_MARKER_FILE:=/data/ubuntu/tmp/ffstream-camera.intentional-end}"
 : "${FFSTREAM_END_MARKER_FILE_CHROOT:=/android/data/ubuntu/tmp/ffstream-camera.intentional-end}"
 : "${FFSTREAM_CAMERA_LOG_FILE:=/data/ubuntu/tmp/ffstream-camera.log}"
+validate_ram_cap_as
+validate_ffstream_binary
 export FFSTREAM_END_MARKER_FILE
 
-# Mic-fix daemon (PulseAudio mic plumbing). Backgrounded — same as legacy.
+# Mic-fix daemon (PulseAudio mic plumbing). Backgrounded like the mediamtx side.
 fix-mic &
 
 export PULSE_SERVER=127.0.0.1
@@ -75,7 +121,7 @@ echo 1000 > /proc/self/oom_score_adj
 # the per-input/per-output flags that wingout drives via gRPC at
 # user-tap-Activate time. A clean End returns status 0 to the outer supervisor,
 # which relaunches a fresh idle daemon for the next Activate. Dropped relative
-# to the legacy launcher:
+# to the mediamtx-side launcher:
 #   -i <url>                    (replaced by AddInput RPC)
 #   -fallback_priority <n>      (per-input; AddInput carries Priority)
 #   -itsoffset <ts>             (per-input; AddInput as needed)
@@ -91,14 +137,14 @@ echo 1000 > /proc/self/oom_score_adj
 # The binary argument stays canonical.
 # The inherited RLIMIT_AS is too small without explicit lifting — without
 # prlimit, the binary aborts with "fatal allocator error: failed to reserve
-# allocator state" at process entry. Mirrors the legacy run-ffstream.sh.
+# allocator state" at process entry. Mirrors the mediamtx-side run-ffstream.sh.
 if [ -e "$FFSTREAM_END_MARKER_FILE_CHROOT" ]; then
 	if ! rm -f -- "$FFSTREAM_END_MARKER_FILE_CHROOT"; then
 		echo "unable to remove stale ffstream-camera End marker: $FFSTREAM_END_MARKER_FILE_CHROOT" >&2
 		exit 74
 	fi
 fi
-prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
+prlimit --as="$FFSTREAM_RAM_CAP_AS" -- \
 	nice -n -15 \
 	taskset -c 6-8 \
 	"$FFSTREAM_BIN_RUNNER" env \

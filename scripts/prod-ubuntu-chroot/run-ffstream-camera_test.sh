@@ -152,6 +152,24 @@ assert_config_failure missing_env "$tmp_dir/missing.env" "streaming.env|config f
 assert_config_failure missing_acodec "$missing_acodec_env" "ACODEC"
 assert_config_failure invalid_env "$invalid_env" "invalid|syntax"
 
+rm -f "$FFSTREAM_END_MARKER_FILE" "$FFSTREAM_CAMERA_LOG_FILE" "$FFSTREAM_STUB_ARGS_LOG"
+set +e
+env FFSTREAM_RAM_CAP_AS=21474836480 FFSTREAM_STUB_MODE=marker FFSTREAM_STUB_STATUS=0 "$script" \
+	> "$tmp_dir/low-as.out" 2> "$tmp_dir/low-as.err"
+status=$?
+set -e
+if [ "$status" -ne 78 ]; then
+	cat "$tmp_dir/low-as.err" >&2
+	fail "insufficient FFSTREAM_RAM_CAP_AS must exit 78; got $status"
+fi
+if [ -e "$FFSTREAM_STUB_ARGS_LOG" ]; then
+	fail "insufficient AS cap must fail before launching ffstream-camera"
+fi
+if ! grep -q "FFSTREAM_RAM_CAP_AS" "$tmp_dir/low-as.err"; then
+	cat "$tmp_dir/low-as.err" >&2
+	fail "insufficient AS cap must report FFSTREAM_RAM_CAP_AS"
+fi
+
 set +e
 run_case no_marker_zero env FFSTREAM_STUB_MODE=no-marker FFSTREAM_STUB_STATUS=0 "$script" \
 	> "$tmp_dir/no-marker.out" 2> "$tmp_dir/no-marker.err"
