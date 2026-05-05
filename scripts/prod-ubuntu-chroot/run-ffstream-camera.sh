@@ -1,27 +1,26 @@
 #!/bin/bash
+set -o pipefail
 #
-# run-ffstream-camera.sh (#350): supervises an IDLE-mode ffstream daemon
+# run-ffstream-camera.sh supervises an IDLE-mode ffstream daemon
 # alongside the legacy run-ffstream.sh path. Keeps every global flag from
 # the legacy launcher (low-latency input defaults, hwaccel, auto-bitrate,
-# retry behaviour, scheduling/affinity), and drops only inputs / outputs
-# (those are added at runtime via wingout's gRPC):
+# retry behaviour, scheduling/affinity), keeps mission output defaults, and
+# drops only inputs / output URLs (those are added at runtime via wingout's gRPC):
 #   AddInput(camera) + AddInput(mic) + SetOutputURL + SwitchOutputByProps.
 #
-# SwitchOutputByProps also carries the per-Activate width/height/bitrate,
-# so the daemon does NOT bake `-auto_bitrate_resolution` into argv —
-# the resolution lives in user-tap-time settings, not in /etc/streaming.env
-# (which keeps the legacy DJI 1920x1080 anchor).
+# SwitchOutputByProps carries the per-Activate output URL and bitrate. The
+# daemon also keeps a baked 1920x1920 auto-bitrate resolution default so rate
+# bands are anchored to the built-in camera geometry before the first Activate
+# RPC arrives.
 #
 # Split with the legacy script — both daemons co-exist on one phone:
 #   - Listens on tcp:127.0.0.1:3594 (legacy: 3593)
 #   - pprof on 0.0.0.0:8239         (legacy: 8238)
 #   - Logs to /data/ubuntu/tmp/ffstream-camera.log
 #
-# -mux_mode different_outputs_same_tracks_split_av (#350 task #12) makes
-# the daemon emit two separate publishes per Activate — one video-only
-# RTMP connection, one audio-only — so each lands on a distinct avd
-# regex/static endpoint (pixel/builtincamera-${v:0:codec}-${v:0:height}
-# for video, pixel/builtincamera-${a:0:codec}-${a:0:rate} for audio).
+# -mux_mode different_outputs_same_tracks_split_av makes the daemon emit two
+# separate publishes per Activate: one video-only RTMP connection and one
+# audio-only RTMP connection, each routed by the avd builtincamera templates.
 #
 # Mission: see /home/streaming/go/src/github.com/xaionaro-go/mission.md
 
@@ -47,8 +46,8 @@ echo 1000 > /proc/self/oom_score_adj
 #   -fallback_priority <n>      (per-input; AddInput carries Priority)
 #   -itsoffset <ts>             (per-input; AddInput as needed)
 #   -video_size <WxH>           (per-input; AddInput's CustomOptions)
-#   -auto_bitrate_resolution    (per-Activate; SwitchOutputByProps width/height)
-#   -s/-c:v/-c:a/-b:v/-bufsize/-g/-r/-ar/-ac/-sample_fmt (per-output)
+#   -auto_bitrate_resolution    (kept as built-in camera default below)
+#   -b:v/-bufsize/-g/-r (per-output bitrate/framerate tuning)
 #   -f <fmt> <DST_URL>          (per-output; SetOutputURL + SwitchOutputByProps)
 #
 # hardened_malloc (preloaded inside termux via /usr/local/bin/ffstream
@@ -60,14 +59,20 @@ exec prlimit --as="${FFSTREAM_RAM_CAP_AS:-unlimited}" -- \
 	nice -n -15 \
 	taskset -c 6-8 \
 	ffstream \
-		-v "$FFSTREAM_LOG_LEVEL" \
-		-retry_input_timeout_on_failure 1s \
-		-retry_output_timeout_on_failure 0 \
-		-quiet_on_open_failure true \
-		-hwaccel mediacodec \
-		-c:v av1_mediacodec \
-		-auto_bitrate true \
-		-auto_bitrate_resolution 1920x1920 \
+			-v "$FFSTREAM_LOG_LEVEL" \
+			-retry_input_timeout_on_failure 1s \
+			-retry_output_timeout_on_failure 0 \
+			-exit_on_last_input_removed true \
+			-quiet_on_open_failure true \
+			-hwaccel mediacodec \
+			-c:v av1_mediacodec \
+			-af aresample=48000 \
+			-ar 48000 \
+			-ac 1 \
+			-sample_fmt fltp \
+			-c:a "$ACODEC" \
+			-auto_bitrate true \
+			-auto_bitrate_resolution 1920x1920 \
 		-auto_bitrate_auto_bypass false \
 		-mux_mode different_outputs_same_tracks_split_av \
 		-listen_control tcp:127.0.0.1:3594 \

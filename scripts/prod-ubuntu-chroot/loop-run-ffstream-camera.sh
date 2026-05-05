@@ -1,14 +1,26 @@
 #!/bin/bash
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
 
-# Exponential backoff for ffstream-camera supervisor (#350).
+lock_dir=/tmp/ffstream-camera-supervisor.lock
+if ! mkdir "$lock_dir" 2>/dev/null; then
+	echo "ffstream-camera supervisor is already running" >&2
+	exit 0
+fi
+trap 'rmdir "$lock_dir"' EXIT
+
+# Exponential backoff for the ffstream-camera supervisor.
 # - Tracks consecutive rapid-failure starts.
 # - Backs off 0.1 -> 1 -> 5 -> 30 seconds.
 # - Resets backoff after a successful long-running invocation (>= 60s).
+# - Stops after a clean ffstream-camera exit; UI deactivation relies on this.
 delay=0.1
 while true; do
 	start=$(date +%s)
 	run-ffstream-camera.sh
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		exit 0
+	fi
 	end=$(date +%s)
 	dur=$((end - start))
 	if [ "$dur" -ge 60 ]; then
