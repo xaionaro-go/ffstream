@@ -3,6 +3,8 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/ga
 
 lock_file=${FFSTREAM_CAMERA_SUPERVISOR_LOCK_FILE:-/tmp/ffstream-camera-supervisor.flock}
 run_ffstream_camera=${FFSTREAM_CAMERA_RUNNER:-run-ffstream-camera.sh}
+# 78 is emitted by run-ffstream-camera.sh for invalid configuration; it must
+# stop here instead of looping on an operator-fixable setup error.
 stop_statuses=${FFSTREAM_CAMERA_SUPERVISOR_STOP_STATUSES:-"74 78 126 127"}
 
 if ! command -v flock >/dev/null 2>&1; then

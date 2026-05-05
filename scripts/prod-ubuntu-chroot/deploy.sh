@@ -10,6 +10,11 @@
 #   /etc/streaming.env (only when absent — non-destructive)
 #
 # Does NOT modify /android, /data, /system, /apex.
+# Runtime-only Android paths used by these launchers are not deploy targets:
+#   /data/ubuntu/tmp/ffstream*.log
+#   /data/ubuntu/tmp/loop-run-ffstream*.log
+#   /data/ubuntu/tmp/ffstream-camera.intentional-end
+#   /android/data/ubuntu/tmp/ffstream-camera.intentional-end
 # Does NOT restart ffstream supervisors; rc.local owns startup. On prod, apply
 # rc.local changes by rebooting after deploy.
 set -euo pipefail

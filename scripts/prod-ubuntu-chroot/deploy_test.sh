@@ -29,6 +29,12 @@ done
 if ! grep -q "/usr/local/bin/loop-run-ffstream-camera.sh" "$readme"; then
 	fail "README.md must document the rc.local camera supervisor path"
 fi
+if ! grep -q "Runtime-only log and marker paths" "$readme"; then
+	fail "README.md must distinguish deploy paths from runtime Android log/marker paths"
+fi
+if ! grep -q "/android/data/ubuntu/tmp/ffstream-camera.intentional-end" "$deploy_script" "$readme"; then
+	fail "deploy docs must document the chroot-visible camera End marker path"
+fi
 
 if ! grep -q "rc.local" "$deploy_script"; then
 	fail "deploy.sh must describe rc.local ownership"

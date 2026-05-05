@@ -52,12 +52,12 @@ run_log="$tmp_dir/run.log"
 export PATH="$bin_dir:$PATH"
 export RUN_FFSTREAM_CAMERA_LOG="$run_log"
 export RUN_FFSTREAM_CAMERA_SLEEP=0.4
-printf '%s\n' 0 74 > "$tmp_dir/statuses"
+printf '%s\n' 0 78 > "$tmp_dir/statuses"
 export RUN_FFSTREAM_CAMERA_STATUS_FILE="$tmp_dir/statuses"
 export FFSTREAM_CAMERA_RUNNER="$bin_dir/run-ffstream-camera.sh"
 export FFSTREAM_CAMERA_SUPERVISOR_LOCK_FILE="$tmp_dir/supervisor.flock"
 export FFSTREAM_CAMERA_SUPERVISOR_LOCK_WAIT_SECONDS=5
-export FFSTREAM_CAMERA_SUPERVISOR_STOP_STATUSES=74
+export FFSTREAM_CAMERA_SUPERVISOR_STOP_STATUSES="74 78"
 
 "$script" > "$tmp_dir/first.out" 2> "$tmp_dir/first.err" &
 first_pid=$!
@@ -78,7 +78,7 @@ set +e
 wait "$first_pid"
 first_status=$?
 set -e
-if [ "$first_status" -ne 74 ]; then
+if [ "$first_status" -ne 78 ]; then
 	echo "first stderr:" >&2
 	cat "$tmp_dir/first.err" >&2
 	fail "unrecoverable/configuration failure must stop supervisor with original status; got $first_status"

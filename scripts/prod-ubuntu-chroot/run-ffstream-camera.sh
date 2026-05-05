@@ -27,8 +27,31 @@ set -o pipefail
 : "${FFSTREAM_CAMERA_PATH:=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin}"
 export PATH="$FFSTREAM_CAMERA_PATH"
 
+fail_config() {
+	echo "ffstream-camera config error: $*" >&2
+	exit 78
+}
+
+require_config_var() {
+	local name=$1
+	local value=${!name-}
+	if [ -z "$value" ]; then
+		fail_config "required variable $name is empty or unset"
+	fi
+}
+
 : "${FFSTREAM_CAMERA_STREAMING_ENV_FILE:=/etc/streaming.env}"
-. "$FFSTREAM_CAMERA_STREAMING_ENV_FILE"
+if [ ! -r "$FFSTREAM_CAMERA_STREAMING_ENV_FILE" ]; then
+	fail_config "missing or unreadable config file: $FFSTREAM_CAMERA_STREAMING_ENV_FILE"
+fi
+if ! bash -n "$FFSTREAM_CAMERA_STREAMING_ENV_FILE"; then
+	fail_config "invalid config syntax: $FFSTREAM_CAMERA_STREAMING_ENV_FILE"
+fi
+if ! . "$FFSTREAM_CAMERA_STREAMING_ENV_FILE"; then
+	fail_config "unable to source config file: $FFSTREAM_CAMERA_STREAMING_ENV_FILE"
+fi
+require_config_var FFSTREAM_LOG_LEVEL
+require_config_var ACODEC
 
 : "${FFSTREAM_BIN:=/data/user/0/com.termux/files/usr/bin/ffstream}"
 : "${FFSTREAM_BIN_RUNNER:=termux-root}"

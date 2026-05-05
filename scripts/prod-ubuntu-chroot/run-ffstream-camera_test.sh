@@ -108,6 +108,50 @@ run_case() {
 	)
 }
 
+assert_config_failure() {
+	local name=$1
+	local env_file=$2
+	local diagnostic_pattern=$3
+
+	rm -f "$FFSTREAM_END_MARKER_FILE" "$FFSTREAM_CAMERA_LOG_FILE" "$FFSTREAM_STUB_ARGS_LOG"
+	set +e
+	env -u ACODEC -u FFSTREAM_LOG_LEVEL \
+		FFSTREAM_CAMERA_STREAMING_ENV_FILE="$env_file" \
+		FFSTREAM_STUB_MODE=marker \
+		FFSTREAM_STUB_STATUS=0 \
+		"$script" > "$tmp_dir/$name.out" 2> "$tmp_dir/$name.err"
+	status=$?
+	set -e
+	if [ "$status" -ne 78 ]; then
+		echo "$name stderr:" >&2
+		cat "$tmp_dir/$name.err" >&2
+		fail "$name must exit 78 so the supervisor stops; got $status"
+	fi
+	if [ -e "$FFSTREAM_STUB_ARGS_LOG" ]; then
+		fail "$name must fail before launching ffstream"
+	fi
+	if ! grep -Eq "$diagnostic_pattern" "$tmp_dir/$name.err"; then
+		echo "$name stderr:" >&2
+		cat "$tmp_dir/$name.err" >&2
+		fail "$name must report the config error"
+	fi
+}
+
+missing_acodec_env="$tmp_dir/missing-acodec.env"
+cat > "$missing_acodec_env" <<'EOF'
+FFSTREAM_LOG_LEVEL=info
+EOF
+invalid_env="$tmp_dir/invalid-streaming.env"
+cat > "$invalid_env" <<'EOF'
+FFSTREAM_LOG_LEVEL=info
+ACODEC=aac
+if
+EOF
+
+assert_config_failure missing_env "$tmp_dir/missing.env" "streaming.env|config file"
+assert_config_failure missing_acodec "$missing_acodec_env" "ACODEC"
+assert_config_failure invalid_env "$invalid_env" "invalid|syntax"
+
 set +e
 run_case no_marker_zero env FFSTREAM_STUB_MODE=no-marker FFSTREAM_STUB_STATUS=0 "$script" \
 	> "$tmp_dir/no-marker.out" 2> "$tmp_dir/no-marker.err"
