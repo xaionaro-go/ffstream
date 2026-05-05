@@ -203,6 +203,13 @@ fi
 if ! grep -qx -- "tcp:127.0.0.1:3594" "$FFSTREAM_STUB_ARGS_LOG"; then
 	fail "idle ffstream-camera launch must listen on the camera control port"
 fi
+if ! awk '
+	prev == "-c:v" && $0 == "av1_mediacodec" { found = 1 }
+	{ prev = $0 }
+	END { exit found ? 0 : 1 }
+' "$FFSTREAM_STUB_ARGS_LOG"; then
+	fail "idle ffstream-camera launch must bake -c:v av1_mediacodec"
+fi
 
 printf 'stale\n' > "$FFSTREAM_END_MARKER_FILE"
 set +e
