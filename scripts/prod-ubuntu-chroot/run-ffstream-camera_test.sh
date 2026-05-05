@@ -18,6 +18,9 @@ trap cleanup EXIT
 bin_dir="$tmp_dir/bin"
 mkdir -p "$bin_dir"
 
+canonical_ffstream=/data/user/0/com.termux/files/usr/bin/ffstream
+stub_ffstream="$tmp_dir/ffstream-stub"
+
 cat > "$bin_dir/fix-mic" <<'STUB'
 #!/bin/bash
 exit 0
@@ -56,9 +59,51 @@ exec "$@"
 STUB
 cat > "$bin_dir/termux-root" <<'STUB'
 #!/bin/bash
-exec "$@"
+if [ -n "${TERMUX_ROOT_ARGS_LOG:-}" ]; then
+	printf '%s\n' "$*" >> "$TERMUX_ROOT_ARGS_LOG"
+fi
+case "${1:-}" in
+	test)
+		if [ "${2:-}" != "-x" ]; then
+			echo "unexpected test args: $*" >&2
+			exit 64
+		fi
+		if [ "${3:-}" = "$EXPECTED_CANONICAL_FFSTREAM" ] \
+				&& [ -x "$FFSTREAM_CANONICAL_STUB" ]; then
+			exit 0
+		fi
+		test -x "${3:-}"
+		;;
+	env)
+		shift
+		env_args=()
+		while [ "$#" -gt 0 ]; do
+			case "$1" in
+				*=*)
+					env_args+=("$1")
+					shift
+					;;
+				*)
+					break
+					;;
+			esac
+		done
+		if [ "${1:-}" = "$EXPECTED_CANONICAL_FFSTREAM" ]; then
+			shift
+			exec env "${env_args[@]}" "$FFSTREAM_CANONICAL_STUB" "$@"
+		fi
+		exec env "${env_args[@]}" "$@"
+		;;
+	"$EXPECTED_CANONICAL_FFSTREAM")
+		shift
+		exec "$FFSTREAM_CANONICAL_STUB" "$@"
+		;;
+	*)
+		exec "$@"
+		;;
+esac
 STUB
-cat > "$bin_dir/ffstream-stub" <<'STUB'
+cat > "$stub_ffstream" <<'STUB'
 #!/bin/bash
 if [ -n "${FFSTREAM_STUB_ARGS_LOG:-}" ]; then
 	: > "$FFSTREAM_STUB_ARGS_LOG"
@@ -80,7 +125,7 @@ case "${FFSTREAM_STUB_MODE:-no-marker}" in
 esac
 exit "${FFSTREAM_STUB_STATUS:-0}"
 STUB
-chmod +x "$bin_dir"/*
+chmod +x "$bin_dir"/* "$stub_ffstream"
 
 streaming_env="$tmp_dir/streaming.env"
 cat > "$streaming_env" <<'EOF'
@@ -91,13 +136,15 @@ EOF
 export PATH="$bin_dir:$PATH"
 export FFSTREAM_CAMERA_PATH="$PATH"
 export FFSTREAM_CAMERA_STREAMING_ENV_FILE="$streaming_env"
-export FFSTREAM_BIN="$bin_dir/ffstream-stub"
 export FFSTREAM_BIN_RUNNER=termux-root
 export FFSTREAM_END_MARKER_FILE="$tmp_dir/end-marker"
 export FFSTREAM_END_MARKER_FILE_CHROOT="$tmp_dir/end-marker"
 export FFSTREAM_CAMERA_LOG_FILE="$tmp_dir/ffstream-camera.log"
 export FFSTREAM_RAM_CAP_AS=unlimited
+export EXPECTED_CANONICAL_FFSTREAM="$canonical_ffstream"
+export FFSTREAM_CANONICAL_STUB="$stub_ffstream"
 export FFSTREAM_STUB_ARGS_LOG="$tmp_dir/ffstream-args.log"
+export TERMUX_ROOT_ARGS_LOG="$tmp_dir/termux-root-args.log"
 
 run_case() {
 	local name=$1
@@ -183,10 +230,24 @@ if ! grep -q "without an End marker" "$tmp_dir/no-marker.err"; then
 	fail "missing diagnostic for status 0 without marker"
 fi
 
-run_case marker_zero env FFSTREAM_STUB_MODE=marker FFSTREAM_STUB_STATUS=0 "$script" \
+rm -f "$TERMUX_ROOT_ARGS_LOG"
+run_case marker_zero env FFSTREAM_BIN=/tmp/off-mission-ffstream \
+	FFSTREAM_STUB_MODE=marker FFSTREAM_STUB_STATUS=0 "$script" \
 	> "$tmp_dir/marker.out" 2> "$tmp_dir/marker.err" || fail "End marker should produce clean exit"
 if [ -e "$FFSTREAM_END_MARKER_FILE" ]; then
 	fail "consumed End marker must be removed"
+fi
+if grep -q "/tmp/off-mission-ffstream" "$TERMUX_ROOT_ARGS_LOG"; then
+	cat "$TERMUX_ROOT_ARGS_LOG" >&2
+	fail "run-ffstream-camera.sh must not pass environment FFSTREAM_BIN to the runner"
+fi
+if ! grep -qx -- "test -x $canonical_ffstream" "$TERMUX_ROOT_ARGS_LOG"; then
+	cat "$TERMUX_ROOT_ARGS_LOG" >&2
+	fail "run-ffstream-camera.sh must validate the canonical ffstream path via the runner"
+fi
+if ! grep -q "env FFSTREAM_END_MARKER_FILE=.* $canonical_ffstream " "$TERMUX_ROOT_ARGS_LOG"; then
+	cat "$TERMUX_ROOT_ARGS_LOG" >&2
+	fail "run-ffstream-camera.sh must launch the canonical ffstream path"
 fi
 if grep -qx -- "-i" "$FFSTREAM_STUB_ARGS_LOG"; then
 	fail "idle ffstream-camera launch must not include built-in camera/mic inputs"

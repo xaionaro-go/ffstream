@@ -141,9 +141,36 @@ if ! grep -q "^$canonical_ffstream -v info " "$TERMUX_ROOT_ARGS_LOG"; then
 	cat "$TERMUX_ROOT_ARGS_LOG" >&2
 	fail "run-ffstream.sh must launch the canonical ffstream path by default"
 fi
+if ! awk '
+	prev == "-c:v" && $0 == "av1_mediacodec" { found = 1 }
+	{ prev = $0 }
+	END { exit found ? 0 : 1 }
+' "$FFSTREAM_STUB_ARGS_LOG"; then
+	cat "$FFSTREAM_STUB_ARGS_LOG" >&2
+	fail "run-ffstream.sh must launch mediamtx ffstream with -c:v av1_mediacodec"
+fi
 if ! grep -qx -- "--as=unlimited" "$PRLIMIT_ARGS_LOG"; then
 	cat "$PRLIMIT_ARGS_LOG" >&2
 	fail "run-ffstream.sh must pass the validated AS cap to prlimit"
+fi
+
+rm -f "$FFSTREAM_STUB_ARGS_LOG" "$TERMUX_ROOT_ARGS_LOG" "$PRLIMIT_ARGS_LOG"
+set +e
+env FFSTREAM_BIN=/tmp/off-mission-ffstream "$script" \
+	> "$tmp_dir/ignored-bin.out" 2> "$tmp_dir/ignored-bin.err"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+	cat "$tmp_dir/ignored-bin.err" >&2
+	fail "FFSTREAM_BIN from the environment must be ignored, not treated as production configuration; got $status"
+fi
+if grep -q "/tmp/off-mission-ffstream" "$TERMUX_ROOT_ARGS_LOG"; then
+	cat "$TERMUX_ROOT_ARGS_LOG" >&2
+	fail "run-ffstream.sh must not pass environment FFSTREAM_BIN to the runner"
+fi
+if ! grep -q "^$canonical_ffstream -v info " "$TERMUX_ROOT_ARGS_LOG"; then
+	cat "$TERMUX_ROOT_ARGS_LOG" >&2
+	fail "run-ffstream.sh must still launch the canonical ffstream path when FFSTREAM_BIN is set"
 fi
 
 rm -f "$FFSTREAM_STUB_ARGS_LOG" "$TERMUX_ROOT_ARGS_LOG" "$PRLIMIT_ARGS_LOG"
@@ -187,22 +214,4 @@ fi
 if ! grep -q "FFSTREAM_RAM_CAP_AS" "$tmp_dir/low-as.err"; then
 	cat "$tmp_dir/low-as.err" >&2
 	fail "insufficient AS cap must report FFSTREAM_RAM_CAP_AS"
-fi
-
-rm -f "$FFSTREAM_STUB_ARGS_LOG" "$TERMUX_ROOT_ARGS_LOG" "$PRLIMIT_ARGS_LOG"
-set +e
-env FFSTREAM_BIN=/missing/ffstream "$script" \
-	> "$tmp_dir/missing-bin.out" 2> "$tmp_dir/missing-bin.err"
-status=$?
-set -e
-if [ "$status" -ne 78 ]; then
-	cat "$tmp_dir/missing-bin.err" >&2
-	fail "missing FFSTREAM_BIN must exit 78; got $status"
-fi
-if [ -e "$FFSTREAM_STUB_ARGS_LOG" ]; then
-	fail "missing FFSTREAM_BIN must fail before launching ffstream"
-fi
-if ! grep -q "FFSTREAM_BIN" "$tmp_dir/missing-bin.err"; then
-	cat "$tmp_dir/missing-bin.err" >&2
-	fail "missing binary diagnostic must mention FFSTREAM_BIN"
 fi

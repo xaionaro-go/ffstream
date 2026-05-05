@@ -4,6 +4,8 @@ set -o pipefail
 : "${FFSTREAM_PATH:=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin}"
 export PATH="$FFSTREAM_PATH"
 
+readonly FFSTREAM_CANONICAL_BIN=/data/user/0/com.termux/files/usr/bin/ffstream
+
 fail_config() {
 	echo "ffstream config error: $*" >&2
 	exit 78
@@ -55,8 +57,8 @@ validate_ffstream_binary() {
 	if ! command -v "$FFSTREAM_BIN_RUNNER" >/dev/null 2>&1; then
 		fail_config "FFSTREAM_BIN_RUNNER not found: $FFSTREAM_BIN_RUNNER"
 	fi
-	if ! "$FFSTREAM_BIN_RUNNER" test -x "$FFSTREAM_BIN"; then
-		fail_config "FFSTREAM_BIN is missing or not executable in the Termux namespace: $FFSTREAM_BIN"
+	if ! "$FFSTREAM_BIN_RUNNER" test -x "$FFSTREAM_CANONICAL_BIN"; then
+		fail_config "canonical ffstream binary is missing or not executable in the Termux namespace: $FFSTREAM_CANONICAL_BIN"
 	fi
 }
 
@@ -90,7 +92,6 @@ require_config_var FFSTREAM_AUTOBITRATE_MIN_HEIGHT
 require_config_var FFSTREAM_AUTO_BYPASS
 validate_video_codec
 
-: "${FFSTREAM_BIN:=/data/user/0/com.termux/files/usr/bin/ffstream}"
 : "${FFSTREAM_BIN_RUNNER:=termux-root}"
 : "${FFSTREAM_RAM_CAP_AS:=unlimited}"
 : "${FFSTREAM_LOG_FILE:=/data/ubuntu/tmp/ffstream.log}"
@@ -111,7 +112,7 @@ echo 1000 > /proc/self/oom_score_adj
 prlimit --as="$FFSTREAM_RAM_CAP_AS" -- \
 	nice -n -15 \
 	taskset -c 6-8 \
-	"$FFSTREAM_BIN_RUNNER" "$FFSTREAM_BIN" \
+	"$FFSTREAM_BIN_RUNNER" "$FFSTREAM_CANONICAL_BIN" \
 		-v "$FFSTREAM_LOG_LEVEL" \
 		-retry_input_timeout_on_failure 1s \
 		-retry_output_timeout_on_failure 0 \

@@ -44,10 +44,13 @@ Set in `/etc/streaming.env`; read by one or both per-launch wrappers:
 | Var | Default | Effect |
 |---|---|---|
 | `VCODEC` | `av1_mediacodec` | Required mediamtx-side video encoder; any other value is a terminal setup error |
-| `FFSTREAM_BIN` | `/data/user/0/com.termux/files/usr/bin/ffstream` | Canonical Termux ffstream binary path passed through `termux-root` |
 | `FFSTREAM_BIN_RUNNER` | `termux-root` | Runner used by the Ubuntu chroot wrappers to execute the Termux binary |
 | `FFSTREAM_RAM_CAP_AS` | `unlimited` | `prlimit --as=` value (RLIMIT_AS / virtual address space); numeric values below `1099511627776` fail setup with status 78 |
 | `FFSTREAM_GOMEMLIMIT` | `15GiB` | Exported to ffstream; Go runtime soft memory target |
+
+The ffstream binary path is not configurable in the prod wrappers. Both
+launchers always pass the canonical Termux path through the runner:
+`/data/user/0/com.termux/files/usr/bin/ffstream`.
 
 `run-ffstream.sh` is the mediamtx-side launcher. It consumes the phone
 mediamtx path at 1920x1080 and refuses to start unless `VCODEC=av1_mediacodec`.
