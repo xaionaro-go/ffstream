@@ -56,6 +56,7 @@ type Flags struct {
 	FrameDropAudio              bool
 	FrameDropOther              bool
 	BridgePTSAcrossChains       bool
+	ExitOnLastInputRemoved      bool
 	// QuietOnOpenFailure demotes by-design steady-state log spam to
 	// Debug when high-priority input slots are empty or upstream is
 	// not yet publishing. See ffstream.Config.QuietOnOpenFailure for
@@ -136,6 +137,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 	frameDropAudio := flag.AddParameter(p, "frame_drop_audio", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropAudio)))
 	frameDropOther := flag.AddParameter(p, "frame_drop_other", false, ptr(flag.Bool(ffstream.DefaultConfig().FrameDropOther)))
 	bridgePTSAcrossChains := flag.AddParameter(p, "bridge_pts_across_chains", false, ptr(flag.Bool(ffstream.DefaultConfig().BridgePTSAcrossChains)))
+	exitOnLastInputRemoved := flag.AddParameter(p, "exit_on_last_input_removed", false, ptr(flag.Bool(ffstream.DefaultConfig().ExitOnLastInputRemoved)))
 	// quietOnOpenFailure is the canonical flag.
 	// quietEmptyPriority is the legacy alias retained as a deprecated
 	// spelling for run-script backward compatibility — both feed the
@@ -306,16 +308,17 @@ func parseFlags(args []string) (context.Context, Flags) {
 		RetryInputTimeoutOnFailure:  retryInputTimeoutOnFailure.Value(),
 		RetryOutputTimeoutOnFailure: retryOutputTimeoutOnFailure.Value(),
 
-		FrameDropVideo:        frameDropVideo.Value(),
-		FrameDropAudio:        frameDropAudio.Value(),
-		FrameDropOther:        frameDropOther.Value(),
-		BridgePTSAcrossChains: bridgePTSAcrossChains.Value(),
-		QuietOnOpenFailure:    quietOnOpenFailure.Value() || quietEmptyPriority.Value(),
-		QueueSizeDefault:      queueSizeDefault.Value(),
-		QueueSizeTranscoder:   queueSizeTranscoder.Value(),
-		QueueSizeOutput:       queueSizeOutput.Value(),
-		QueueSizeError:        queueSizeError.Value(),
-		Framerate:             rFlag.Value(),
+		FrameDropVideo:         frameDropVideo.Value(),
+		FrameDropAudio:         frameDropAudio.Value(),
+		FrameDropOther:         frameDropOther.Value(),
+		BridgePTSAcrossChains:  bridgePTSAcrossChains.Value(),
+		ExitOnLastInputRemoved: exitOnLastInputRemoved.Value(),
+		QuietOnOpenFailure:     quietOnOpenFailure.Value() || quietEmptyPriority.Value(),
+		QueueSizeDefault:       queueSizeDefault.Value(),
+		QueueSizeTranscoder:    queueSizeTranscoder.Value(),
+		QueueSizeOutput:        queueSizeOutput.Value(),
+		QueueSizeError:         queueSizeError.Value(),
+		Framerate:              rFlag.Value(),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,

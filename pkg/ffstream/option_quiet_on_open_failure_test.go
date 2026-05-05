@@ -42,3 +42,18 @@ func TestOptionQuietEmptyPriority_LegacyAlias(t *testing.T) {
 		"legacy OptionQuietEmptyPriority(true) must set the canonical "+
 			"QuietOnOpenFailure bit")
 }
+
+func TestOptionExitOnLastInputRemoved_DefaultOff(t *testing.T) {
+	cfg := DefaultConfig()
+
+	require.False(t, cfg.ExitOnLastInputRemoved)
+}
+
+func TestOptionExitOnLastInputRemoved_ApplyOverride(t *testing.T) {
+	cfg := DefaultConfig()
+	OptionExitOnLastInputRemoved(true).apply(&cfg)
+	require.True(t, cfg.ExitOnLastInputRemoved)
+
+	OptionExitOnLastInputRemoved(false).apply(&cfg)
+	require.False(t, cfg.ExitOnLastInputRemoved)
+}

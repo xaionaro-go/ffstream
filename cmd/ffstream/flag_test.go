@@ -101,6 +101,17 @@ func TestParseFlags_ZeroInputsZeroOutputs_NoFatal(t *testing.T) {
 	}
 }
 
+func TestParseFlags_ExitOnLastInputRemoved(t *testing.T) {
+	args := []string{
+		"ffstream",
+		"-exit_on_last_input_removed", "true",
+		"-listen_control", "tcp:127.0.0.1:3594",
+	}
+
+	_, flags := parseFlags(args)
+	require.True(t, flags.ExitOnLastInputRemoved)
+}
+
 func TestParseFlags_Suppressed(t *testing.T) {
 	args := []string{"ffstream", "-suppressed", "true", "-i", "rtsp://input1", "rtmp://output"}
 	_, flags := parseFlags(args)

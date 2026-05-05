@@ -411,7 +411,14 @@ func (s *FFStream) RemoveInput(
 	logger.Debugf(ctx, "RemoveInput(ctx, %d, %d)", priority, num)
 	defer func() { logger.Debugf(ctx, "/RemoveInput(ctx, %d, %d): %v", priority, num, _err) }()
 	s.locker.Lock()
-	defer s.locker.Unlock()
+	var cancelAfterUnlock context.CancelFunc
+	defer func() {
+		s.locker.Unlock()
+		if cancelAfterUnlock != nil {
+			logger.Debugf(ctx, "RemoveInput: last input removed; cancelling ffstream runtime")
+			cancelAfterUnlock()
+		}
+	}()
 
 	if int(priority) >= len(s.InputsInfo) || int(num) >= len(s.InputsInfo[priority]) {
 		return ErrInputNotFound
@@ -446,14 +453,19 @@ func (s *FFStream) RemoveInput(
 		// nextID == -1: no walk action needed (resources still present,
 		// non-active priority emptied, or no later priority has
 		// resources). The slice-delete still happens.
-		nextID       int32
-		activeChain  *InputChain
-		targetChain  *InputChain
-		activePaused bool
-		targetPaused bool
+		nextID               int32
+		activeChain          *InputChain
+		targetChain          *InputChain
+		activePaused         bool
+		targetPaused         bool
+		registeredInputCount int
 	}
 	plan := xsync.DoR1(ctx, &s.Inputs.InputChainsLocker, func() fallbackPlan {
 		s.InputsInfo[priority] = slices.Delete(s.InputsInfo[priority], int(num), int(num)+1)
+		registeredInputCount := 0
+		for _, inputs := range s.InputsInfo {
+			registeredInputCount += len(inputs)
+		}
 
 		// Symmetric counterpart to AddInput's onInputChainKernelOpen
 		// auto-DOWN-switch: if removing the last resource at the
@@ -467,11 +479,17 @@ func (s *FFStream) RemoveInput(
 		// emptied prio 0; CurrentValue stayed 0 and the priority-10
 		// rtmp fallback was never promoted).
 		if len(s.InputsInfo[priority]) != 0 {
-			return fallbackPlan{nextID: -1} // resources still present — slice-delete only
+			return fallbackPlan{
+				nextID:               -1,
+				registeredInputCount: registeredInputCount,
+			} // resources still present — slice-delete only
 		}
 		cur := s.Inputs.InputSwitch.CurrentValue.Load()
 		if int32(priority) != cur {
-			return fallbackPlan{nextID: -1} // emptied a non-active priority — keep CurrentValue
+			return fallbackPlan{
+				nextID:               -1,
+				registeredInputCount: registeredInputCount,
+			} // emptied a non-active priority — keep CurrentValue
 		}
 		// Walk forward via the SSOT helper that backs
 		// inputwithfallback.onInputChainError. Both walks honour
@@ -492,12 +510,18 @@ func (s *FFStream) RemoveInput(
 		nextID := int32(inputwithfallback.WalkAvailableAfter(ctx, s.Inputs.InputChains, int(priority)))
 		if nextID < 0 {
 			logger.Debugf(ctx, "RemoveInput: no fallback past priority %d; switch stays at %d (chain will idle)", priority, cur)
-			return fallbackPlan{nextID: -1}
+			return fallbackPlan{
+				nextID:               -1,
+				registeredInputCount: registeredInputCount,
+			}
 		}
 		// Capture chain pointers + IsPaused under the lock so we can
 		// release it before invoking Pause / Unpause / SetValue (which
 		// take KernelLocker — see lock-order note above).
-		p := fallbackPlan{nextID: nextID}
+		p := fallbackPlan{
+			nextID:               nextID,
+			registeredInputCount: registeredInputCount,
+		}
 		if activeChain := s.Inputs.InputChains[priority]; activeChain != nil {
 			p.activeChain = activeChain
 			p.activePaused = activeChain.IsPaused(ctx)
@@ -508,6 +532,9 @@ func (s *FFStream) RemoveInput(
 		}
 		return p
 	})
+	if s.Config.ExitOnLastInputRemoved && plan.registeredInputCount == 0 && s.cancelFunc != nil {
+		cancelAfterUnlock = s.cancelFunc
+	}
 	if plan.nextID < 0 {
 		return nil // slice-delete done; no fallback action required
 	}

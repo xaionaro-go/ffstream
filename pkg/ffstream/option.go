@@ -53,6 +53,12 @@ type Config struct {
 	// legacy alias -quiet_empty_priority) to suppress the noise during
 	// normal startup.
 	QuietOnOpenFailure bool
+
+	// ExitOnLastInputRemoved cancels the ffstream runtime after RemoveInput
+	// removes the last registered input resource. This is for process-per-
+	// source launchers whose owner maps "all inputs removed" to process
+	// deactivation.
+	ExitOnLastInputRemoved bool
 }
 
 func DefaultConfig() Config {
@@ -129,6 +135,14 @@ type OptionQuietOnOpenFailure bool
 
 func (o OptionQuietOnOpenFailure) apply(cfg *Config) {
 	cfg.QuietOnOpenFailure = bool(o)
+}
+
+// OptionExitOnLastInputRemoved sets Config.ExitOnLastInputRemoved. See the
+// field doc.
+type OptionExitOnLastInputRemoved bool
+
+func (o OptionExitOnLastInputRemoved) apply(cfg *Config) {
+	cfg.ExitOnLastInputRemoved = bool(o)
 }
 
 // OptionQuietEmptyPriority is a deprecated alias of

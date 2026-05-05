@@ -313,12 +313,10 @@ func TestBUG008_AddInput_ConcurrentReadDuringGrowth(t *testing.T) {
 }
 
 // TestBUG008_AddInput_RollbackKeepsInvariantOnFailure creates a scenario
-// where AddFactory fails AFTER having appended an InputChain. We do this by
-// filling the newInputChainChan on the inputwithfallback until it overflows,
-// which triggers the `default:` branch in addFactory that returns an error
-// after the append. Before the fix, this would leave
-// len(InputsInfo) < len(InputChains) because the error rolled InputsInfo back
-// to startLen. After the fix, the invariant is preserved.
+// where AddFactory fails after creating an InputChain candidate. We do this by
+// filling newInputChainChan until it overflows, which triggers the `default:`
+// branch in addFactory. AddFactory must not retain the unsuccessful chain, and
+// AddInput must keep InputsInfo aligned with the retained chains.
 func TestBUG008_AddInput_RollbackKeepsInvariantOnFailure(t *testing.T) {
 	ctx := context.Background()
 
@@ -342,13 +340,15 @@ func TestBUG008_AddInput_RollbackKeepsInvariantOnFailure(t *testing.T) {
 		"invariant must hold at 100 chains")
 
 	// The 101st AddInput overflows the channel and triggers the failure
-	// path in addFactory: append happened, channel send fails, the
-	// inputChain is Closed, and an error is returned.
+	// path in addFactory: the candidate inputChain is closed, not retained,
+	// and an error is returned.
 	_, err = s.AddInput(ctx, Resource{
 		URL:      "file:/does-not-exist",
 		Priority: 100,
 	})
 	require.Error(t, err, "expected AddInput to fail when newInputChainChan is full")
+	require.Equal(t, 100, s.Inputs.GetInputChainsCount(ctx),
+		"failed AddFactory must not retain the unsuccessful chain")
 
 	// Invariant: len(InputsInfo) == len(InputChains) must hold even after
 	// a failed AddInput.
@@ -358,18 +358,17 @@ func TestBUG008_AddInput_RollbackKeepsInvariantOnFailure(t *testing.T) {
 
 // TestBUG008_AddInput_MidLoopPartialFailure exercises the mid-loop failure
 // path of AddInput, where the priority-grow loop runs MULTIPLE iterations
-// and the LAST iteration fails after InputChains has grown. With the
-// alignment-loop fix (newCount := GetInputChainsCount ; align InputsInfo),
-// the invariant len(InputsInfo) == len(InputChains) is preserved. With the
-// old startLen-based rollback, InputsInfo would be truncated to the value
-// it had BEFORE the first successful iteration, dropping the entries the
-// successful iterations created and breaking the invariant.
+// and the LAST iteration fails. With the alignment-loop fix
+// (newCount := GetInputChainsCount ; align InputsInfo), the invariant
+// len(InputsInfo) == len(InputChains) is preserved. With the old
+// startLen-based rollback, InputsInfo would be truncated to the value it had
+// BEFORE the first successful iteration, dropping the entries the successful
+// iterations created and breaking the invariant.
 //
 // The failure is arranged via the inputwithfallback.newInputChainChan
 // capacity: 99 successful AddInput calls leave the channel at 99/100, so a
 // single AddInput(priority=100) iterates p=99 (succeeds, channel -> 100)
-// and p=100 (InputChains +1 before the full-channel error, so AddFactory
-// returns an error AFTER its internal append).
+// and p=100 (channel full; AddFactory closes and discards the candidate chain).
 func TestBUG008_AddInput_MidLoopPartialFailure(t *testing.T) {
 	ctx := context.Background()
 
@@ -390,11 +389,9 @@ func TestBUG008_AddInput_MidLoopPartialFailure(t *testing.T) {
 
 	// A single AddInput(priority=100) iterates p=99 and p=100. p=99
 	// succeeds (channel 99 -> 100). p=100 overflows the channel and
-	// fails AFTER AddFactory has internally appended to InputChains
-	// (so InputChains goes 100 -> 101 before the error is returned).
-	// Prior to the fix, the rollback would truncate InputsInfo back to
-	// startLen (99), leaving len(InputsInfo)=99 but len(InputChains)=101
-	// — violating the invariant.
+	// fails without retaining the candidate chain. Prior to the AddInput
+	// rollback fix, InputsInfo could be truncated back to startLen (99),
+	// dropping the successful p=99 growth and violating the invariant.
 	_, err = s.AddInput(ctx, Resource{
 		URL:      "file:/does-not-exist",
 		Priority: 100,
@@ -402,15 +399,11 @@ func TestBUG008_AddInput_MidLoopPartialFailure(t *testing.T) {
 	require.Error(t, err, "AddInput(priority=100) must fail — channel is full")
 
 	// The loop must have run BOTH iterations: p=99 succeeded (so the
-	// InputChains count grew from 99 to at least 100), and p=100 failed
-	// after a partial append (InputChains is 101). If InputChains is
-	// only 100, the failing iteration did NOT partial-append and this
-	// test is not exercising the mid-loop path.
+	// InputChains count grew from 99 to 100), and p=100 failed without
+	// retaining an unsuccessful chain.
 	chains := s.Inputs.GetInputChainsCount(ctx)
-	require.GreaterOrEqual(t, chains, 100,
-		"p=99 must have grown InputChains to at least 100 before p=100 failed")
-	require.Equal(t, 101, chains,
-		"p=100 must have partial-appended an InputChain (101 total) before the full-channel error")
+	require.Equal(t, 100, chains,
+		"p=99 must remain while p=100 must not retain an unsuccessful chain")
 
 	// Invariant: len(InputsInfo) == len(InputChains) even after the
 	// mid-loop failure.
