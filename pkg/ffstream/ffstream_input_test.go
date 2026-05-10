@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,14 +19,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xaionaro-go/avpipeline/kernel"
 	"github.com/xaionaro-go/avpipeline/node"
+	"github.com/xaionaro-go/avpipeline/packetorframe"
 	"github.com/xaionaro-go/avpipeline/preset/inputwithfallback"
 	avptypes "github.com/xaionaro-go/avpipeline/types"
+	"github.com/xaionaro-go/xsync"
 )
 
-// Tests in this file create real *FFStream instances. Goroutines
-// spawned by the underlying input pipeline outlive the test cancel
-// until the 10s timeout fires. We accept this for the small test
-// count; revisit with goleak if the suite grows or starts flaking.
+// Tests in this file create real *FFStream instances. Close the input
+// graph in cleanup so detached retryable goroutines from one test do
+// not overlap the next test's package-global hooks.
 
 // newTestFFStream constructs an FFStream the same way TestInjectSubtitles
 // does; AddInput / RemoveInput only need a valid Inputs handler.
@@ -33,7 +35,320 @@ func newTestFFStream(t *testing.T, ctx context.Context) *FFStream {
 	t.Helper()
 	s, err := New(ctx)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.Inputs.Close(context.Background())
+	})
 	return s
+}
+
+type addInputMidOpenTestKernel struct {
+	resourceURL string
+	closeOnce   sync.Once
+	closeCh     chan struct{}
+	onClose     func(context.Context)
+}
+
+func newAddInputMidOpenTestKernel(
+	resourceURL string,
+	onClose func(context.Context),
+) *addInputMidOpenTestKernel {
+	return &addInputMidOpenTestKernel{
+		resourceURL: resourceURL,
+		closeCh:     make(chan struct{}),
+		onClose:     onClose,
+	}
+}
+
+func (k *addInputMidOpenTestKernel) GetObjectID() avptypes.ObjectID {
+	return avptypes.GetObjectID(k)
+}
+
+func (k *addInputMidOpenTestKernel) SendInput(
+	context.Context,
+	packetorframe.InputUnion,
+	chan<- packetorframe.OutputUnion,
+) error {
+	return nil
+}
+
+func (k *addInputMidOpenTestKernel) Generate(
+	context.Context,
+	chan<- packetorframe.OutputUnion,
+) error {
+	return nil
+}
+
+func (k *addInputMidOpenTestKernel) Close(ctx context.Context) error {
+	k.closeOnce.Do(func() {
+		if k.onClose != nil {
+			k.onClose(ctx)
+		}
+		close(k.closeCh)
+	})
+	return nil
+}
+
+func (k *addInputMidOpenTestKernel) CloseChan() <-chan struct{} {
+	return k.closeCh
+}
+
+func (k *addInputMidOpenTestKernel) String() string {
+	return "addInputMidOpenTestKernel"
+}
+
+type addInputMidOpenTestFactory struct {
+	ffstream            *FFStream
+	priority            uint
+	snapshotLens        chan int
+	snapshotObserver    func(context.Context, Resources)
+	kernelCloseObserver func(context.Context)
+}
+
+func newAddInputMidOpenTestFactory(
+	ffstream *FFStream,
+	priority uint,
+) *addInputMidOpenTestFactory {
+	return &addInputMidOpenTestFactory{
+		ffstream:     ffstream,
+		priority:     priority,
+		snapshotLens: make(chan int, 4),
+	}
+}
+
+func (f *addInputMidOpenTestFactory) String() string {
+	return "addInputMidOpenTestFactory"
+}
+
+func (f *addInputMidOpenTestFactory) NewInput(
+	ctx context.Context,
+	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
+) (*Input, error) {
+	resources := xsync.DoR1(ctx, &f.ffstream.Inputs.InputChainsLocker, func() Resources {
+		return f.ffstream.InputsInfo[f.priority].Clone()
+	})
+	f.snapshotLens <- len(resources)
+	if f.snapshotObserver != nil {
+		f.snapshotObserver(ctx, resources)
+	}
+
+	var inputs kernel.Tee[kernel.Abstract]
+	for _, resource := range resources {
+		inputs = append(inputs, newAddInputMidOpenTestKernel(resource.URL, f.kernelCloseObserver))
+	}
+	return kernel.NewChainOfTwo(
+		inputs,
+		kernel.NewMapStreamIndices(ctx, nil),
+	), nil
+}
+
+func (f *addInputMidOpenTestFactory) NewDecoderFactory(
+	ctx context.Context,
+	_ *inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData],
+) (*DecoderFactory, error) {
+	return newInputFactory(f.ffstream, f.priority).newDecoderFactory(ctx), nil
+}
+
+func (f *addInputMidOpenTestFactory) HasResources(context.Context) bool {
+	return true
+}
+
+func requireFactorySnapshotLen(
+	ctx context.Context,
+	t *testing.T,
+	snapshotLens <-chan int,
+	want int,
+) {
+	t.Helper()
+	for {
+		select {
+		case got := <-snapshotLens:
+			if got == want {
+				return
+			}
+		case <-ctx.Done():
+			t.Fatalf("factory did not snapshot %d resources before test timeout: %v", want, ctx.Err())
+		}
+	}
+}
+
+func inputChainOpenedTestKernelURLs(
+	ctx context.Context,
+	chain *InputChain,
+) ([]string, bool) {
+	if chain == nil {
+		return nil, false
+	}
+	kernelWrapper := chain.Input.Processor.Kernel
+	lockCtx := xsync.WithEnableDeadlock(ctx, false)
+	if !kernelWrapper.KernelLocker.ManualTryLock(lockCtx) {
+		return nil, false
+	}
+	defer kernelWrapper.KernelLocker.ManualUnlock(lockCtx)
+	if !kernelWrapper.KernelIsSet || kernelWrapper.KernelError != nil || kernelWrapper.Kernel == nil {
+		return nil, false
+	}
+	urls := make([]string, 0, len(kernelWrapper.Kernel.Kernel0))
+	for _, input := range kernelWrapper.Kernel.Kernel0 {
+		testKernel, ok := input.(*addInputMidOpenTestKernel)
+		if !ok {
+			return nil, false
+		}
+		urls = append(urls, testKernel.resourceURL)
+	}
+	return urls, true
+}
+
+func setPendingSamePriorityHotReloadReloadInputChainForTest(
+	t *testing.T,
+	reload inputChainReloadFunc,
+) {
+	t.Helper()
+	pendingSamePriorityHotReloadReloadInputChainLocker.Lock()
+	old := pendingSamePriorityHotReloadReloadInputChain
+	pendingSamePriorityHotReloadReloadInputChain = reload
+	pendingSamePriorityHotReloadReloadInputChainLocker.Unlock()
+	t.Cleanup(func() {
+		pendingSamePriorityHotReloadReloadInputChainLocker.Lock()
+		pendingSamePriorityHotReloadReloadInputChain = old
+		pendingSamePriorityHotReloadReloadInputChainLocker.Unlock()
+	})
+}
+
+type addInputMidOpenTestHarness struct {
+	stream               *FFStream
+	factory              *addInputMidOpenTestFactory
+	chain                *InputChain
+	switchRequestStarted chan struct{}
+	releaseSwitchRequest chan struct{}
+	releaseOnce          sync.Once
+}
+
+func newAddInputMidOpenTestHarness(
+	ctx context.Context,
+	t *testing.T,
+) *addInputMidOpenTestHarness {
+	t.Helper()
+
+	s := newTestFFStream(t, ctx)
+	res0 := Resource{URL: "test://camera", Priority: 0}
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo = []Resources{{res0}}
+	})
+
+	factory := newAddInputMidOpenTestFactory(s, 0)
+	require.NoError(t, s.Inputs.AddFactory(ctx, factory))
+	require.Len(t, s.Inputs.InputChains, 1)
+	chain := s.Inputs.InputChains[0]
+
+	h := &addInputMidOpenTestHarness{
+		stream:               s,
+		factory:              factory,
+		chain:                chain,
+		switchRequestStarted: make(chan struct{}),
+		releaseSwitchRequest: make(chan struct{}),
+	}
+
+	var switchRequestOnce sync.Once
+	originalOnSwitchRequest := s.Inputs.InputSwitch.GetOnSwitchRequest()
+	s.Inputs.InputSwitch.CurrentValue.Store(1)
+	s.Inputs.InputSwitch.SetOnSwitchRequest(func(
+		ctx context.Context,
+		in packetorframe.InputUnion,
+		to int32,
+	) error {
+		switchRequestOnce.Do(func() {
+			close(h.switchRequestStarted)
+		})
+		select {
+		case <-h.releaseSwitchRequest:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		if originalOnSwitchRequest == nil {
+			return nil
+		}
+		return originalOnSwitchRequest(ctx, in, to)
+	})
+
+	return h
+}
+
+func (h *addInputMidOpenTestHarness) releaseSwitchRequestOnce() {
+	h.releaseOnce.Do(func() {
+		close(h.releaseSwitchRequest)
+	})
+}
+
+func (h *addInputMidOpenTestHarness) openIntoPreKernelIsSetWindow(
+	ctx context.Context,
+	t *testing.T,
+) {
+	t.Helper()
+	require.NoError(t, h.chain.Unpause(ctx))
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 1)
+	select {
+	case <-h.switchRequestStarted:
+	case <-ctx.Done():
+		t.Fatal("first open did not reach the pre-KernelIsSet on-open window")
+	}
+}
+
+type samePriorityHotReloadTestState struct {
+	pending      bool
+	watcherCount int
+	watcher      bool
+	generation   uint64
+}
+
+func samePriorityHotReloadStateForTest(
+	stream *FFStream,
+	priority uint,
+) samePriorityHotReloadTestState {
+	stream.locker.Lock()
+	defer stream.locker.Unlock()
+
+	var state samePriorityHotReloadTestState
+	if stream.pendingSamePriorityHotReload != nil {
+		pendingState, ok := stream.pendingSamePriorityHotReload[priority]
+		state.pending = ok
+		state.generation = pendingState.generation
+	}
+	if stream.runningSamePriorityHotReloadWatcher != nil {
+		state.watcher = stream.runningSamePriorityHotReloadWatcher[priority]
+		for _, running := range stream.runningSamePriorityHotReloadWatcher {
+			if running {
+				state.watcherCount++
+			}
+		}
+	}
+	return state
+}
+
+func requireSamePriorityHotReloadPendingCollapsed(
+	ctx context.Context,
+	t *testing.T,
+	stream *FFStream,
+	priority uint,
+) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		state := samePriorityHotReloadStateForTest(stream, priority)
+		return state.pending && state.watcher && state.watcherCount == 1
+	}, 2*time.Second, samePriorityHotReloadCheckInterval,
+		"same-priority hot-adds must collapse to one pending reload watcher")
+}
+
+func requireSamePriorityHotReloadCleared(
+	t *testing.T,
+	stream *FFStream,
+	priority uint,
+) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		state := samePriorityHotReloadStateForTest(stream, priority)
+		return !state.pending && !state.watcher && state.watcherCount == 0
+	}, 2*time.Second, samePriorityHotReloadCheckInterval,
+		"same-priority hot-reload pending state must clear")
 }
 
 func TestAddInput_HappyPath(t *testing.T) {
@@ -392,8 +707,7 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	s, err := New(ctx)
-	require.NoError(t, err)
+	s := newTestFFStream(t, ctx)
 
 	res := Resource{
 		URL:      "testsrc=duration=10:rate=25",
@@ -404,7 +718,7 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 			},
 		},
 	}
-	_, err = s.AddInput(ctx, res)
+	_, err := s.AddInput(ctx, res)
 	require.NoError(t, err)
 	require.Len(t, s.Inputs.InputChains, 1)
 
@@ -462,8 +776,7 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 	// must reload the chain, which CAS-replaces the barrier pointer.
 	// Eventually polls because the post-Pause Unpause spawns an
 	// openKernelIfNeeded goroutine that may race the read here; the
-	// pointer flip itself happens synchronously inside AddInput
-	// (Pause runs to completion under s.locker).
+	// pointer flip itself happens before AddInput returns.
 	require.Eventually(t, func() bool {
 		barrierAfter := chain.Input.Processor.Kernel.KernelOpenBarrier.Load()
 		return barrierAfter != barrierBefore
@@ -472,6 +785,365 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 			"(KernelOpenBarrier pointer must change); "+
 			"this fails pre-fix because AddInput only appends to "+
 			"InputsInfo and never triggers Pause+Unpause")
+}
+
+func TestAddInput_AtExistingPriorityOpen_ReloadLifecycleOutsideFFStreamLock(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+	res0 := Resource{URL: "test://camera", Priority: 0}
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo = []Resources{{res0}}
+	})
+
+	closeObservedWithFFStreamLockHeld := make(chan bool, 1)
+	releaseClose := make(chan struct{})
+	var observeClose atomic.Bool
+	factory := newAddInputMidOpenTestFactory(s, 0)
+	factory.kernelCloseObserver = func(context.Context) {
+		if !observeClose.Load() {
+			return
+		}
+		lockHeld := !s.locker.TryLock()
+		if !lockHeld {
+			s.locker.Unlock()
+		}
+		select {
+		case closeObservedWithFFStreamLockHeld <- lockHeld:
+		default:
+		}
+		select {
+		case <-releaseClose:
+		case <-ctx.Done():
+		}
+	}
+
+	require.NoError(t, s.Inputs.AddFactory(ctx, factory))
+	require.Len(t, s.Inputs.InputChains, 1)
+	chain := s.Inputs.InputChains[0]
+	require.NoError(t, chain.Unpause(ctx))
+	requireFactorySnapshotLen(ctx, t, factory.snapshotLens, 1)
+	require.Eventually(t, func() bool {
+		count, opened := inputChainOpenedTeeLen(ctx, chain)
+		return opened && count == 1
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"test setup must fully open the first kernel before same-priority AddInput")
+	observeClose.Store(true)
+
+	addDone := make(chan error, 1)
+	go func() {
+		_, err := s.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+		addDone <- err
+	}()
+
+	select {
+	case lockHeld := <-closeObservedWithFFStreamLockHeld:
+		close(releaseClose)
+		require.False(t, lockHeld,
+			"AddInput must run chain.Pause/Unpause after releasing FFStream.locker")
+		require.NoError(t, <-addDone)
+	case err := <-addDone:
+		require.NoError(t, err)
+		t.Fatal("AddInput returned before closing the open kernel; test did not exercise synchronous reload")
+	case <-ctx.Done():
+		t.Fatalf("AddInput did not close the open kernel before timeout: %v", ctx.Err())
+	}
+}
+
+// TestAddInput_AtExistingPriorityWhileOpening_ReloadsAfterOpen pins
+// the wingout camera+microphone hot-add race: the second resource can
+// arrive after the first priority-0 open has already snapshotted
+// InputsInfo but before KernelIsSet flips true. The first opened Tee is
+// then too short and must be reloaded once, after the open finishes.
+func TestAddInput_AtExistingPriorityWhileOpening_ReloadsAfterOpen(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+	require.NoError(t, err)
+	require.Len(t, h.stream.InputsInfo[0], 2,
+		"AddInput must register the second resource while the first open is blocked")
+
+	h.releaseSwitchRequestOnce()
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 2)
+
+	// Retryable has no post-KernelIsSet signal; after the factory has
+	// observed the two-resource repair open, probe the installed live
+	// Tee until the Retryable publishes it.
+	require.Eventually(t, func() bool {
+		count, opened := inputChainOpenedTeeLen(ctx, h.chain)
+		return opened && count == 2
+	}, 5*time.Second, 10*time.Millisecond,
+		"same-priority AddInput during mid-open must reload the short live Tee "+
+			"without waiting for a natural retry")
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_RemoveOldResourceReloadsRemainingResource(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	require.NoError(t, h.stream.RemoveInput(ctx, 0, 0))
+	require.Len(t, h.stream.InputsInfo[0], 1,
+		"RemoveInput must leave the hot-added resource registered")
+	require.Equal(t, "test://microphone", h.stream.InputsInfo[0][0].URL,
+		"the remaining registered resource must be the microphone")
+
+	h.releaseSwitchRequestOnce()
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 1)
+	require.Eventually(t, func() bool {
+		urls, opened := inputChainOpenedTestKernelURLs(ctx, h.chain)
+		return opened && len(urls) == 1 && urls[0] == "test://microphone"
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"the pending mid-open reload must not clear on length equality "+
+			"until the live Tee corresponds to the remaining resource")
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_RemoveOldAfterRepairReloadsRemainingResource(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+
+	removeDone := make(chan error, 1)
+	var removeOnce sync.Once
+	h.factory.snapshotObserver = func(ctx context.Context, resources Resources) {
+		if len(resources) != 2 {
+			return
+		}
+		if resources[0].URL != "test://camera" || resources[1].URL != "test://microphone" {
+			return
+		}
+		removeOnce.Do(func() {
+			removeDone <- h.stream.RemoveInput(ctx, 0, 0)
+		})
+	}
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	h.releaseSwitchRequestOnce()
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 2)
+	select {
+	case err := <-removeDone:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatalf("repair snapshot did not remove the old resource before timeout: %v", ctx.Err())
+	}
+	require.Len(t, h.stream.InputsInfo[0], 1,
+		"RemoveInput must leave only the hot-added resource registered")
+	require.Equal(t, "test://microphone", h.stream.InputsInfo[0][0].URL,
+		"the remaining registered resource must be the microphone")
+
+	require.Eventually(t, func() bool {
+		urls, opened := inputChainOpenedTestKernelURLs(ctx, h.chain)
+		return opened && len(urls) == 1 && urls[0] == "test://microphone"
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"the watcher must reload again when RemoveInput makes the repaired live Tee longer "+
+			"than the registered resources")
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_RepeatedAddRefreshesWatcherTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	originalMaxWait := samePriorityHotReloadMaxWait
+	samePriorityHotReloadMaxWait = 80 * time.Millisecond
+	t.Cleanup(func() {
+		samePriorityHotReloadMaxWait = originalMaxWait
+	})
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone-a", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	time.Sleep(40 * time.Millisecond)
+
+	_, err = h.stream.AddInput(ctx, Resource{URL: "test://microphone-b", Priority: 0})
+	require.NoError(t, err)
+	require.Len(t, h.stream.InputsInfo[0], 3,
+		"repeated AddInput calls must register every resource")
+
+	time.Sleep(60 * time.Millisecond)
+	state := samePriorityHotReloadStateForTest(h.stream, 0)
+	require.True(t, state.pending,
+		"a repeated AddInput generation must refresh the pending watcher timeout")
+	require.True(t, state.watcher,
+		"the watcher must still own the refreshed pending generation")
+
+	h.releaseSwitchRequestOnce()
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 3)
+	require.Eventually(t, func() bool {
+		urls, opened := inputChainOpenedTestKernelURLs(ctx, h.chain)
+		return opened &&
+			len(urls) == 3 &&
+			urls[0] == "test://camera" &&
+			urls[1] == "test://microphone-a" &&
+			urls[2] == "test://microphone-b"
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"the refreshed pending generation must still reload all registered resources")
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_ReloadErrorDoesNotClearNewerGeneration(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+
+	reloadStarted := make(chan struct{})
+	releaseReloadError := make(chan struct{})
+	var reloadStartedOnce sync.Once
+	var releaseReloadErrorOnce sync.Once
+	releaseReloadErrorFunc := func() {
+		releaseReloadErrorOnce.Do(func() {
+			close(releaseReloadError)
+		})
+	}
+	defer releaseReloadErrorFunc()
+
+	var reloadAttempted atomic.Bool
+	setPendingSamePriorityHotReloadReloadInputChainForTest(t, func(
+		ctx context.Context,
+		priority uint,
+		chain *InputChain,
+	) error {
+		if priority != 0 || chain != h.chain {
+			return reloadInputChain(ctx, priority, chain)
+		}
+		if !reloadAttempted.CompareAndSwap(false, true) {
+			return reloadInputChain(ctx, priority, chain)
+		}
+		reloadStartedOnce.Do(func() {
+			close(reloadStarted)
+		})
+		select {
+		case <-releaseReloadError:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return errors.New("synthetic stale hot-reload error")
+	})
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone-a", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	h.releaseSwitchRequestOnce()
+	select {
+	case <-reloadStarted:
+	case <-ctx.Done():
+		t.Fatalf("watcher did not reach the synthetic failing reload before timeout: %v", ctx.Err())
+	}
+
+	_, err = h.stream.AddInput(ctx, Resource{URL: "test://microphone-b", Priority: 0})
+	require.NoError(t, err)
+	state := samePriorityHotReloadStateForTest(h.stream, 0)
+	require.True(t, state.pending,
+		"AddInput during a failing pending reload must keep pending state")
+	require.Equal(t, uint64(2), state.generation,
+		"AddInput during a failing pending reload must record a newer generation")
+	releaseReloadErrorFunc()
+
+	require.Len(t, h.stream.InputsInfo[0], 3,
+		"the AddInput performed during the failing reload must remain registered")
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 3)
+	require.Eventually(t, func() bool {
+		urls, opened := inputChainOpenedTestKernelURLs(ctx, h.chain)
+		return opened &&
+			len(urls) == 3 &&
+			urls[0] == "test://camera" &&
+			urls[1] == "test://microphone-a" &&
+			urls[2] == "test://microphone-b"
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"a reload error for an older generation must not clear a newer pending reload")
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_ClearsPendingOnChainClose(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	// Retryable.Close closes this signal before its asynchronous Pause can
+	// flip IsPaused; observe the close path directly.
+	h.chain.Input.Processor.Kernel.ClosureSignaler.Close(ctx)
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_ClearsPendingOnKernelFailure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone", Priority: 0})
+	require.NoError(t, err)
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	h.chain.Input.Processor.Kernel.KernelLocker.Do(ctx, func() {
+		h.chain.Input.Processor.Kernel.KernelError = errors.New("synthetic pre-KernelIsSet open failure")
+	})
+
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
+}
+
+func TestAddInput_AtExistingPriorityWhileOpening_RepeatedAddsCollapseAndClear(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	h := newAddInputMidOpenTestHarness(ctx, t)
+	defer h.releaseSwitchRequestOnce()
+	h.openIntoPreKernelIsSetWindow(ctx, t)
+
+	_, err := h.stream.AddInput(ctx, Resource{URL: "test://microphone-a", Priority: 0})
+	require.NoError(t, err)
+	_, err = h.stream.AddInput(ctx, Resource{URL: "test://microphone-b", Priority: 0})
+	require.NoError(t, err)
+	require.Len(t, h.stream.InputsInfo[0], 3,
+		"repeated AddInput calls must register every resource")
+	requireSamePriorityHotReloadPendingCollapsed(ctx, t, h.stream, 0)
+
+	h.releaseSwitchRequestOnce()
+	requireFactorySnapshotLen(ctx, t, h.factory.snapshotLens, 3)
+	require.Eventually(t, func() bool {
+		count, opened := inputChainOpenedTeeLen(ctx, h.chain)
+		return opened && count == 3
+	}, 5*time.Second, samePriorityHotReloadCheckInterval,
+		"collapsed hot-add reload must reopen the chain with every registered resource")
+	requireSamePriorityHotReloadCleared(t, h.stream, 0)
 }
 
 // TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses pins the
@@ -483,15 +1155,15 @@ func TestAddInput_AtExistingPriority_RebuildsChain(t *testing.T) {
 //
 // Wingout's Re-Activate flow exercises exactly this path:
 //
-//	1. Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic).
-//	2. Deactivate -> RemoveInput drops both prio-0 entries; the
-//	   Retryable kernel keeps retrying, hits "no input resources",
-//	   and the chain ends up IsPaused=true under CurrentValue<=0.
-//	3. Re-Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic)
-//	   MUST unpause chain[0] so the freshly-attached resources are
-//	   opened. Pre-fix the !IsPaused-only branch returned without
-//	   touching the chain and the cam/mic inputs were silently
-//	   ignored — the user's Activate tap appeared to do nothing.
+//  1. Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic).
+//  2. Deactivate -> RemoveInput drops both prio-0 entries; the
+//     Retryable kernel keeps retrying, hits "no input resources",
+//     and the chain ends up IsPaused=true under CurrentValue<=0.
+//  3. Re-Activate -> AddInput(prio=0, cam) + AddInput(prio=0, mic)
+//     MUST unpause chain[0] so the freshly-attached resources are
+//     opened. Pre-fix the !IsPaused-only branch returned without
+//     touching the chain and the cam/mic inputs were silently
+//     ignored — the user's Activate tap appeared to do nothing.
 //
 // We construct the paused state directly (chain.Pause after the kernel
 // is open) rather than driving the full Deactivate->Retryable->fallback
@@ -502,8 +1174,7 @@ func TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	s, err := New(ctx)
-	require.NoError(t, err)
+	s := newTestFFStream(t, ctx)
 
 	// First AddInput at priority 0 to construct the chain.
 	res := Resource{
@@ -515,7 +1186,7 @@ func TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses(t *testing.T) {
 			},
 		},
 	}
-	_, err = s.AddInput(ctx, res)
+	_, err := s.AddInput(ctx, res)
 	require.NoError(t, err)
 	require.Len(t, s.Inputs.InputChains, 1)
 	chain := s.Inputs.InputChains[0]
@@ -579,6 +1250,67 @@ func TestAddInput_AtPausedPriorityWithinCurrentValue_Unpauses(t *testing.T) {
 			"the chain so the new resource is opened; pre-fix the "+
 			"!IsPaused-only branch left the chain stuck paused and "+
 			"the wingout Re-Activate tap silently no-op'd")
+}
+
+func TestAddInput_AtPendingPriorityPausedByRemoveInput_Unpauses(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newTestFFStream(t, ctx)
+	s.Inputs.InputChainsLocker.Do(ctx, func() {
+		s.InputsInfo = []Resources{
+			{{URL: "test://camera", Priority: 0}},
+			{{URL: "test://fallback", Priority: 1}},
+		}
+	})
+	require.NoError(t, s.Inputs.AddFactory(ctx, newAddInputMidOpenTestFactory(s, 0)))
+	require.NoError(t, s.Inputs.AddFactory(ctx, newAddInputMidOpenTestFactory(s, 1)))
+	require.Len(t, s.Inputs.InputChains, 2)
+	chain := s.Inputs.InputChains[0]
+	originalOnSwitchRequest := s.Inputs.InputSwitch.GetOnSwitchRequest()
+	s.Inputs.InputSwitch.SetOnSwitchRequest(func(
+		context.Context,
+		packetorframe.InputUnion,
+		int32,
+	) error {
+		return nil
+	})
+	t.Cleanup(func() {
+		s.Inputs.InputSwitch.SetOnSwitchRequest(originalOnSwitchRequest)
+	})
+
+	require.NoError(t, chain.Unpause(ctx))
+	require.False(t, chain.IsPaused(ctx),
+		"test setup must make priority 0 look active before RemoveInput pauses it")
+	s.locker.Lock()
+	s.pendingSamePriorityHotReload = map[uint]samePriorityHotReloadPendingState{
+		0: {
+			generation: 1,
+			expiresAt:  time.Now().Add(time.Minute),
+		},
+	}
+	s.runningSamePriorityHotReloadWatcher = map[uint]bool{0: true}
+	s.locker.Unlock()
+
+	require.NoError(t, s.RemoveInput(ctx, 0, 0))
+	require.Eventually(t, func() bool {
+		return chain.IsPaused(ctx)
+	}, 2*time.Second, samePriorityHotReloadCheckInterval,
+		"RemoveInput must genuinely pause the emptied active chain")
+	require.GreaterOrEqual(t, s.Inputs.InputSwitch.CurrentValue.Load(), int32(0),
+		"priority 0 must still be at-or-above the active fallback for paused hot-add recovery")
+
+	_, err := s.AddInput(ctx, Resource{URL: "test://camera-readd", Priority: 0})
+	require.NoError(t, err)
+	state := samePriorityHotReloadStateForTest(s, 0)
+	require.True(t, state.pending,
+		"pending reload state must survive the re-add until the chain opens")
+	require.Equal(t, uint64(2), state.generation,
+		"re-add while pending must still record a newer pending generation")
+	require.Eventually(t, func() bool {
+		return !chain.IsPaused(ctx)
+	}, 2*time.Second, samePriorityHotReloadCheckInterval,
+		"AddInput must not let pending hot-reload state suppress genuine paused-chain recovery")
 }
 
 // TestInputFactory_HasResources_SparsePriorities pins the contract

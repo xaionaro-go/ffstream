@@ -73,7 +73,18 @@ type Flags struct {
 	// main.go uses it (when non-zero) to derive a framerate-adaptive
 	// default transcoder queue cap. See computeTranscoderInputCap.
 	Framerate float64
-	Outputs   ffstream.Resources
+	// TCPMSS, when non-zero, caps the FFmpeg `tcp_mss` AVOption (in
+	// bytes) on outbound TCP-class outputs (tcp/rtmp/rtmps), making
+	// libavformat/tcp.c call setsockopt(IPPROTO_TCP, TCP_MAXSEG)
+	// BEFORE connect — the SYN advertises the capped MSS. Default 0
+	// = no injection (system MSS negotiation). Used to bypass forward-
+	// path drops on intermediate links with reduced effective MSS.
+	// Stored as int after a uint64→int validator (see validateTCPMSS)
+	// so downstream callers can pass the value through to
+	// ffstream.OptionTCPMSS without an unchecked narrowing conversion.
+	// See ffstream.Config.TCPMSS.
+	TCPMSS  int
+	Outputs ffstream.Resources
 }
 
 type Encoder struct {
@@ -157,6 +168,11 @@ func parseFlags(args []string) (context.Context, Flags) {
 	// adaptive transcoder queue cap (see main.go's call to
 	// computeTranscoderInputCap). Sentinel 0 = unset.
 	rFlag := flag.AddParameter(p, "r", false, ptr(flag.Float64(0)))
+	// tcpMSS caps the FFmpeg tcp_mss AVOption on TCP-class outbound
+	// outputs (tcp/rtmp/rtmps). Default 0 = no injection. See
+	// ffstream.Config.TCPMSS for the per-output semantics and the
+	// pre-connect setsockopt mechanism.
+	tcpMSS := flag.AddParameter(p, "tcp_mss", false, ptr(flag.Uint64(0)))
 	reFlag := flag.AddFlag(p, "re", false)
 	version := flag.AddFlag(p, "version", false)
 
@@ -319,6 +335,7 @@ func parseFlags(args []string) (context.Context, Flags) {
 		QueueSizeOutput:        queueSizeOutput.Value(),
 		QueueSizeError:         queueSizeError.Value(),
 		Framerate:              rFlag.Value(),
+		TCPMSS:                 validateTCPMSS(ctx, tcpMSS.Value()),
 
 		HWAccelGlobal: hardwareDeviceType,
 		Inputs:        inputs,
@@ -429,6 +446,28 @@ func parseFlags(args []string) (context.Context, Flags) {
 	}
 
 	return ctx, flags
+}
+
+// tcpMSSMaxAllowed is the upper bound on the operator-supplied
+// `-tcp_mss` flag. RFC 793 §3.1 defines the TCP MSS option as a
+// 16-bit unsigned integer, so values above 65535 cannot be encoded
+// in the TCP header. ffflag accepts uint64 because that is the
+// generic numeric flag type; we narrow to int via this validator
+// so the downstream Config.TCPMSS conversion is safe on every
+// platform (Go's int is at least 32 bits, fitting any uint16).
+const tcpMSSMaxAllowed = 65535
+
+// validateTCPMSS checks that the operator-supplied tcp_mss value is
+// representable in the TCP MSS option field (uint16) and fatals if
+// not. The plausible-range Warn (88..1500 per tcp(7)) is emitted
+// per-output by senderFactory.ensureTCPMSS — the validator here
+// only enforces hard syntactic bounds, leaving operational warnings
+// to the helper that sees the actual outbound URL.
+func validateTCPMSS(ctx context.Context, value uint64) int {
+	if value > tcpMSSMaxAllowed {
+		fatal(ctx, "-tcp_mss=%d exceeds the TCP MSS option's 16-bit range (max %d)", value, tcpMSSMaxAllowed)
+	}
+	return int(value)
 }
 
 func extractAndStripPriority(

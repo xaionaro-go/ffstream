@@ -272,6 +272,10 @@ func TestE2E_SuppressOutOfRange(t *testing.T) {
 
 // TestE2E_SwitchOutputByProps tests output switching via SwitchOutputByProps RPC.
 func TestE2E_SwitchOutputByProps(t *testing.T) {
+	abr, err := streammux.DefaultAutoBitRateVideoConfig(astiav.CodecIDH264)
+	require.NoError(t, err)
+	abr.AutoByPass = false
+
 	h := newTestHarness(t,
 		withMuxMode(streammuxtypes.MuxModeDifferentOutputsSameTracks),
 		withForceRealTime(true),
@@ -281,8 +285,12 @@ func TestE2E_SwitchOutputByProps(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	err = h.Client.SetVideoAutoBitRateConfig(ctx, &abr)
+	require.NoError(t, err, "SetVideoAutoBitRateConfig should succeed")
+
 	// Switch to 160x120
-	err := h.Client.SwitchOutputByProps(ctx, "libx264", 160, 120, 300000, "aac", 44100, 64000, 500000)
+	const requestedMaxBitRate = uint64(5_000_000)
+	err = h.Client.SwitchOutputByProps(ctx, "libx264", 160, 120, 300000, "aac", 44100, 64000, requestedMaxBitRate)
 	require.NoError(t, err, "SwitchOutputByProps should succeed")
 
 	// Verify via GetCurrentOutput that the config changed
@@ -293,6 +301,7 @@ func TestE2E_SwitchOutputByProps(t *testing.T) {
 	resp, err := grpcClient.GetCurrentOutput(ctx, &ffstream_grpc.GetCurrentOutputRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp.GetConfig())
+	assert.Equal(t, requestedMaxBitRate, resp.GetMaxBitRate())
 	t.Logf("after switch: video=%s %dx%d audio=%s",
 		resp.GetConfig().GetVideo().GetCodecName(),
 		resp.GetConfig().GetVideo().GetWidth(),

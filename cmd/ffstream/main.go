@@ -97,8 +97,24 @@ func main() {
 		ffstream.OptionBridgePTSAcrossChains(flags.BridgePTSAcrossChains),
 		ffstream.OptionExitOnLastInputRemoved(flags.ExitOnLastInputRemoved),
 		ffstream.OptionQuietOnOpenFailure(flags.QuietOnOpenFailure),
+		ffstream.OptionDefaultRetryOutputTimeoutOnFailure(flags.RetryOutputTimeoutOnFailure),
+		ffstream.OptionTCPMSS(flags.TCPMSS),
 	)
 	assertNoError(ctx, err)
+
+	// IDLE-START operator visibility: when the boot-time retry budget is
+	// set but no -outputs are configured, the runtime template is
+	// lazy-created via the SetOutputURL gRPC, which inherits this default
+	// (see Config.DefaultRetryOutputTimeoutOnFailure). Surfacing the
+	// inheritance at boot prevents silent-config-mismatch debugging
+	// dead-ends.
+	if flags.RetryOutputTimeoutOnFailure != 0 && len(flags.Outputs) == 0 {
+		logger.Infof(
+			ctx,
+			"IDLE-START mode: retry_output_timeout_on_failure=%s will apply to templates lazy-created via SetOutputURL",
+			flags.RetryOutputTimeoutOnFailure,
+		)
+	}
 
 	if flags.ListenControlSocket != "" {
 		logger.Debugf(ctx, "flags.ListenControlSocket == '%s'", flags.ListenControlSocket)

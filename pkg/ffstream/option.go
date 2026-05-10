@@ -59,6 +59,42 @@ type Config struct {
 	// source launchers whose owner maps "all inputs removed" to process
 	// deactivation.
 	ExitOnLastInputRemoved bool
+
+	// DefaultRetryOutputTimeoutOnFailure is the retry-on-failure budget
+	// applied to runtime-created output templates that do not carry an
+	// explicit value. SetOutputURL's IDLE-START path (case 0) lazy-creates
+	// a SenderTemplate purely from the URL — without this default, the
+	// runtime template ends up with RetryOutputTimeoutOnFailure=0, which
+	// makes senderFactory.NewSender take the no-retry newOutput() path
+	// and produces a single fatal SwitchOutputByProps error on a transient
+	// open failure. SetOutputURL's case 1 also applies this default when
+	// the existing template's retry value is zero (e.g. AddOutputTemplate
+	// was called without one); explicit non-zero values are preserved.
+	// The cmd/ffstream launcher wires flags.RetryOutputTimeoutOnFailure
+	// into this field so the gRPC-driven IDLE-START flow inherits the
+	// boot-time retry budget.
+	DefaultRetryOutputTimeoutOnFailure time.Duration
+
+	// TCPMSS, when non-zero, is the FFmpeg `tcp_mss` AVOption value (in
+	// bytes) injected by senderFactory.newOutputKernel into the
+	// per-output CustomOptions dictionary for outbound TCP-class outputs
+	// (URL schemes tcp/rtmp/rtmps), unless the per-output template
+	// already carries an explicit tcp_mss (which wins). Default zero
+	// means no injection: the FFmpeg tcp protocol falls back to the
+	// system MSS negotiation.
+	//
+	// User constraint (verbatim, 2026-05-08):
+	//   "tcp_mss overrides may be optional, but should not be
+	//    hardcoded/mandated"
+	// Hence the zero default is a deliberate operator-opt-in design,
+	// not a placeholder for a compile-time recommended value.
+	//
+	// The injected option flows through libavformat/tcp.c customize_fd
+	// into setsockopt(IPPROTO_TCP, TCP_MAXSEG) BEFORE connect, so the
+	// SYN advertises the capped MSS. Useful for bypassing forward-path
+	// drops caused by intermediate links with reduced effective MSS;
+	// the cmd/ffstream launcher exposes this as the -tcp_mss flag.
+	TCPMSS int
 }
 
 func DefaultConfig() Config {
@@ -143,6 +179,21 @@ type OptionExitOnLastInputRemoved bool
 
 func (o OptionExitOnLastInputRemoved) apply(cfg *Config) {
 	cfg.ExitOnLastInputRemoved = bool(o)
+}
+
+// OptionDefaultRetryOutputTimeoutOnFailure sets
+// Config.DefaultRetryOutputTimeoutOnFailure. See the field doc.
+type OptionDefaultRetryOutputTimeoutOnFailure time.Duration
+
+func (o OptionDefaultRetryOutputTimeoutOnFailure) apply(cfg *Config) {
+	cfg.DefaultRetryOutputTimeoutOnFailure = time.Duration(o)
+}
+
+// OptionTCPMSS sets Config.TCPMSS. See the field doc.
+type OptionTCPMSS int
+
+func (o OptionTCPMSS) apply(cfg *Config) {
+	cfg.TCPMSS = int(o)
 }
 
 // OptionQuietEmptyPriority is a deprecated alias of

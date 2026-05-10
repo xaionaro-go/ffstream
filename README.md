@@ -126,8 +126,7 @@ FFSTREAM_E2E_RTMP_URL=rtmp://your.server/live/stream go test -v -timeout 180s ./
 | `TestFFstreamEncodersList` | Lists available video encoders |
 | `TestFFstreamInputDevices` | Lists available input formats |
 | `TestFFstreamHelp` | Tests ffstream shows usage info |
-| `TestFFstreamCameraCapture` | Captures video from android_camera with h264_mediacodec encoder |
+| `TestFFstreamCameraCapture` | Generic Android camera capture smoke test; current mission launchers assert AV1 separately |
 | `TestFFstreamRTMPStreaming` | Streams camera to RTMP (requires `FFSTREAM_E2E_RTMP_URL`) |
 | `TestFFstreamFullPipeline` | Full pipeline test similar to production (requires `FFSTREAM_E2E_RTMP_URL`) |
 | `TestFFstreamControlSocket` | Tests gRPC control socket with ffstreamctl |
-

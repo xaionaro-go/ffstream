@@ -13,10 +13,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/asticode/go-astiav"
 	"github.com/stretchr/testify/require"
+	audio "github.com/xaionaro-go/audio/pkg/audio/types"
+	"github.com/xaionaro-go/avpipeline/codec"
+	codectypes "github.com/xaionaro-go/avpipeline/codec/types"
 	"github.com/xaionaro-go/avpipeline/kernel"
+	"github.com/xaionaro-go/avpipeline/kernel/boilerplate"
+	"github.com/xaionaro-go/avpipeline/node"
+	streammux "github.com/xaionaro-go/avpipeline/preset/streammux"
+	streammuxtypes "github.com/xaionaro-go/avpipeline/preset/streammux/types"
 	"github.com/xaionaro-go/ffstream/pkg/ffstream"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
+	grpcgoconv "github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -26,6 +35,26 @@ func newTestServer(t *testing.T, ctx context.Context) *GRPCServer {
 	s, err := ffstream.New(ctx)
 	require.NoError(t, err)
 	return NewGRPCServer(ctx, s)
+}
+
+type testSenderHandler struct {
+	boilerplate.CustomHandler
+}
+
+func (testSenderHandler) String() string {
+	return "testSenderHandler"
+}
+
+type testSenderFactory struct{}
+
+func (testSenderFactory) NewSender(
+	ctx context.Context,
+	_ streammux.SenderKey,
+) (streammux.SendingNode[ffstream.CustomData], streammuxtypes.SenderConfig, error) {
+	return node.NewWithCustomDataFromKernel[streammux.OutputCustomData[ffstream.CustomData]](
+		ctx,
+		boilerplate.NewKernelWithFormatContext(ctx, &testSenderHandler{}),
+	), streammuxtypes.SenderConfig{}, nil
 }
 
 // quiesceRetryable terminates the pipeline init goroutine spawned by
@@ -75,6 +104,61 @@ func quiesceRetryable(
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+func TestSwitchOutputByProps_PropagatesMaxBitRateToAutoBitRate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	srv := newTestServer(t, ctx)
+
+	mux, err := streammux.NewWithCustomData[ffstream.CustomData](
+		ctx,
+		streammuxtypes.MuxModeDifferentOutputsSameTracks,
+		testSenderFactory{},
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, mux.Close(context.Background()))
+	})
+	srv.FFStream.StreamMux = mux
+
+	abr, err := streammux.DefaultAutoBitRateVideoConfig(astiav.CodecIDH264)
+	require.NoError(t, err)
+	abr.AutoByPass = false
+	require.NoError(t, srv.FFStream.SetAutoBitRateVideoConfig(ctx, &abr))
+
+	const requestedMaxBitRate = uint64(1_234_567)
+	require.NotEqual(t, streammuxtypes.Ubps(requestedMaxBitRate), abr.MaxBitRate)
+
+	transcoderConfig := streammuxtypes.TranscoderConfig{
+		Output: streammuxtypes.TranscoderOutputConfig{
+			VideoTrackConfigs: []streammuxtypes.OutputVideoTrackConfig{{
+				CodecName:      codectypes.Name("libx264"),
+				AverageBitRate: 300_000,
+				Resolution:     codec.Resolution{Width: 160, Height: 120},
+			}},
+			AudioTrackConfigs: []streammuxtypes.OutputAudioTrackConfig{{
+				CodecName:      codectypes.Name("aac"),
+				AverageBitRate: 64_000,
+				SampleRate:     audio.SampleRate(44100),
+			}},
+		},
+	}
+	_, err = srv.SwitchOutputByProps(ctx, &ffstream_grpc.SwitchOutputByPropsRequest{
+		Config:     grpcgoconv.TranscoderConfigToGRPC(transcoderConfig),
+		MaxBitRate: requestedMaxBitRate,
+	})
+	require.NoError(t, err)
+
+	cfg, err := srv.FFStream.GetAutoBitRateVideoConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(t, streammuxtypes.Ubps(requestedMaxBitRate), cfg.MaxBitRate)
+
+	output, err := srv.GetCurrentOutput(ctx, &ffstream_grpc.GetCurrentOutputRequest{})
+	require.NoError(t, err)
+	require.Equal(t, requestedMaxBitRate, output.GetMaxBitRate())
 }
 
 func TestGRPCServer_AddInput_ReturnsAssignedNum(t *testing.T) {

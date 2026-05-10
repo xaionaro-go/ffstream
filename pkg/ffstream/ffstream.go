@@ -39,17 +39,52 @@ import (
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/go/ffstream_grpc"
 	"github.com/xaionaro-go/ffstream/pkg/ffstreamserver/grpc/goconv"
 	"github.com/xaionaro-go/observability"
+	"github.com/xaionaro-go/xcontext"
 	"github.com/xaionaro-go/xsync"
 )
 
 const (
 	enableGapFiller = false
+	// Retryable has an OnKernelOpen callback before KernelIsSet, but no
+	// post-KernelIsSet signal. Probe until the opened Tee is observable.
+	samePriorityHotReloadCheckInterval = 10 * time.Millisecond
+)
+
+var (
+	// The close/failure signals below are the normal exits; this timeout
+	// only bounds an opaque stuck-open state that never publishes a kernel.
+	samePriorityHotReloadMaxWait = 30 * time.Second
 )
 
 type (
 	Inputs     = inputwithfallback.InputWithFallback[*Input, *DecoderFactory, CustomData]
 	InputChain = inputwithfallback.InputChain[*Input, *DecoderFactory, CustomData]
 )
+
+type inputChainLifecycleAction uint8
+
+const (
+	inputChainLifecycleActionNone inputChainLifecycleAction = iota
+	inputChainLifecycleActionReload
+	inputChainLifecycleActionUnpauseAfterHotAdd
+)
+
+type samePriorityHotReloadPendingState struct {
+	// generation increments for each mid-open hot-add. reloadedGeneration
+	// records the newest generation for which the watcher has kicked
+	// Pause+Unpause; count-based catch-up may only clear after that.
+	generation         uint64
+	reloadedGeneration uint64
+	expiresAt          time.Time
+}
+
+func (state samePriorityHotReloadPendingState) needsReload() bool {
+	return state.reloadedGeneration < state.generation
+}
+
+func (state samePriorityHotReloadPendingState) expired(now time.Time) bool {
+	return !state.expiresAt.IsZero() && !now.Before(state.expiresAt)
+}
 
 type FFStream struct {
 	Config          Config
@@ -68,6 +103,9 @@ type FFStream struct {
 	locker     sync.Mutex
 
 	audioStreamIndices map[fallbackResourceKey]int
+
+	pendingSamePriorityHotReload        map[uint]samePriorityHotReloadPendingState
+	runningSamePriorityHotReloadWatcher map[uint]bool
 
 	// pipelineErrorCount counts non-EOF, non-Canceled errors observed by drainPipelineErrors. Exposed via GetStats.PipelineErrorCount.
 	pipelineErrorCount atomic.Uint64
@@ -202,7 +240,21 @@ func (s *FFStream) AddInput(
 	logger.Debugf(ctx, "AddInput(ctx, %#+v)", resource)
 	defer func() { logger.Debugf(ctx, "/AddInput(ctx, %#+v): %d %v", resource, _num, _err) }()
 	s.locker.Lock()
-	defer s.locker.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			s.locker.Unlock()
+		}
+	}()
+	unlock := func() {
+		if locked {
+			s.locker.Unlock()
+			locked = false
+		}
+	}
+
+	var lifecycleChain *InputChain
+	lifecycleAction := inputChainLifecycleActionNone
 
 	// InputsInfo and InputChains MUST grow as a single observation to
 	// concurrent GetInputsInfo readers (which iterate InputChains and
@@ -300,83 +352,51 @@ func (s *FFStream) AddInput(
 			return 0, fmt.Errorf("unable to add input factory at priority %d: %w", p, err)
 		}
 	}
-	// When AddInput appends to a pre-existing
-	// priority slot, the chain's Retryable kernel is already open
-	// (or in retry) with the OLD InputsInfo snapshot. Retryable
-	// closes-over the resource list at NewInput call time, so a
-	// silent slice append never reaches the live kernel. Pause +
-	// Unpause is the established mechanism (also used by the
-	// fallback-switch and on transient input errors) that closes
-	// the in-flight kernel and triggers a fresh
-	// Retryable.openKernelIfNeeded → InputFactory.NewInput call,
-	// which re-reads InputsInfo[priority] and now opens both the
-	// old and the new resource.
-	//
-	// Guard with !IsPaused so we only reload chains that were
-	// actively running:
-	//   - Brand-new chain (just created above): IsPaused=true,
-	//     skip — its first NewInput will read the up-to-date
-	//     InputsInfo when it is naturally unpaused (priority 0
-	//     auto-unpause in inputwithfallback.Serve, or the
-	//     InputSwitch promoting a fallback).
-	//   - Existing chain at priority>0 that hasn't been promoted
-	//     to active yet: IsPaused=true, skip — same reasoning;
-	//     force-unpausing here would prematurely open a fallback.
-	//   - Existing chain serving traffic (or in the retry loop
-	//     after a transient error): IsPaused=false, reload now.
-	//   - Existing chain at priority<=currentValue but paused (e.g.,
-	//     all resources were RemoveInput'd earlier and the chain was
-	//     paused as a side-effect of the resulting fallback walk):
-	//     unpause now so the new resource is opened. Without this,
-	//     re-Activate after Deactivate leaves the chain stuck paused
-	//     and the resource is silently ignored. The auto-unpause in
-	//     inputwithfallback.Serve only fires when a chain ARRIVES on
-	//     the channel — pre-existing chains miss it.
+	// When AddInput appends to a pre-existing priority slot, the live
+	// Retryable may already hold a kernel built from an older InputsInfo
+	// snapshot. A fully-open kernel can be reloaded immediately. A
+	// mid-open kernel cannot be paused safely yet, but the opened Tee may
+	// still be short; record a pending reload and let a detached watcher
+	// reload after KernelIsSet is observable.
 	if chainPreExisted {
 		chain := xsync.DoR1(ctx, &s.Inputs.InputChainsLocker, func() *InputChain {
 			return s.Inputs.InputChains[priority]
 		})
+		pendingHotReload := s.samePriorityHotReloadPendingLocked(priority)
+		if pendingHotReload {
+			// A previous same-priority mid-open add is already being
+			// repaired. Treat every overlapping add as a new generation,
+			// but still honor genuine paused-chain recovery below.
+			s.recordPendingSamePriorityHotReloadLocked(ctx, priority)
+		}
+		paused := chain.IsPaused(ctx)
+		kernelOpen := false
+		if !paused {
+			_, kernelOpen = inputChainOpenedTeeLen(ctx, chain)
+		}
 		switch {
-		case !chain.IsPaused(ctx) && chain.IsKernelOpen(ctx):
-			// Pause+Unpause kick is only safe when the kernel is
-			// fully opened (KernelIsSet=true) — not just intent-to-
-			// open (barrier flipped, KernelIsSet still false).
-			// Pausing a kernel that's mid-Factory closes the
-			// freshly-opened resource; for camera2 NDK that means
-			// self-eviction of the just-CONNECT'd camera client
-			// (root cause: log shows
-			//   AddInput camera → "capture session is active"
-			//   AddInput mic → chainPreExisted Pause+Unpause kick
-			//   → retryable.go:207 "retryable is being closed"
-			//   → "concurrent open/close won the race"
-			//   → "capture session was closed"
-			// then dumpsys media.camera shows pid X EVICTED BY pid X).
-			// When the kernel is still opening, the in-flight Factory's
-			// GetResources snapshot is stale (the resource we just
-			// appended above isn't in it), so the new resource won't
-			// be in this open's Tee — but the chain's natural retry
-			// cycle will pick it up on the next NewInput call without
-			// us tearing down the live session. Trade-off: a second
-			// AddInput arriving during the first AddInput's open
-			// window is silently deferred to the chain's next retry
-			// instead of forcing an immediate reload. That is the
-			// correct behaviour for the camera+mic-at-priority-0
-			// pattern where both arrive within milliseconds.
-			if err := chain.Pause(ctx); err != nil {
-				return num, fmt.Errorf("unable to pause input chain at priority %d for hot-reload: %w", priority, err)
-			}
-			if err := chain.Unpause(ctx); err != nil {
-				return num, fmt.Errorf("unable to unpause input chain at priority %d after hot-reload: %w", priority, err)
-			}
-		case int32(priority) <= s.Inputs.InputSwitch.CurrentValue.Load():
+		case paused && int32(priority) <= s.Inputs.InputSwitch.CurrentValue.Load():
 			// Chain is paused but its priority is at-or-above the
 			// active fallback. Unpause so the new resource opens —
 			// the kernel-open path will request a switch back to
 			// this priority via onInputChainKernelOpen if the
 			// active fallback is currently a lower-priority chain.
-			if err := chain.Unpause(ctx); err != nil {
-				return num, fmt.Errorf("unable to unpause input chain at priority %d after hot-add: %w", priority, err)
-			}
+			lifecycleChain = chain
+			lifecycleAction = inputChainLifecycleActionUnpauseAfterHotAdd
+		case pendingHotReload:
+			// The watcher owns the pending repair lifecycle. Do not issue
+			// a synchronous reload while it is waiting for KernelIsSet.
+		case !paused && kernelOpen:
+			// Pause+Unpause is only safe when the kernel is fully
+			// opened (KernelIsSet=true), and it must run after both
+			// FFStream.locker and InputChainsLocker have been released.
+			lifecycleChain = chain
+			lifecycleAction = inputChainLifecycleActionReload
+		case !paused && !kernelOpen:
+			// Active but still opening: never Pause inside this window.
+			// The watcher waits for KernelIsSet, then forces a reload for
+			// the pending generation before it can clear.
+			s.recordPendingSamePriorityHotReloadLocked(ctx, priority)
 		}
 	}
 	// Refresh the streammux RawFrameSource flag so a hot-added camera
@@ -400,7 +420,332 @@ func (s *FFStream) AddInput(
 	if s.StreamMux != nil && isRawFrameSourceFormat(inputFormatFromResource(resource)) {
 		s.StreamMux.SetRawFrameSource(ctx, true)
 	}
+	unlock()
+	if err := runInputChainLifecycleAction(ctx, priority, lifecycleChain, lifecycleAction); err != nil {
+		return num, err
+	}
 	return num, nil
+}
+
+func runInputChainLifecycleAction(
+	ctx context.Context,
+	priority uint,
+	chain *InputChain,
+	action inputChainLifecycleAction,
+) error {
+	switch action {
+	case inputChainLifecycleActionNone:
+		return nil
+	case inputChainLifecycleActionReload:
+		return reloadInputChain(ctx, priority, chain)
+	case inputChainLifecycleActionUnpauseAfterHotAdd:
+		if err := chain.Unpause(ctx); err != nil {
+			return fmt.Errorf("unable to unpause input chain at priority %d after hot-add: %w", priority, err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("internal error: unsupported input chain lifecycle action %d", action)
+	}
+}
+
+func (s *FFStream) recordPendingSamePriorityHotReloadLocked(
+	ctx context.Context,
+	priority uint,
+) {
+	if s.pendingSamePriorityHotReload == nil {
+		s.pendingSamePriorityHotReload = make(map[uint]samePriorityHotReloadPendingState)
+	}
+	if s.runningSamePriorityHotReloadWatcher == nil {
+		s.runningSamePriorityHotReloadWatcher = make(map[uint]bool)
+	}
+	state := s.pendingSamePriorityHotReload[priority]
+	state.generation++
+	state.expiresAt = time.Now().Add(samePriorityHotReloadMaxWait)
+	s.pendingSamePriorityHotReload[priority] = state
+	if s.runningSamePriorityHotReloadWatcher[priority] {
+		return
+	}
+	s.runningSamePriorityHotReloadWatcher[priority] = true
+
+	// Keep the request values/logging context, detach from request
+	// cancellation, and bound the watcher with the per-generation
+	// deadline in pendingSamePriorityHotReload.
+	watcherCtx := xcontext.DetachDone(ctx)
+	observability.Go(watcherCtx, func(ctx context.Context) {
+		s.watchPendingSamePriorityHotReload(ctx, priority)
+	})
+}
+
+func (s *FFStream) samePriorityHotReloadPendingLocked(
+	priority uint,
+) bool {
+	if s.pendingSamePriorityHotReload == nil {
+		return false
+	}
+	_, ok := s.pendingSamePriorityHotReload[priority]
+	return ok
+}
+
+func (s *FFStream) watchPendingSamePriorityHotReload(
+	ctx context.Context,
+	priority uint,
+) {
+	// Retryable exposes OnKernelOpen before KernelIsSet, but no
+	// post-KernelIsSet signal. Poll the nonblocking opened-Tee probe so
+	// the deferred reload stays out of Retryable's open callback.
+	ticker := time.NewTicker(samePriorityHotReloadCheckInterval)
+	defer ticker.Stop()
+	for {
+		state, ok := s.pendingSamePriorityHotReloadState(priority)
+		if !ok {
+			return
+		}
+		if state.expired(time.Now()) {
+			if s.stopPendingSamePriorityHotReloadIfGeneration(priority, state.generation) {
+				return
+			}
+			continue
+		}
+		chain, ok := s.pendingSamePriorityHotReloadChain(ctx, priority)
+		if !ok {
+			return
+		}
+		closeCh := chain.Input.Processor.Kernel.CloseChan()
+		select {
+		case <-closeCh:
+			s.stopPendingSamePriorityHotReload(priority)
+			return
+		default:
+		}
+		if inputChainKernelFailed(ctx, chain) {
+			s.stopPendingSamePriorityHotReload(priority)
+			return
+		}
+		if chain.IsPaused(ctx) {
+			s.stopPendingSamePriorityHotReload(priority)
+			return
+		}
+
+		openedLen, opened := inputChainOpenedTeeLen(ctx, chain)
+		if opened {
+			registeredLen, ok := s.registeredResourcesLen(ctx, priority)
+			if !ok {
+				s.stopPendingSamePriorityHotReload(priority)
+				return
+			}
+			state, ok = s.pendingSamePriorityHotReloadState(priority)
+			if !ok {
+				return
+			}
+			if state.needsReload() || registeredLen != openedLen {
+				// The opened Tee can have the right length but the wrong
+				// resource identities when RemoveInput overlaps the
+				// pending mid-open add. Force one reload per generation
+				// before accepting strict count-based catch-up.
+				if err := reloadPendingSamePriorityHotReloadInputChain(ctx, priority, chain); err != nil {
+					logger.Errorf(ctx, "unable to reload input chain at priority %d after mid-open hot-add: %v", priority, err)
+					if s.stopPendingSamePriorityHotReloadIfGeneration(priority, state.generation) {
+						return
+					}
+					continue
+				}
+				s.markPendingSamePriorityHotReloadReloaded(priority, state.generation)
+				continue
+			}
+			if s.finishPendingSamePriorityHotReloadIfSatisfied(ctx, priority, openedLen) {
+				return
+			}
+		}
+
+		select {
+		case <-closeCh:
+			s.stopPendingSamePriorityHotReload(priority)
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *FFStream) pendingSamePriorityHotReloadChain(
+	ctx context.Context,
+	priority uint,
+) (*InputChain, bool) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	if _, ok := s.pendingSamePriorityHotReload[priority]; !ok {
+		delete(s.runningSamePriorityHotReloadWatcher, priority)
+		return nil, false
+	}
+
+	return xsync.DoR2(ctx, &s.Inputs.InputChainsLocker, func() (*InputChain, bool) {
+		if int(priority) >= len(s.Inputs.InputChains) {
+			delete(s.pendingSamePriorityHotReload, priority)
+			delete(s.runningSamePriorityHotReloadWatcher, priority)
+			return nil, false
+		}
+		chain := s.Inputs.InputChains[priority]
+		if chain == nil {
+			delete(s.pendingSamePriorityHotReload, priority)
+			delete(s.runningSamePriorityHotReloadWatcher, priority)
+			return nil, false
+		}
+		return chain, true
+	})
+}
+
+func (s *FFStream) pendingSamePriorityHotReloadState(
+	priority uint,
+) (samePriorityHotReloadPendingState, bool) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	state, ok := s.pendingSamePriorityHotReload[priority]
+	return state, ok
+}
+
+func (s *FFStream) registeredResourcesLen(
+	ctx context.Context,
+	priority uint,
+) (int, bool) {
+	return xsync.DoR2(ctx, &s.Inputs.InputChainsLocker, func() (int, bool) {
+		if int(priority) >= len(s.InputsInfo) {
+			return 0, false
+		}
+		return len(s.InputsInfo[priority]), true
+	})
+}
+
+func inputChainOpenedTeeLen(
+	ctx context.Context,
+	chain *InputChain,
+) (int, bool) {
+	if chain == nil {
+		return 0, false
+	}
+	kernelWrapper := chain.Input.Processor.Kernel
+	lockCtx := xsync.WithEnableDeadlock(ctx, false)
+	if !kernelWrapper.KernelLocker.ManualTryLock(lockCtx) {
+		return 0, false
+	}
+	defer kernelWrapper.KernelLocker.ManualUnlock(lockCtx)
+	if !kernelWrapper.KernelIsSet || kernelWrapper.KernelError != nil || kernelWrapper.Kernel == nil {
+		return 0, false
+	}
+	return len(kernelWrapper.Kernel.Kernel0), true
+}
+
+func inputChainKernelFailed(
+	ctx context.Context,
+	chain *InputChain,
+) bool {
+	if chain == nil {
+		return false
+	}
+	kernelWrapper := chain.Input.Processor.Kernel
+	lockCtx := xsync.WithEnableDeadlock(ctx, false)
+	if !kernelWrapper.KernelLocker.ManualTryLock(lockCtx) {
+		return false
+	}
+	defer kernelWrapper.KernelLocker.ManualUnlock(lockCtx)
+	return kernelWrapper.KernelError != nil
+}
+
+func reloadInputChain(
+	ctx context.Context,
+	priority uint,
+	chain *InputChain,
+) error {
+	if err := chain.Pause(ctx); err != nil {
+		return fmt.Errorf("unable to pause input chain at priority %d for hot-reload: %w", priority, err)
+	}
+	if err := chain.Unpause(ctx); err != nil {
+		return fmt.Errorf("unable to unpause input chain at priority %d after hot-reload: %w", priority, err)
+	}
+	return nil
+}
+
+type inputChainReloadFunc func(context.Context, uint, *InputChain) error
+
+var (
+	pendingSamePriorityHotReloadReloadInputChain       inputChainReloadFunc = reloadInputChain
+	pendingSamePriorityHotReloadReloadInputChainLocker sync.Mutex
+)
+
+func reloadPendingSamePriorityHotReloadInputChain(
+	ctx context.Context,
+	priority uint,
+	chain *InputChain,
+) error {
+	pendingSamePriorityHotReloadReloadInputChainLocker.Lock()
+	reload := pendingSamePriorityHotReloadReloadInputChain
+	pendingSamePriorityHotReloadReloadInputChainLocker.Unlock()
+	return reload(ctx, priority, chain)
+}
+
+func (s *FFStream) markPendingSamePriorityHotReloadReloaded(
+	priority uint,
+	generation uint64,
+) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	state, ok := s.pendingSamePriorityHotReload[priority]
+	if !ok {
+		return
+	}
+	if state.reloadedGeneration < generation {
+		state.reloadedGeneration = generation
+	}
+	s.pendingSamePriorityHotReload[priority] = state
+}
+
+func (s *FFStream) finishPendingSamePriorityHotReloadIfSatisfied(
+	ctx context.Context,
+	priority uint,
+	openedLen int,
+) bool {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	state, ok := s.pendingSamePriorityHotReload[priority]
+	if !ok {
+		return true
+	}
+	if state.needsReload() {
+		return false
+	}
+	registeredLen, ok := s.registeredResourcesLen(ctx, priority)
+	if ok && registeredLen != openedLen {
+		return false
+	}
+	delete(s.pendingSamePriorityHotReload, priority)
+	delete(s.runningSamePriorityHotReloadWatcher, priority)
+	return true
+}
+
+func (s *FFStream) stopPendingSamePriorityHotReload(
+	priority uint,
+) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	delete(s.pendingSamePriorityHotReload, priority)
+	delete(s.runningSamePriorityHotReloadWatcher, priority)
+}
+
+func (s *FFStream) stopPendingSamePriorityHotReloadIfGeneration(
+	priority uint,
+	generation uint64,
+) bool {
+	s.locker.Lock()
+	defer s.locker.Unlock()
+	state, ok := s.pendingSamePriorityHotReload[priority]
+	if !ok {
+		delete(s.runningSamePriorityHotReloadWatcher, priority)
+		return true
+	}
+	if state.generation != generation {
+		return false
+	}
+	delete(s.pendingSamePriorityHotReload, priority)
+	delete(s.runningSamePriorityHotReloadWatcher, priority)
+	return true
 }
 
 func (s *FFStream) RemoveInput(
@@ -614,8 +959,14 @@ func (s *FFStream) SetOutputURL(
 	// still unsupported (senderFactory.NewSender requires exactly one).
 	switch len(s.OutputTemplates) {
 	case 0:
+		// Lazy-create the runtime template from scratch. Inherit the
+		// boot-time RetryOutputTimeoutOnFailure budget so the
+		// senderFactory takes the retry-loop newOutputWithRetry() path
+		// and a transient open failure does not collapse the runtime
+		// (see Config.DefaultRetryOutputTimeoutOnFailure doc).
 		s.OutputTemplates = append(s.OutputTemplates, SenderTemplate{
-			URLTemplate: url,
+			URLTemplate:                 url,
+			RetryOutputTimeoutOnFailure: s.Config.DefaultRetryOutputTimeoutOnFailure,
 		})
 		return nil
 	case 1:
@@ -629,6 +980,15 @@ func (s *FFStream) SetOutputURL(
 				return item.Key == "f" || item.Key == "format"
 			},
 		)
+		// Apply the retry default only when the existing template
+		// carries no explicit value: AddOutputTemplate callers that
+		// passed a non-zero RetryOutputTimeoutOnFailure are presumed
+		// authoritative and must NOT be overwritten. Zero ⇒ caller
+		// did not wire the field; inherit the boot-time default to
+		// avoid the same single-shot-newOutput() collapse as case 0.
+		if s.OutputTemplates[0].RetryOutputTimeoutOnFailure == 0 {
+			s.OutputTemplates[0].RetryOutputTimeoutOnFailure = s.Config.DefaultRetryOutputTimeoutOnFailure
+		}
 		return nil
 	default:
 		return fmt.Errorf("at most one output template is supported, got %d", len(s.OutputTemplates))

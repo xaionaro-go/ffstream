@@ -1,0 +1,4 @@
+# /etc/rc.local addition for the prod phone (172.29.222.3, ubuntu chroot).
+# Add these lines before "exit 0":
+/usr/local/bin/loop-run-ffstream.sh > /var/log/ffstream.log 2>&1 &
+/usr/local/bin/loop-run-ffstream-camera.sh > /var/log/ffstream-camera.log 2>&1 &

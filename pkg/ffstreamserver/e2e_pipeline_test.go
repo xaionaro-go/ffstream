@@ -74,7 +74,7 @@ func TestE2E_PipelineCopyCodecError(t *testing.T) {
 
 	shortPath, _ := ensureSharedInputs(t)
 
-	err := h.FFStream.AddInput(h.pipelineCtx, ffstream.Resource{
+	_, err := h.FFStream.AddInput(h.pipelineCtx, ffstream.Resource{
 		URL: shortPath,
 		InputConfig: kernel.InputConfig{
 			ForceRealTime: ptr(false),
@@ -183,7 +183,7 @@ func TestE2E_MultipleOutputTemplatesError(t *testing.T) {
 
 	shortPath, _ := ensureSharedInputs(t)
 
-	err := h.FFStream.AddInput(h.pipelineCtx, ffstream.Resource{
+	_, err := h.FFStream.AddInput(h.pipelineCtx, ffstream.Resource{
 		URL: shortPath,
 		InputConfig: kernel.InputConfig{
 			ForceRealTime: ptr(false),

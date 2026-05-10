@@ -112,6 +112,44 @@ func TestParseFlags_ExitOnLastInputRemoved(t *testing.T) {
 	require.True(t, flags.ExitOnLastInputRemoved)
 }
 
+// TestParseFlags_TCPMSS_InRange parses an in-range -tcp_mss flag and
+// pins it lands in Flags.TCPMSS unchanged. Guards the impl-1 type-
+// domain validator path under normal use.
+//
+// Broke-the-code-validation: replacing validateTCPMSS with a constant
+// (e.g. always 0) breaks this test.
+func TestParseFlags_TCPMSS_InRange(t *testing.T) {
+	args := []string{
+		"ffstream",
+		"-tcp_mss", "1200",
+		"-listen_control", "tcp:127.0.0.1:3594",
+	}
+	_, flags := parseFlags(args)
+	require.Equal(t, 1200, flags.TCPMSS,
+		"-tcp_mss=1200 must be preserved verbatim in Flags.TCPMSS")
+}
+
+// TestParseFlags_TCPMSS_OutOfRange_Fatal pins the impl-1 fix: a
+// -tcp_mss value above 65535 (the TCP MSS option's 16-bit unsigned
+// ceiling per RFC 793 §3.1) must be rejected at parseFlags before
+// reaching the int(uint64) narrowing. Caught via the test-only
+// fatal-as-panic injection in init().
+//
+// Broke-the-code-validation: removing validateTCPMSS or its bounds
+// check (e.g. silently casting uint64 → int with no validation) lets
+// TCPMSS=70000 land in Flags.TCPMSS, which the int() narrowing then
+// drops to a residual value depending on platform — silent corruption.
+func TestParseFlags_TCPMSS_OutOfRange_Fatal(t *testing.T) {
+	args := []string{
+		"ffstream",
+		"-tcp_mss", "70000",
+		"-listen_control", "tcp:127.0.0.1:3594",
+	}
+	if !runParseFlagsCatchFatal(t, args) {
+		t.Fatalf("parseFlags must fatal on -tcp_mss > 65535 (RFC 793 §3.1 16-bit limit); did not")
+	}
+}
+
 func TestParseFlags_Suppressed(t *testing.T) {
 	args := []string{"ffstream", "-suppressed", "true", "-i", "rtsp://input1", "rtmp://output"}
 	_, flags := parseFlags(args)

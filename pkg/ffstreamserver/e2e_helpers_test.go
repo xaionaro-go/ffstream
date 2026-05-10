@@ -175,7 +175,7 @@ func newTestHarness(t *testing.T, opts ...harnessOption) *testHarness {
 	s, err := ffstream.New(pipeCtx, ffstream.OptionInputRetryInterval(cfg.retryInterval))
 	require.NoError(t, err)
 
-	err = s.AddInput(pipeCtx, ffstream.Resource{
+	_, err = s.AddInput(pipeCtx, ffstream.Resource{
 		URL: cfg.inputPath,
 		InputConfig: kernel.InputConfig{
 			ForceRealTime: ptr(cfg.forceRealTime),

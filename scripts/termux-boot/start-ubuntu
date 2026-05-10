@@ -1,0 +1,67 @@
+#!/data/data/com.termux/files/usr/bin/sh
+#
+# Termux:Boot trigger for the ubuntu-chroot supervisor stack on the
+# prod phone. Re-mounts /data/ubuntu and re-launches the supervisors
+# after every Android reboot.
+#
+# Mirrors start-ffstream's pattern: thin Termux:Boot wrapper that
+# exec's the canonical project launcher. The supervised launch logic
+# itself lives in /data/ubuntu/start.sh on the device (operator-owned;
+# not vendored from this repo) — this script only invokes it under
+# root via su.
+#
+# Scope: verified on the akita-userdebug Android 16 test phone
+# (su at /system/xbin/su). On prod-phone, operator MUST verify the su
+# binary path before relying on this trigger:
+#     adb shell which su
+# If the prod-phone su path differs, override via the SU env var (set
+# from a Termux:Boot prelude script) or edit this trigger in place.
+#
+set -eu
+
+START_UBUNTU="${START_UBUNTU:-/data/ubuntu/start.sh}"
+# Default log path lives in the Termux home dir, NOT /data/local/tmp/.
+# Rationale: Termux:Boot fires this script in the untrusted_app SELinux
+# domain (u:r:untrusted_app_*); /data/local/tmp/ has the
+# `shell_test_data_file` SELinux label which untrusted_app cannot even
+# `search`, let alone create files in. An exec-redirect to a path
+# under /data/local/tmp/ aborts the script silently before the
+# wait-loop runs. The Termux home dir is owned by the same UID the
+# script runs as (u0_a190 on a single-user device) and is freely
+# writable from this domain.
+#
+# Operators running the script via `adb shell` (smoke-tests, manual
+# triggers) can override START_UBUNTU_LOG to /data/local/tmp/... —
+# that domain (u:r:shell:s0) has the right SELinux label.
+START_UBUNTU_LOG="${START_UBUNTU_LOG:-${HOME:-/data/data/com.termux/files/home}/start-ubuntu-boot.log}"
+SU="${SU:-/system/xbin/su}"
+
+# Redirect stdout+stderr to the log file BEFORE the wait-loop so any
+# failure inside the wait-loop (or in the exec itself) is captured.
+# Termux:Boot's own log is opaque/unreliable; this file is operator-
+# owned and grep-friendly.
+exec >> "$START_UBUNTU_LOG" 2>&1
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start-ubuntu: invoked"
+
+# Wait for /data/ubuntu/start.sh to exist (FBE / userdata decryption
+# may race with Termux:Boot firing). Print every iteration so partial
+# boot states are visible in the log even when wait-loop ultimately
+# succeeds.
+i=0
+while [ "$i" -lt 10 ]; do
+    if [ -f "$START_UBUNTU" ]; then
+        echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start-ubuntu: $START_UBUNTU present after ${i} retries"
+        break
+    fi
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start-ubuntu: $START_UBUNTU missing (retry $((i + 1))/10), sleeping 5s"
+    i=$((i + 1))
+    sleep 5
+done
+[ -f "$START_UBUNTU" ] || {
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start-ubuntu: $START_UBUNTU still missing after 10 retries; aborting" >&2
+    exit 1
+}
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] start-ubuntu: exec $SU 0 sh $START_UBUNTU"
+exec "$SU" 0 sh "$START_UBUNTU" < /dev/null

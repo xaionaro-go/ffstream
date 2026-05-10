@@ -60,9 +60,17 @@ func (srv *GRPCServer) GetCurrentOutput(
 ) (*ffstream_grpc.GetCurrentOutputReply, error) {
 	ctx = srv.ctx(ctx)
 	cfg := srv.FFStream.GetTranscoderConfig(ctx)
-	return &ffstream_grpc.GetCurrentOutputReply{
+	reply := &ffstream_grpc.GetCurrentOutputReply{
 		Config: goconv.TranscoderConfigToGRPC(cfg),
-	}, nil
+	}
+	autoBitRateCfg, err := srv.FFStream.GetAutoBitRateVideoConfig(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to get auto bitrate config: %v", err)
+	}
+	if autoBitRateCfg != nil {
+		reply.MaxBitRate = uint64(autoBitRateCfg.MaxBitRate)
+	}
+	return reply, nil
 }
 
 func (srv *GRPCServer) GetStats(
@@ -555,7 +563,32 @@ func (srv *GRPCServer) SwitchOutputByProps(
 	if err := srv.FFStream.SwitchOutputByProps(ctx, props); err != nil {
 		return nil, status.Errorf(codes.Unknown, "unable to switch output: %v", err)
 	}
+	if err := srv.applySwitchOutputMaxBitRate(ctx, req.GetMaxBitRate()); err != nil {
+		return nil, status.Errorf(codes.Unknown, "unable to apply max bitrate: %v", err)
+	}
 	return &ffstream_grpc.SwitchOutputByPropsReply{}, nil
+}
+
+func (srv *GRPCServer) applySwitchOutputMaxBitRate(
+	ctx context.Context,
+	maxBitRate uint64,
+) error {
+	if maxBitRate == 0 {
+		return nil
+	}
+	cfg, err := srv.FFStream.GetAutoBitRateVideoConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg == nil {
+		return nil
+	}
+	nextCfg := *cfg
+	nextCfg.MaxBitRate = streammuxtypes.Ubps(maxBitRate)
+	if nextCfg.MaxBitRate == cfg.MaxBitRate {
+		return nil
+	}
+	return srv.FFStream.SetAutoBitRateVideoConfig(ctx, &nextCfg)
 }
 
 func (srv *GRPCServer) SetOutputURL(
