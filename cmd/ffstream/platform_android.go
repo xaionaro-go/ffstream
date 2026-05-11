@@ -6,7 +6,7 @@ package main
 // platform_android.go provides Android-specific initialization.
 
 import (
-	"github.com/xaionaro-go/ndk/binderprocess"
+	"github.com/AndroidGoLab/ndk/binderprocess"
 )
 
 func platformInit() {

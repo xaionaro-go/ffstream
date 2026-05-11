@@ -10,6 +10,7 @@ replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250811
 
 require (
 	github.com/AgustinSRG/go-child-process-manager v1.0.1
+	github.com/AndroidGoLab/ndk v0.0.6-0.20260511000352-09f9c4990de9
 	github.com/asticode/go-astiav v0.36.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/dustin/go-humanize v1.0.1
@@ -27,7 +28,6 @@ require (
 	github.com/xaionaro-go/avpipeline v0.0.0-20260504224111-fc941d443f3d
 	github.com/xaionaro-go/buildvars v0.0.0-20250111161425-ed39f98139d0
 	github.com/xaionaro-go/libsrt v0.0.0-20251231191024-483a9dd27df8
-	github.com/xaionaro-go/ndk v0.0.0-20260314154134-02b59e1946bb
 	github.com/xaionaro-go/observability v0.0.0-20251102143534-3aeb2a25e57d
 	github.com/xaionaro-go/polyjson v0.0.0-20250825191950-a2ce35ee07f0
 	github.com/xaionaro-go/secret v0.0.0-20250111141743-ced12e1082c2
@@ -40,13 +40,13 @@ require (
 )
 
 require (
-	github.com/AndroidGoLab/ndk v0.0.3-0.20260316000240-e7dc81e12371 // indirect
 	github.com/brettbuddin/fourier v0.1.1 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/mjibson/go-dsp v0.0.0-20180508042940-11479a337f12 // indirect
 	github.com/xaionaro-go/datacounter v1.0.4 // indirect
+	github.com/xaionaro-go/ndk v0.0.0-20260314154134-02b59e1946bb // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -101,7 +101,7 @@ require (
 	github.com/xaionaro-go/tcp v0.0.0-20260103194940-f10157ebd88d
 	github.com/xaionaro-go/typing v0.0.0-20221123235249-2229101d38ba // indirect
 	github.com/xaionaro-go/unsafetools v0.0.0-20241024014258-a46e1ce3763e // indirect
-	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c // indirect
+	github.com/xaionaro-go/xcontext v0.0.0-20250111150717-e70e1f5b299c
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	gocv.io/x/gocv v0.41.0 // indirect
